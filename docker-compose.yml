@@ -148,6 +148,7 @@ services:
       FOSSBILLING_ADMIN_API_KEY: ${FOSSBILLING_ADMIN_API_KEY:-}
     volumes:
       - ./logs:/app/logs
+      - ./.env:/app/.env:ro
     networks:
       - opendomain-network
     healthcheck:
