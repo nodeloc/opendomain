@@ -28,7 +28,7 @@ services:
     image: redis:7-alpine
     container_name: opendomain-redis
     restart: unless-stopped
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-}
+    command: redis-server --appendonly yes
     volumes:
       - redis_data:/data
     ports:
