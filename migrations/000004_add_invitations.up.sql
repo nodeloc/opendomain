@@ -16,6 +16,6 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS invited_by BIGINT REFERENCES users(id
 ALTER TABLE users ADD COLUMN IF NOT EXISTS total_invites INT DEFAULT 0;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS successful_invites INT DEFAULT 0;
 
-CREATE INDEX idx_invitations_inviter ON invitations(inviter_id);
-CREATE INDEX idx_invitations_invitee ON invitations(invitee_id);
-CREATE INDEX idx_users_invited_by ON users(invited_by);
+CREATE INDEX IF NOT EXISTS idx_invitations_inviter ON invitations(inviter_id);
+CREATE INDEX IF NOT EXISTS idx_invitations_invitee ON invitations(invitee_id);
+CREATE INDEX IF NOT EXISTS idx_users_invited_by ON users(invited_by);
