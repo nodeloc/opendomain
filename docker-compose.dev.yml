@@ -1,0 +1,88 @@
+version: '3.8'
+
+# 开发环境 Docker Compose 配置
+# 用法: docker compose -f docker-compose.dev.yml up
+
+services:
+  # PostgreSQL 数据库（开发环境）
+  postgres-dev:
+    image: postgres:15-alpine
+    container_name: opendomain-postgres-dev
+    environment:
+      POSTGRES_DB: opendomain_dev
+      POSTGRES_USER: opendomain
+      POSTGRES_PASSWORD: opendomain123
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"  # 使用不同端口避免冲突
+    networks:
+      - opendomain-dev-network
+
+  # Redis（开发环境）
+  redis-dev:
+    image: redis:7-alpine
+    container_name: opendomain-redis-dev
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_dev_data:/data
+    ports:
+      - "6380:6379"  # 使用不同端口避免冲突
+    networks:
+      - opendomain-dev-network
+
+  # PowerDNS（开发环境 - 可选）
+  powerdns-dev:
+    image: psitrax/powerdns:latest
+    container_name: opendomain-powerdns-dev
+    environment:
+      MYSQL_HOST: mysql-dev
+      MYSQL_USER: powerdns
+      MYSQL_PASS: powerdns123
+      MYSQL_DB: powerdns
+    ports:
+      - "8081:8081"  # API
+      - "5300:53/tcp"  # DNS TCP
+      - "5300:53/udp"  # DNS UDP
+    depends_on:
+      - mysql-dev
+    networks:
+      - opendomain-dev-network
+    profiles:
+      - with-powerdns
+
+  # MySQL for PowerDNS（开发环境）
+  mysql-dev:
+    image: mariadb:10
+    container_name: opendomain-mysql-dev
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: powerdns
+      MYSQL_USER: powerdns
+      MYSQL_PASSWORD: powerdns123
+    volumes:
+      - mysql_dev_data:/var/lib/mysql
+    networks:
+      - opendomain-dev-network
+    profiles:
+      - with-powerdns
+
+  # Adminer（数据库管理工具）
+  adminer:
+    image: adminer:latest
+    container_name: opendomain-adminer
+    ports:
+      - "8082:8080"
+    networks:
+      - opendomain-dev-network
+    profiles:
+      - with-tools
+
+volumes:
+  postgres_dev_data:
+  redis_dev_data:
+  mysql_dev_data:
+
+networks:
+  opendomain-dev-network:
+    driver: bridge

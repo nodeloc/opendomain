@@ -1,0 +1,75 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# 环境变量
+.env
+.env.*
+
+# 编译输出
+opendomain
+*.exe
+*.dll
+*.so
+*.dylib
+
+# 测试和覆盖
+*.test
+*.out
+coverage.*
+
+# 日志
+logs/
+*.log
+nohup.out
+
+# 数据库
+*.db
+*.sqlite*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+web/dist/
+web/dist-ssr/
+web/*.local
+
+# 临时文件
+tmp/
+temp/
+*.tmp
+*.bak
+*.backup
+
+# Docker
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# 文档
+*.md
+!README.md
+docs/
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+
+# 部署脚本
+deploy.sh
+docker-deploy.sh
+*.service
+
+# 其他
+test-*.sh
+backup_*

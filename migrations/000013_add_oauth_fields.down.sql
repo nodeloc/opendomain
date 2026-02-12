@@ -1,0 +1,4 @@
+DROP INDEX IF EXISTS idx_users_oauth;
+ALTER TABLE users ALTER COLUMN password_hash SET NOT NULL;
+ALTER TABLE users DROP COLUMN IF EXISTS oauth_id;
+ALTER TABLE users DROP COLUMN IF EXISTS provider;

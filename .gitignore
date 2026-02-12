@@ -1,0 +1,77 @@
+# 环境变量文件
+.env
+.env.local
+.env.*.local
+
+# 编译输出
+opendomain
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Go 测试和覆盖
+*.test
+*.out
+coverage.txt
+coverage.html
+
+# Go 依赖
+vendor/
+go.work
+go.work.sum
+
+# 日志文件
+logs/
+*.log
+nohup.out
+
+# 数据库文件
+*.db
+*.sqlite
+*.sqlite3
+
+# IDE 配置
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# 前端构建输出
+web/dist/
+web/dist-ssr/
+web/*.local
+
+# 临时文件
+tmp/
+temp/
+*.tmp
+
+# 备份文件
+*.bak
+*.backup
+backup_*
+
+# 密钥和证书
+*.pem
+*.key
+*.crt
+*.csr
+
+# 上传文件目录（如果有）
+uploads/
+public/uploads/
+
+# 测试文件
+test-*.sh

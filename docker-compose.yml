@@ -1,0 +1,188 @@
+version: '3.8'
+
+services:
+  # PostgreSQL 数据库
+  postgres:
+    image: postgres:15-alpine
+    container_name: opendomain-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-opendomain}
+      POSTGRES_USER: ${DB_USER:-opendomain}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-opendomain123}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --locale=C"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-opendomain}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - opendomain-network
+
+  # Redis 缓存
+  redis:
+    image: redis:7-alpine
+    container_name: opendomain-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-}
+    volumes:
+      - redis_data:/data
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - opendomain-network
+
+  # 数据库迁移（初始化）
+  migrate:
+    image: migrate/migrate:latest
+    container_name: opendomain-migrate
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./migrations:/migrations
+    environment:
+      DATABASE_URL: postgres://${DB_USER:-opendomain}:${DB_PASSWORD:-opendomain123}@postgres:5432/${DB_NAME:-opendomain}?sslmode=disable
+    command: ["-path", "/migrations", "-database", "${DATABASE_URL}", "up"]
+    networks:
+      - opendomain-network
+    restart: on-failure
+
+  # OpenDomain 应用
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: opendomain-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      - "${PORT:-8000}:8000"
+    environment:
+      # 应用配置
+      APP_ENV: ${APP_ENV:-production}
+      PORT: ${PORT:-8000}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3001}
+      
+      # 站点配置
+      SITE_NAME: ${SITE_NAME:-OpenDomain}
+      SITE_DESCRIPTION: ${SITE_DESCRIPTION:-Free Domain Registration Platform}
+      
+      # 数据库配置（连接到 postgres 服务）
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-opendomain}
+      DB_PASSWORD: ${DB_PASSWORD:-opendomain123}
+      DB_NAME: ${DB_NAME:-opendomain}
+      DB_SSL_MODE: disable
+      
+      # Redis 配置（连接到 redis 服务）
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: ${REDIS_DB:-0}
+      
+      # JWT 配置
+      JWT_SECRET: ${JWT_SECRET:-change-this-secret-key}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-2}
+      
+      # PowerDNS 配置
+      POWERDNS_API_URL: ${POWERDNS_API_URL:-http://host.docker.internal:8081}
+      POWERDNS_API_KEY: ${POWERDNS_API_KEY:-}
+      
+      # 邮件配置
+      MAIL_HOST: ${MAIL_HOST:-}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USER: ${MAIL_USER:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:-noreply@opendomain.com}
+      
+      # OAuth 配置
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      NODELOC_CLIENT_ID: ${NODELOC_CLIENT_ID:-}
+      NODELOC_CLIENT_SECRET: ${NODELOC_CLIENT_SECRET:-}
+      
+      # 扫描器配置
+      SCANNER_CONCURRENCY: ${SCANNER_CONCURRENCY:-10}
+      SCANNER_TIMEOUT: ${SCANNER_TIMEOUT:-30}
+      
+      # 安全扫描 API
+      GOOGLE_SAFE_BROWSING_KEY: ${GOOGLE_SAFE_BROWSING_KEY:-}
+      VIRUSTOTAL_API_KEY: ${VIRUSTOTAL_API_KEY:-}
+      
+      # 默认 NS
+      DEFAULT_NS1: ${DEFAULT_NS1:-ns1.example.com}
+      DEFAULT_NS2: ${DEFAULT_NS2:-ns2.example.com}
+      
+      # NodeLoc 支付
+      NODELOC_PAYMENT_ID: ${NODELOC_PAYMENT_ID:-}
+      NODELOC_SECRET_KEY: ${NODELOC_SECRET_KEY:-}
+      
+      # Telegram Bot
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_CHANNEL_ID: ${TELEGRAM_CHANNEL_ID:-}
+      
+      # FOSSBilling 集成
+      FOSSBILLING_ENABLED: ${FOSSBILLING_ENABLED:-false}
+      FOSSBILLING_URL: ${FOSSBILLING_URL:-}
+      FOSSBILLING_ADMIN_API_KEY: ${FOSSBILLING_ADMIN_API_KEY:-}
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - opendomain-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Nginx 反向代理（可选）
+  nginx:
+    image: nginx:alpine
+    container_name: opendomain-nginx
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./web/dist:/usr/share/nginx/html:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./logs/nginx:/var/log/nginx
+    networks:
+      - opendomain-network
+    profiles:
+      - with-nginx
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  opendomain-network:
+    driver: bridge

@@ -1,0 +1,19 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 自定义全局样式 */
+body {
+  @apply bg-base-100 text-base-content;
+}
+
+/* 自定义组件样式 */
+@layer components {
+  .btn-primary-gradient {
+    @apply bg-gradient-to-r from-primary to-secondary text-white;
+  }
+
+  .card-hover {
+    @apply transition-all duration-300 hover:shadow-xl hover:-translate-y-1;
+  }
+}
