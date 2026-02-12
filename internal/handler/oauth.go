@@ -55,7 +55,12 @@ func (h *OAuthHandler) googleOAuthConfig() *oauth2.Config {
 }
 
 func (h *OAuthHandler) getBackendURL() string {
-	return fmt.Sprintf("http://localhost:%s", h.cfg.Port)
+	// 使用 FRONTEND_URL，移除尾部斜杠
+	baseURL := h.cfg.FrontendURL
+	if len(baseURL) > 0 && baseURL[len(baseURL)-1] == '/' {
+		baseURL = baseURL[:len(baseURL)-1]
+	}
+	return baseURL
 }
 
 func generateState() string {
