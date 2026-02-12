@@ -149,6 +149,7 @@ services:
     volumes:
       - ./logs:/app/logs
       - ./.env:/app/.env:ro
+      - frontend_dist:/app/web/dist
     networks:
       - opendomain-network
     healthcheck:
@@ -166,12 +167,12 @@ services:
     depends_on:
       - app
     ports:
-      - "80:80"
-      - "443:443"
+      - "8080:80"
+      - "8443:443"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
-      - ./web/dist:/usr/share/nginx/html:ro
+      - frontend_dist:/usr/share/nginx/html:ro
       - ./nginx/ssl:/etc/nginx/ssl:ro
       - ./logs/nginx:/var/log/nginx
     networks:
@@ -183,6 +184,8 @@ volumes:
   postgres_data:
     driver: local
   redis_data:
+    driver: local
+  frontend_dist:
     driver: local
 
 networks:
