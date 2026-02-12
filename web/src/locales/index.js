@@ -28,7 +28,11 @@ const i18n = createI18n({
   locale: getLocale(),
   fallbackLocale: 'zh-CN',
   messages,
-  globalInjection: true
+  globalInjection: true,
+  missingWarn: false,
+  fallbackWarn: false,
+  silentTranslationWarn: true,
+  silentFallbackWarn: true
 })
 
 export default i18n
