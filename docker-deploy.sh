@@ -117,10 +117,16 @@ stop_containers() {
 start_services() {
     echo ""
     echo -e "${GREEN}[6/7] 启动服务...${NC}"
-    
+
     # 启动服务（后台运行）
     $DOCKER_COMPOSE up -d
-    
+
+    # 启动 nginx（如果需要）
+    if [ "$WITH_NGINX" = true ]; then
+        echo "启动 Nginx..."
+        $DOCKER_COMPOSE --profile with-nginx up -d nginx
+    fi
+
     echo "✓ 服务已启动"
 }
 
@@ -158,12 +164,17 @@ view_logs() {
 
 # 处理命令行参数
 FORCE_BUILD=false
+WITH_NGINX=false
 ACTION="deploy"
 
 while [[ $# -gt 0 ]]; do
     case $1 in
         --build)
             FORCE_BUILD=true
+            shift
+            ;;
+        --with-nginx)
+            WITH_NGINX=true
             shift
             ;;
         --down)
@@ -180,7 +191,7 @@ while [[ $# -gt 0 ]]; do
             ;;
         *)
             echo -e "${RED}未知参数: $1${NC}"
-            echo "用法: $0 [--build] [--down] [--logs] [--restart]"
+            echo "用法: $0 [--build] [--with-nginx] [--down] [--logs] [--restart]"
             exit 1
             ;;
     esac
