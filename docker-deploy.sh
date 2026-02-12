@@ -128,6 +128,7 @@ start_services() {
     fi
 
     echo "✓ 服务已启动"
+    echo "提示: 前端文件已通过共享 volume 自动提供给 nginx"
 }
 
 # 显示状态
