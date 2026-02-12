@@ -103,7 +103,7 @@ import { useSiteConfigStore } from '../stores/siteConfig'
 const router = useRouter()
 const authStore = useAuthStore()
 const siteConfigStore = useSiteConfigStore()
-const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+const apiBase = import.meta.env.VITE_API_BASE_URL || ''
 
 const siteConfig = computed(() => ({
   oauth: siteConfigStore.oauth,

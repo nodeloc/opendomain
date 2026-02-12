@@ -52,6 +52,7 @@ lerna-debug.log*
 web/dist/
 web/dist-ssr/
 web/*.local
+web/.env
 
 # 临时文件
 tmp/
