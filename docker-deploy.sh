@@ -121,14 +121,34 @@ start_services() {
     # 启动服务（后台运行）
     $DOCKER_COMPOSE up -d
 
-    # 启动 nginx（如果需要）
-    if [ "$WITH_NGINX" = true ]; then
-        echo "启动 Nginx..."
-        $DOCKER_COMPOSE --profile with-nginx up -d nginx
-    fi
-
     echo "✓ 服务已启动"
-    echo "提示: 前端文件已通过共享 volume 自动提供给 nginx"
+}
+
+# 复制前端文件
+copy_frontend() {
+    echo ""
+    echo -e "${GREEN}[6.5/7] 复制前端文件到宿主机...${NC}"
+
+    # 等待应用容器启动
+    sleep 3
+
+    # 创建目标目录
+    FRONTEND_DIR="$PROJECT_DIR/public"
+    mkdir -p "$FRONTEND_DIR"
+
+    # 从容器复制前端文件
+    if docker cp opendomain-app:/app/web/dist/. "$FRONTEND_DIR/"; then
+        echo "✓ 前端文件已复制到: $FRONTEND_DIR"
+        echo ""
+        echo "请在您的 Nginx 配置中将网站根目录指向: $FRONTEND_DIR"
+        echo "并配置反向代理："
+        echo "  location /api {"
+        echo "    proxy_pass http://localhost:8000;"
+        echo "  }"
+    else
+        echo -e "${RED}✗ 复制前端文件失败${NC}"
+        echo "您可以手动复制: docker cp opendomain-app:/app/web/dist/. ./public/"
+    fi
 }
 
 # 显示状态
@@ -145,8 +165,15 @@ show_status() {
     echo -e "${GREEN}=========================================${NC}"
     echo ""
     echo "服务访问地址："
-    echo "  - 应用: http://localhost:8000"
+    echo "  - API 后端: http://localhost:8000"
     echo "  - 健康检查: http://localhost:8000/health"
+    echo "  - 前端文件: $PROJECT_DIR/public/"
+    echo ""
+    echo "Nginx 配置示例："
+    echo "  root $PROJECT_DIR/public;"
+    echo "  location /api {"
+    echo "    proxy_pass http://localhost:8000;"
+    echo "  }"
     echo ""
     echo "常用命令："
     echo "  查看日志: $DOCKER_COMPOSE logs -f"
@@ -154,6 +181,7 @@ show_status() {
     echo "  重启服务: $DOCKER_COMPOSE restart"
     echo "  停止服务: $DOCKER_COMPOSE down"
     echo "  进入容器: $DOCKER_COMPOSE exec app sh"
+    echo "  复制前端: docker cp opendomain-app:/app/web/dist/. ./public/"
     echo ""
 }
 
@@ -165,17 +193,12 @@ view_logs() {
 
 # 处理命令行参数
 FORCE_BUILD=false
-WITH_NGINX=false
 ACTION="deploy"
 
 while [[ $# -gt 0 ]]; do
     case $1 in
         --build)
             FORCE_BUILD=true
-            shift
-            ;;
-        --with-nginx)
-            WITH_NGINX=true
             shift
             ;;
         --down)
@@ -192,7 +215,7 @@ while [[ $# -gt 0 ]]; do
             ;;
         *)
             echo -e "${RED}未知参数: $1${NC}"
-            echo "用法: $0 [--build] [--with-nginx] [--down] [--logs] [--restart]"
+            echo "用法: $0 [--build] [--down] [--logs] [--restart]"
             exit 1
             ;;
     esac
@@ -207,6 +230,7 @@ case $ACTION in
         build_images
         stop_containers
         start_services
+        copy_frontend
         show_status
         ;;
     down)

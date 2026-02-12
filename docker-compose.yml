@@ -149,7 +149,6 @@ services:
     volumes:
       - ./logs:/app/logs
       - ./.env:/app/.env:ro
-      - frontend_dist:/shared/dist
     networks:
       - opendomain-network
     healthcheck:
@@ -159,32 +158,10 @@ services:
       retries: 3
       start_period: 40s
 
-  # Nginx 反向代理（可选）
-  nginx:
-    image: nginx:alpine
-    container_name: opendomain-nginx
-    restart: unless-stopped
-    depends_on:
-      - app
-    ports:
-      - "8080:80"
-      - "8443:443"
-    volumes:
-      - ./nginx/conf.d:/etc/nginx/conf.d:ro
-      - frontend_dist:/usr/share/nginx/html:ro
-      - ./nginx/ssl:/etc/nginx/ssl:ro
-      - ./logs/nginx:/var/log/nginx
-    networks:
-      - opendomain-network
-    profiles:
-      - with-nginx
-
 volumes:
   postgres_data:
     driver: local
   redis_data:
-    driver: local
-  frontend_dist:
     driver: local
 
 networks:

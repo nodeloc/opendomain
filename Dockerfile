@@ -57,12 +57,8 @@ COPY --from=backend-builder /app/opendomain .
 COPY --from=frontend-builder /app/web/dist ./web/dist
 COPY --chown=appuser:appuser migrations ./migrations
 
-# 复制启动脚本
-COPY docker-entrypoint.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
-
-# 创建日志目录和共享目录
-RUN mkdir -p logs /shared/dist && chown -R appuser:appuser /app /shared
+# 创建日志目录
+RUN mkdir -p logs && chown -R appuser:appuser /app
 
 # 切换到非 root 用户
 USER appuser
@@ -73,9 +69,6 @@ EXPOSE 8000
 # 健康检查
 HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
   CMD curl -f http://localhost:8000/health || exit 1
-
-# 使用 entrypoint 脚本
-ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 
 # 启动应用
 CMD ["./opendomain"]
