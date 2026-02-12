@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # PostgreSQL 数据库
   postgres:
@@ -50,9 +48,12 @@ services:
         condition: service_healthy
     volumes:
       - ./migrations:/migrations
-    environment:
-      DATABASE_URL: postgres://${DB_USER:-opendomain}:${DB_PASSWORD:-opendomain123}@postgres:5432/${DB_NAME:-opendomain}?sslmode=disable
-    command: ["-path", "/migrations", "-database", "${DATABASE_URL}", "up"]
+    command:
+      - "-path"
+      - "/migrations"
+      - "-database"
+      - "postgres://${DB_USER:-opendomain}:${DB_PASSWORD:-opendomain123}@postgres:5432/${DB_NAME:-opendomain}?sslmode=disable"
+      - "up"
     networks:
       - opendomain-network
     restart: on-failure
