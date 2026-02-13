@@ -7,11 +7,10 @@ BEGIN;
 -- 创建临时表存储需要修复的域名
 CREATE TEMP TABLE temp_fix_domains AS
 SELECT DISTINCT
-    dss.id as summary_id,
     dss.domain_id,
     d.full_domain,
     d.status as domain_status,
-    dss.virus_total_status,
+    dss.virustotal_status,
     ds.status as vt_scan_status,
     ds.error_message as vt_error,
     ds.scan_details
@@ -25,7 +24,7 @@ LEFT JOIN LATERAL (
     ORDER BY scanned_at DESC
     LIMIT 1
 ) ds ON true
-WHERE dss.virus_total_status = 'malicious'
+WHERE dss.virustotal_status = 'malicious'
   AND (ds.status IN ('failed', 'quota_exceeded') OR ds.status IS NULL);
 
 -- 显示将要修复的域名
@@ -46,10 +45,10 @@ LIMIT 20;
 -- 1. 更新 domain_scan_summaries: 将错误的 malicious 改为 unknown
 UPDATE domain_scan_summaries dss
 SET
-    virus_total_status = 'unknown',
+    virustotal_status = 'unknown',
     updated_at = NOW()
 FROM temp_fix_domains tfd
-WHERE dss.id = tfd.summary_id;
+WHERE dss.domain_id = tfd.domain_id;
 
 SELECT
     '已更新 domain_scan_summaries' as step,
@@ -71,7 +70,7 @@ SET
     END,
     updated_at = NOW()
 FROM temp_fix_domains tfd
-WHERE dss.id = tfd.summary_id;
+WHERE dss.domain_id = tfd.domain_id;
 
 SELECT
     '已重新计算 overall_health' as step,
@@ -104,11 +103,11 @@ SELECT
 
 SELECT
     'VirusTotal 状态分布' as category,
-    virus_total_status,
+    virustotal_status,
     COUNT(*) as count
 FROM domain_scan_summaries
 WHERE domain_id IN (SELECT domain_id FROM temp_fix_domains)
-GROUP BY virus_total_status;
+GROUP BY virustotal_status;
 
 SELECT
     '整体健康状态分布' as category,
