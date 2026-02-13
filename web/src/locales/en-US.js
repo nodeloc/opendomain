@@ -455,6 +455,8 @@ export default {
   health: {
     title: 'Domain Health Monitor',
     subtitle: 'Real-time health status of all domains',
+    search: 'Search',
+    searchPlaceholder: 'Search domains...',
     overallStatus: 'Overall Status',
     healthy: 'Healthy',
     degraded: 'Degraded',

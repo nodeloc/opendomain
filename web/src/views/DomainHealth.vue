@@ -29,6 +29,26 @@
       </div>
     </div>
 
+    <!-- Search Bar -->
+    <div class="card bg-base-100 shadow-xl">
+      <div class="card-body">
+        <div class="form-control">
+          <div class="input-group">
+            <input
+              v-model="searchQuery"
+              type="text"
+              :placeholder="$t('health.searchPlaceholder') || 'Search domains...'"
+              class="input input-bordered w-full"
+              @keyup.enter="handleSearch"
+            />
+            <button class="btn btn-primary" @click="handleSearch">
+              {{ $t('health.search') || 'Search' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Health Reports -->
     <div v-if="loading" class="flex justify-center py-12">
       <span class="loading loading-spinner loading-lg"></span>
@@ -42,7 +62,8 @@
       </div>
     </div>
 
-    <div v-else class="overflow-x-auto">
+    <div v-else class="space-y-6">
+      <div class="overflow-x-auto">
       <table class="table table-zebra w-full">
         <thead>
           <tr>
@@ -124,6 +145,40 @@
           </tr>
         </tbody>
       </table>
+      </div>
+
+      <!-- Pagination -->
+      <div v-if="pagination.total_pages > 1" class="flex justify-center mt-6">
+        <div class="join">
+          <button
+            class="join-item btn"
+            :disabled="pagination.page === 1"
+            @click="goToPage(pagination.page - 1)"
+          >
+            «
+          </button>
+          <template v-for="(page, index) in visiblePages" :key="index">
+            <button
+              v-if="typeof page === 'number'"
+              class="join-item btn"
+              :class="{ 'btn-active': page === pagination.page }"
+              @click="goToPage(page)"
+            >
+              {{ page }}
+            </button>
+            <button v-else class="join-item btn btn-disabled">
+              ...
+            </button>
+          </template>
+          <button
+            class="join-item btn"
+            :disabled="pagination.page === pagination.total_pages"
+            @click="goToPage(pagination.page + 1)"
+          >
+            »
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Details Modal -->
@@ -171,7 +226,7 @@
 
           <div v-else-if="scans.length > 0">
             <h4 class="font-bold text-lg mb-3">{{ $t('health.recentScans') }}</h4>
-            <div class="overflow-x-auto max-h-96">
+            <div class="overflow-x-auto">
               <table class="table table-sm">
                 <thead>
                   <tr>
@@ -220,7 +275,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import axios from '../utils/axios'
 
@@ -232,6 +287,13 @@ const loading = ref(true)
 const selectedReport = ref(null)
 const scans = ref([])
 const loadingScans = ref(false)
+const searchQuery = ref('')
+const pagination = ref({
+  page: 1,
+  page_size: 20,
+  total: 0,
+  total_pages: 0,
+})
 
 onMounted(async () => {
   await Promise.all([fetchHealthReports(), fetchStatistics()])
@@ -240,17 +302,72 @@ onMounted(async () => {
 const fetchHealthReports = async () => {
   loading.value = true
   try {
-    const response = await axios.get('/api/public/domain-health')
-    // Only show domains with issues (not healthy)
-    healthReports.value = (response.data.health_reports || []).filter(report =>
-      report.overall_health !== 'healthy'
-    )
+    const params = {
+      page: pagination.value.page,
+      page_size: pagination.value.page_size,
+    }
+    if (searchQuery.value) {
+      params.search = searchQuery.value
+    }
+    const response = await axios.get('/api/public/domain-health', { params })
+    healthReports.value = response.data.health_reports || []
+    if (response.data.pagination) {
+      pagination.value = response.data.pagination
+    }
   } catch (error) {
     console.error('Failed to fetch health reports:', error)
   } finally {
     loading.value = false
   }
 }
+
+const handleSearch = () => {
+  pagination.value.page = 1
+  fetchHealthReports()
+}
+
+const goToPage = (page) => {
+  if (page >= 1 && page <= pagination.value.total_pages) {
+    pagination.value.page = page
+    fetchHealthReports()
+  }
+}
+
+const visiblePages = computed(() => {
+  const current = pagination.value.page
+  const total = pagination.value.total_pages
+  const pages = []
+
+  if (total <= 7) {
+    for (let i = 1; i <= total; i++) {
+      pages.push(i)
+    }
+  } else {
+    if (current <= 4) {
+      for (let i = 1; i <= 5; i++) {
+        pages.push(i)
+      }
+      pages.push('...')
+      pages.push(total)
+    } else if (current >= total - 3) {
+      pages.push(1)
+      pages.push('...')
+      for (let i = total - 4; i <= total; i++) {
+        pages.push(i)
+      }
+    } else {
+      pages.push(1)
+      pages.push('...')
+      for (let i = current - 1; i <= current + 1; i++) {
+        pages.push(i)
+      }
+      pages.push('...')
+      pages.push(total)
+    }
+  }
+
+  return pages.filter(p => p !== '...' || pages.indexOf(p) === pages.lastIndexOf(p))
+})
 
 const fetchStatistics = async () => {
   try {
@@ -420,12 +537,19 @@ const maskDomain = (domain) => {
   // Get the subdomain (first part)
   const subdomain = parts[0]
 
-  // If subdomain is too short, don't mask
-  if (subdomain.length <= 3) {
+  // If subdomain is too short (1-2 chars), don't mask
+  if (subdomain.length <= 2) {
     return domain
   }
 
-  // Show first 2 characters and last character, mask the middle
+  // For 3-character subdomains: show first and last, mask middle
+  if (subdomain.length === 3) {
+    const maskedSubdomain = subdomain.substring(0, 1) + '**' + subdomain.substring(2)
+    parts[0] = maskedSubdomain
+    return parts.join('.')
+  }
+
+  // For longer subdomains: show first 2 and last 1, mask the middle
   const maskedSubdomain = subdomain.substring(0, 2) + '****' + subdomain.substring(subdomain.length - 1)
 
   // Reconstruct the domain

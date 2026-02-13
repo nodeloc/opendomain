@@ -455,6 +455,8 @@ export default {
   health: {
     title: '域名健康监控',
     subtitle: '所有域名的实时健康状态',
+    search: '搜索',
+    searchPlaceholder: '搜索域名...',
     overallStatus: '总体状态',
     healthy: '健康',
     degraded: '降级',

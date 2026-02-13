@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -21,8 +22,46 @@ func NewDomainScanHandler(db *gorm.DB, cfg *config.Config) *DomainScanHandler {
 
 // ListDomainHealth 获取所有域名健康状态 (公开)
 func (h *DomainScanHandler) ListDomainHealth(c *gin.Context) {
+	// 获取查询参数
+	page := c.DefaultQuery("page", "1")
+	pageSize := c.DefaultQuery("page_size", "20")
+	search := c.Query("search")
+
+	// 解析分页参数
+	var pageInt, pageSizeInt int
+	if _, err := fmt.Sscanf(page, "%d", &pageInt); err != nil || pageInt < 1 {
+		pageInt = 1
+	}
+	if _, err := fmt.Sscanf(pageSize, "%d", &pageSizeInt); err != nil || pageSizeInt < 1 {
+		pageSizeInt = 20
+	}
+	if pageSizeInt > 100 {
+		pageSizeInt = 100
+	}
+
+	// 构建查询
+	query := h.db.Model(&models.DomainScanSummary{}).Preload("Domain")
+
+	// 如果有搜索关键词，通过域名名称搜索
+	if search != "" {
+		query = query.Joins("JOIN domains ON domains.id = domain_scan_summaries.domain_id").
+			Where("domains.name LIKE ?", "%"+search+"%")
+	}
+
+	// 获取总数
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to count domain health"})
+		return
+	}
+
+	// 分页查询
 	var summaries []models.DomainScanSummary
-	if err := h.db.Preload("Domain").Order("last_scanned_at DESC").Find(&summaries).Error; err != nil {
+	offset := (pageInt - 1) * pageSizeInt
+	if err := query.Order("last_scanned_at DESC").
+		Offset(offset).
+		Limit(pageSizeInt).
+		Find(&summaries).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch domain health"})
 		return
 	}
@@ -32,7 +71,18 @@ func (h *DomainScanHandler) ListDomainHealth(c *gin.Context) {
 		responses[i] = summary.ToResponse()
 	}
 
-	c.JSON(http.StatusOK, gin.H{"health_reports": responses})
+	// 计算总页数
+	totalPages := int((total + int64(pageSizeInt) - 1) / int64(pageSizeInt))
+
+	c.JSON(http.StatusOK, gin.H{
+		"health_reports": responses,
+		"pagination": gin.H{
+			"page":        pageInt,
+			"page_size":   pageSizeInt,
+			"total":       total,
+			"total_pages": totalPages,
+		},
+	})
 }
 
 // GetDomainHealth 获取单个域名健康状态
