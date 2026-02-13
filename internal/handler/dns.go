@@ -130,7 +130,7 @@ func (h *DNSHandler) CreateRecord(c *gin.Context) {
 	// 检查是否使用自定义 nameservers
 	if !domain.UseDefaultNameservers {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Cannot manage DNS records for domains using custom nameservers. Please manage DNS records on your custom nameserver.",
+			"error":         "Cannot manage DNS records for domains using custom nameservers. Please manage DNS records on your custom nameserver.",
 			"use_custom_ns": true,
 		})
 		return
@@ -240,7 +240,7 @@ func (h *DNSHandler) UpdateRecord(c *gin.Context) {
 	// 检查是否使用自定义 nameservers
 	if !domain.UseDefaultNameservers {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Cannot manage DNS records for domains using custom nameservers. Please manage DNS records on your custom nameserver.",
+			"error":         "Cannot manage DNS records for domains using custom nameservers. Please manage DNS records on your custom nameserver.",
 			"use_custom_ns": true,
 		})
 		return
@@ -328,7 +328,7 @@ func (h *DNSHandler) DeleteRecord(c *gin.Context) {
 	// 检查是否使用自定义 nameservers
 	if !domain.UseDefaultNameservers {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Cannot manage DNS records for domains using custom nameservers. Please manage DNS records on your custom nameserver.",
+			"error":         "Cannot manage DNS records for domains using custom nameservers. Please manage DNS records on your custom nameserver.",
 			"use_custom_ns": true,
 		})
 		return
@@ -415,7 +415,7 @@ func (h *DNSHandler) syncRecordSetToPowerDNS(record *models.DNSRecord, domain *m
 	if domain.RootDomain == nil {
 		return
 	}
-	zoneDomain := domain.RootDomain.Domain
+	zoneDomain := domain.FullDomain
 	recordFQDN := buildRecordFQDN(record.Name, domain.FullDomain)
 
 	// 查询同 domain+name+type 的所有活跃记录
@@ -466,7 +466,7 @@ func (h *DNSHandler) deleteRecordFromPowerDNS(record *models.DNSRecord, domain *
 	if domain.RootDomain == nil {
 		return
 	}
-	zoneDomain := domain.RootDomain.Domain
+	zoneDomain := domain.FullDomain
 	recordFQDN := buildRecordFQDN(record.Name, domain.FullDomain)
 
 	// 查询同 name+type 的剩余活跃记录
@@ -495,6 +495,7 @@ func (h *DNSHandler) deleteRecordFromPowerDNS(record *models.DNSRecord, domain *
 
 	h.updateDomainSyncStatus(record.DomainID)
 }
+
 // SyncFromPowerDNS 从 PowerDNS 同步所有 DNS 记录到数据库
 func (h *DNSHandler) SyncFromPowerDNS(c *gin.Context) {
 	userID, exists := middleware.GetUserID(c)
@@ -525,14 +526,14 @@ func (h *DNSHandler) SyncFromPowerDNS(c *gin.Context) {
 	// 检查是否使用自定义 nameservers
 	if !domain.UseDefaultNameservers {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Cannot sync DNS records for domains using custom nameservers. DNS records are managed on your custom nameserver, not in our PowerDNS system.",
+			"error":         "Cannot sync DNS records for domains using custom nameservers. DNS records are managed on your custom nameserver, not in our PowerDNS system.",
 			"use_custom_ns": true,
 		})
 		return
 	}
 
 	// 从 PowerDNS 获取 zone 信息
-	zone, err := h.pdns.GetZone(domain.RootDomain.Domain)
+	zone, err := h.pdns.GetZone(domain.FullDomain)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to fetch zone from PowerDNS: %v", err)})
 		return
