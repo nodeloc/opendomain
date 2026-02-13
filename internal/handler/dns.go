@@ -127,6 +127,15 @@ func (h *DNSHandler) CreateRecord(c *gin.Context) {
 		return
 	}
 
+	// 检查是否使用自定义 nameservers
+	if !domain.UseDefaultNameservers {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Cannot manage DNS records for domains using custom nameservers. Please manage DNS records on your custom nameserver.",
+			"use_custom_ns": true,
+		})
+		return
+	}
+
 	var req models.DNSRecordCreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -228,6 +237,15 @@ func (h *DNSHandler) UpdateRecord(c *gin.Context) {
 		return
 	}
 
+	// 检查是否使用自定义 nameservers
+	if !domain.UseDefaultNameservers {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Cannot manage DNS records for domains using custom nameservers. Please manage DNS records on your custom nameserver.",
+			"use_custom_ns": true,
+		})
+		return
+	}
+
 	var req models.DNSRecordUpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -304,6 +322,15 @@ func (h *DNSHandler) DeleteRecord(c *gin.Context) {
 	var record models.DNSRecord
 	if err := h.db.Where("id = ? AND domain_id = ?", recordID, domainID).First(&record).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "DNS record not found"})
+		return
+	}
+
+	// 检查是否使用自定义 nameservers
+	if !domain.UseDefaultNameservers {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Cannot manage DNS records for domains using custom nameservers. Please manage DNS records on your custom nameserver.",
+			"use_custom_ns": true,
+		})
 		return
 	}
 
@@ -492,6 +519,15 @@ func (h *DNSHandler) SyncFromPowerDNS(c *gin.Context) {
 
 	if domain.RootDomain == nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Root domain not found"})
+		return
+	}
+
+	// 检查是否使用自定义 nameservers
+	if !domain.UseDefaultNameservers {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Cannot sync DNS records for domains using custom nameservers. DNS records are managed on your custom nameserver, not in our PowerDNS system.",
+			"use_custom_ns": true,
+		})
 		return
 	}
 

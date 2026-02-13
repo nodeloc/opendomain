@@ -326,6 +326,14 @@ func (h *DomainHandler) RegisterDomain(c *gin.Context) {
 	var domain models.Domain
 	h.db.Preload("RootDomain").Where("full_domain = ?", fullDomain).First(&domain)
 
+	// 如果域名使用自定义 nameservers，在 PowerDNS 中设置 NS 记录
+	if !domain.UseDefaultNameservers && domain.RootDomain != nil {
+		var nameservers []string
+		if err := json.Unmarshal([]byte(domain.Nameservers), &nameservers); err == nil {
+			go h.updateDomainNSRecordsInPowerDNS(&domain, nameservers, false)
+		}
+	}
+
 	response := gin.H{
 		"message": "Domain registered successfully",
 		"domain":  domain.ToResponse(),
@@ -530,6 +538,11 @@ func (h *DomainHandler) ModifyNameservers(c *gin.Context) {
 	}).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update nameservers"})
 		return
+	}
+
+	// 在 PowerDNS 中更新 NS 记录
+	if domain.RootDomain != nil {
+		go h.updateDomainNSRecordsInPowerDNS(&domain, req.Nameservers, isDefault)
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -1166,4 +1179,41 @@ func (h *DomainHandler) CleanupExpiredDomains(daysAfterExpiry int) {
 	}
 
 	fmt.Printf("Cleanup completed: %d domains deleted, %d failed.\n", successCount, failCount)
+}
+
+// updateDomainNSRecordsInPowerDNS 更新域名在 PowerDNS root zone 中的 NS 记录
+// 当用户使用自定义 nameservers 时，需要在 root domain 的 zone 中添加该子域名的 NS 记录
+// 当用户切换回默认 NS 时，删除这些自定义 NS 记录
+func (h *DomainHandler) updateDomainNSRecordsInPowerDNS(domain *models.Domain, nameservers []string, isDefault bool) {
+	if domain.RootDomain == nil {
+		fmt.Printf("Warning: Cannot update NS records for domain %s: root domain not loaded\n", domain.FullDomain)
+		return
+	}
+
+	rootDomain := domain.RootDomain.Domain
+	subdomainFQDN := domain.FullDomain
+
+	// 如果使用默认 NS，删除子域名的 NS 记录（让它继承 root domain 的 NS）
+	if isDefault {
+		if err := h.pdns.DeleteRRset(rootDomain, subdomainFQDN, "NS"); err != nil {
+			fmt.Printf("Warning: Failed to delete NS records for %s in PowerDNS: %v\n", subdomainFQDN, err)
+		} else {
+			fmt.Printf("Deleted custom NS records for %s (using default NS)\n", subdomainFQDN)
+		}
+		return
+	}
+
+	// 使用自定义 NS，在 root domain zone 中添加子域名的 NS 记录
+	entries := make([]powerdns.RecordEntry, 0, len(nameservers))
+	for _, ns := range nameservers {
+		entries = append(entries, powerdns.RecordEntry{
+			Content: ns,
+		})
+	}
+
+	if err := h.pdns.SetRecords(rootDomain, subdomainFQDN, "NS", entries, 3600); err != nil {
+		fmt.Printf("Warning: Failed to set NS records for %s in PowerDNS: %v\n", subdomainFQDN, err)
+	} else {
+		fmt.Printf("Updated NS records for %s with custom nameservers: %v\n", subdomainFQDN, nameservers)
+	}
 }

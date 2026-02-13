@@ -51,7 +51,7 @@ OpenDomain 是一个开源的二级域名分发平台，允许用户免费注册
 
 - **账号系统**
   - 🔐 邮箱注册/登录
-  - 🌐 第三方登录（GitHub、Google）
+  - 🌐 第三方登录（GitHub、Google、NodeLoc）
   - 👤 实名认证（提升配额）
   - 🏆 用户等级体系
 
@@ -564,13 +564,6 @@ npm run test:cov
 
 ## 💬 社区与支持
 
-### 获取帮助
-
-- 📖 查看 [文档](docs/)
-- 💬 加入 [Discord 社区](https://discord.gg/opendomain)
-- 🐛 提交 [Issue](https://github.com/your-username/opendomain/issues)
-- 📧 联系邮箱: support@opendomain.local
-
 ### 交流讨论
 
 - GitHub Discussions
@@ -581,7 +574,7 @@ npm run test:cov
 
 ## 🌟 Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=your-username/opendomain&type=Date)](https://star-history.com/#your-username/opendomain&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=nodeloc/opendomain&type=Date)](https://star-history.com/#nodeloc/opendomain&Date)
 
 ---
 
@@ -600,10 +593,8 @@ npm run test:cov
 
 ## 📮 联系我们
 
-- 🌐 官网: https://opendomain.example.com
-- 📧 邮箱: contact@opendomain.local
-- 🐦 Twitter: [@opendomain](https://twitter.com/opendomain)
-- 💼 GitHub: [@opendomain](https://github.com/opendomain)
+- 🌐 官网: https://www.nodeloc.com
+- 💼 GitHub: [@opendomain](https://github.com/nodeloc)
 
 ---
 
@@ -611,6 +602,6 @@ npm run test:cov
 
 **如果这个项目对您有帮助，请给我们一个 ⭐️**
 
-Made with ❤️ by OpenDomain Team
+Made with ❤️ by NodeLoc Team
 
 </div>
