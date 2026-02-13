@@ -23,9 +23,11 @@ type Scanner struct {
 	db  *gorm.DB
 	cfg *config.Config
 
-	// VirusTotal 速率限制: 4 lookups/min
-	vtMu       sync.Mutex
-	vtLastCall time.Time
+	// VirusTotal 速率限制: 4 lookups/min, 500/day
+	vtMu            sync.Mutex
+	vtLastCall      time.Time
+	vtDailyCount    int
+	vtDailyResetDate string // 格式: YYYY-MM-DD
 }
 
 func NewScanner(db *gorm.DB, cfg *config.Config) *Scanner {
@@ -44,6 +46,31 @@ func (s *Scanner) vtRateLimit() {
 		}
 	}
 	s.vtLastCall = time.Now()
+}
+
+// vtCheckDailyQuota 检查并更新每日配额
+// 返回 true 表示可以继续调用，false 表示已超出配额
+func (s *Scanner) vtCheckDailyQuota() bool {
+	s.vtMu.Lock()
+	defer s.vtMu.Unlock()
+
+	today := time.Now().Format("2006-01-02")
+
+	// 新的一天，重置计数器
+	if s.vtDailyResetDate != today {
+		s.vtDailyResetDate = today
+		s.vtDailyCount = 0
+		fmt.Printf("[INFO] VirusTotal daily quota reset for %s\n", today)
+	}
+
+	// 检查是否超出每日限制
+	if s.vtDailyCount >= 500 {
+		return false
+	}
+
+	// 增加计数
+	s.vtDailyCount++
+	return true
 }
 
 // strPtr 返回字符串指针
@@ -191,8 +218,11 @@ func (s *Scanner) ScanDomain(ctx context.Context, domain *models.Domain) error {
 			virusTotalStatus = "clean"
 		} else if vtScan.Status == "not_found" {
 			virusTotalStatus = "clean"
+		} else if vtScan.Status == "failed" || vtScan.Status == "quota_exceeded" {
+			// API 调用失败（如超出额度或每日配额），不应标记为恶意
+			virusTotalStatus = "unknown"
 		} else {
-			// Check scan details to distinguish malicious vs suspicious
+			// 其他状态，检查扫描详情以区分恶意和可疑
 			virusTotalStatus = "malicious"
 			if vtScan.ScanDetails != nil {
 				var details map[string]interface{}
@@ -391,6 +421,15 @@ func (s *Scanner) checkVirusTotal(domain string) *models.DomainScan {
 		ScanType: "virustotal",
 	}
 
+	// 检查每日配额
+	if !s.vtCheckDailyQuota() {
+		scan.Status = "quota_exceeded"
+		scan.ErrorMessage = fmt.Sprintf("Daily quota exceeded (500/day). Count: %d", s.vtDailyCount)
+		fmt.Printf("[WARNING] VirusTotal daily quota exceeded for domain %s (used: %d/500)\n",
+			domain, s.vtDailyCount)
+		return scan
+	}
+
 	// 遵守 VirusTotal 速率限制
 	s.vtRateLimit()
 
@@ -431,7 +470,11 @@ func (s *Scanner) checkVirusTotal(domain string) *models.DomainScan {
 
 	if resp.StatusCode != http.StatusOK {
 		scan.Status = "failed"
-		scan.ErrorMessage = fmt.Sprintf("API returned status %d", resp.StatusCode)
+		if resp.StatusCode == 429 {
+			scan.ErrorMessage = "Rate limit exceeded (quota exhausted)"
+		} else {
+			scan.ErrorMessage = fmt.Sprintf("API returned status %d", resp.StatusCode)
+		}
 		return scan
 	}
 
