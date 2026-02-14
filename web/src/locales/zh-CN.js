@@ -1061,7 +1061,13 @@ export default {
     close: '关闭',
     fetchQuotaFailed: '获取配额状态失败',
     fetchSummariesFailed: '获取扫描摘要失败',
-    fetchRecordsFailed: '获取扫描记录失败'
+    fetchRecordsFailed: '获取扫描记录失败',
+    suspendHistory: '挂起历史',
+    searchDomain: '搜索域名...',
+    reason: '原因',
+    suspendedAt: '挂起时间',
+    noHistory: '暂无挂起历史',
+    fetchHistoryFailed: '获取挂起历史失败'
   },
   validation: {
     required: '此项为必填项',

@@ -190,6 +190,7 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 			admin.GET("/api-quota", domainScanHandler.GetAPIQuotaStatus)
 			admin.GET("/scan-summaries", domainScanHandler.GetDomainScanSummaries)
 			admin.GET("/scan-records", domainScanHandler.ListDomainScans)
+			admin.GET("/suspend-history", domainScanHandler.GetSuspendHistory)
 
 			admin.GET("/users", userHandler.ListUsers)
 			admin.PUT("/users/:id", userHandler.AdminUpdateUser)

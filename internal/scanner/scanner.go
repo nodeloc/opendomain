@@ -9,6 +9,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -862,6 +863,15 @@ func (s *Scanner) handleAutoActions(domainID uint, safeBrowsingStatus, virusTota
 
 			reason := fmt.Sprintf("Malicious content detected (Safe Browsing: %s, VirusTotal: %s)\nScan details: %s",
 				safeBrowsingStatus, virusTotalStatus, scanDetails)
+
+			// 记录 suspend 历史
+			history := models.SuspendHistory{
+				DomainID: domain.ID,
+				Reason:   "Malicious content detected",
+				Details:  reason,
+			}
+			s.db.Create(&history)
+
 			telegram.SendAutoSuspendNotification(domain.FullDomain, reason)
 		}
 		return
@@ -898,6 +908,27 @@ func (s *Scanner) handleAutoActions(domainID uint, safeBrowsingStatus, virusTota
 				// Suspend 域名
 				domain.Status = "suspended"
 				s.db.Save(&domain)
+
+				issues := []string{}
+				if summary.DNSStatus == "failed" {
+					issues = append(issues, fmt.Sprintf("DNS: %s", summary.DNSStatus))
+				}
+				if summary.HTTPStatus == "offline" {
+					issues = append(issues, fmt.Sprintf("HTTP: %s", summary.HTTPStatus))
+				}
+				issuesText := ""
+				if len(issues) > 0 {
+					issuesText = " - " + fmt.Sprintf("Issues: %s", strings.Join(issues, ", "))
+				}
+
+				// 记录 suspend 历史
+				history := models.SuspendHistory{
+					DomainID: domain.ID,
+					Reason:   fmt.Sprintf("Domain down for %d days", daysSinceFailure),
+					Details:  fmt.Sprintf("DNS Status: %s, HTTP Status: %s%s", summary.DNSStatus, summary.HTTPStatus, issuesText),
+				}
+				s.db.Create(&history)
+
 				telegram.SendHealthAlert(domain.FullDomain,
 					[]string{fmt.Sprintf("Domain down for %d days", daysSinceFailure)},
 					"Domain SUSPENDED")

@@ -9,8 +9,29 @@ build: ## 编译项目
 
 build-tools: ## 编译管理工具
 	@echo "Building tools..."
-	@go build -o bin/recover-suspended cmd/recover-suspended/main.go
-	@echo "Built: bin/recover-suspended"
+	@go build -o bin/unsuspend-domains cmd/unsuspend-domains/main.go
+	@go build -o bin/unsuspend-domains-advanced cmd/unsuspend-domains-advanced/main.go
+	@echo "Built tools:"
+	@echo "  - bin/unsuspend-domains (批量恢复域名工具)"
+	@echo "  - bin/unsuspend-domains-advanced (高级恢复工具，支持参数)"
+
+unsuspend-all: ## 恢复所有挂起的域名
+	@echo "Building unsuspend tool..."
+	@go build -o bin/unsuspend-domains cmd/unsuspend-domains/main.go
+	@echo "Running unsuspend tool..."
+	@./bin/unsuspend-domains
+
+unsuspend-list: ## 列出所有挂起的域名
+	@echo "Building advanced unsuspend tool..."
+	@go build -o bin/unsuspend-domains-advanced cmd/unsuspend-domains-advanced/main.go
+	@echo "Listing suspended domains..."
+	@./bin/unsuspend-domains-advanced -list
+
+unsuspend-auto: ## 自动恢复所有挂起的域名（不询问）
+	@echo "Building advanced unsuspend tool..."
+	@go build -o bin/unsuspend-domains-advanced cmd/unsuspend-domains-advanced/main.go
+	@echo "Auto-unsuspending domains..."
+	@./bin/unsuspend-domains-advanced -y
 
 run: ## 运行 API 服务
 	@echo "Starting API server..."

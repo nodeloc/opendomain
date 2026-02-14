@@ -52,123 +52,221 @@
       </div>
     </div>
 
-    <!-- 域名扫描摘要 -->
+    <!-- Tabs -->
     <div class="card bg-base-100 shadow-xl">
       <div class="card-body">
-        <h2 class="card-title">{{ $t('scanStatus.scanSummaries') }}</h2>
-        
-        <!-- 搜索和筛选 -->
-        <div class="flex gap-4 mb-4">
-          <input
-            v-model="searchQuery"
-            type="text"
-            :placeholder="$t('scanStatus.searchPlaceholder')"
-            class="input input-bordered flex-1"
-            @keyup.enter="fetchSummaries"
-          />
-          <select v-model="statusFilter" class="select select-bordered" @change="fetchSummaries">
-            <option value="">{{ $t('scanStatus.allStatus') }}</option>
-            <option value="healthy">{{ $t('scanStatus.healthy') }}</option>
-            <option value="degraded">{{ $t('scanStatus.degraded') }}</option>
-            <option value="down">{{ $t('scanStatus.down') }}</option>
-          </select>
-          <button @click="fetchSummaries" class="btn btn-primary">
-            {{ $t('scanStatus.search') }}
-          </button>
+        <!-- Tab Headers -->
+        <div role="tablist" class="tabs tabs-boxed mb-4">
+          <a 
+            role="tab" 
+            class="tab" 
+            :class="{ 'tab-active': activeTab === 'summaries' }"
+            @click="activeTab = 'summaries'"
+          >
+            {{ $t('scanStatus.scanSummaries') }}
+          </a>
+          <a 
+            role="tab" 
+            class="tab" 
+            :class="{ 'tab-active': activeTab === 'history' }"
+            @click="activeTab = 'history'"
+          >
+            {{ $t('scanStatus.suspendHistory') }}
+          </a>
         </div>
 
-        <div v-if="loadingSummaries" class="flex justify-center py-8">
-          <span class="loading loading-spinner loading-lg"></span>
+        <!-- Tab: Domain Scan Summaries -->
+        <div v-show="activeTab === 'summaries'">
+          <!-- 搜索和筛选 -->
+          <div class="flex gap-4 mb-4">
+            <input
+              v-model="searchQuery"
+              type="text"
+              :placeholder="$t('scanStatus.searchPlaceholder')"
+              class="input input-bordered flex-1"
+              @keyup.enter="fetchSummaries"
+            />
+            <select v-model="statusFilter" class="select select-bordered" @change="fetchSummaries">
+              <option value="">{{ $t('scanStatus.allStatus') }}</option>
+              <option value="healthy">{{ $t('scanStatus.healthy') }}</option>
+              <option value="degraded">{{ $t('scanStatus.degraded') }}</option>
+              <option value="down">{{ $t('scanStatus.down') }}</option>
+            </select>
+            <button @click="fetchSummaries" class="btn btn-primary">
+              {{ $t('scanStatus.search') }}
+            </button>
+          </div>
+
+          <div v-if="loadingSummaries" class="flex justify-center py-8">
+            <span class="loading loading-spinner loading-lg"></span>
+          </div>
+
+          <div v-else-if="summaries.length === 0" class="text-center py-8 opacity-60">
+            {{ $t('scanStatus.noData') }}
+          </div>
+
+          <div v-else class="overflow-x-auto">
+            <table class="table table-zebra w-full">
+              <thead>
+                <tr>
+                  <th>{{ $t('scanStatus.domain') }}</th>
+                  <th>{{ $t('scanStatus.overallHealth') }}</th>
+                  <th>{{ $t('scanStatus.httpStatus') }}</th>
+                  <th>{{ $t('scanStatus.dnsStatus') }}</th>
+                  <th>{{ $t('scanStatus.sslStatus') }}</th>
+                  <th>{{ $t('scanStatus.safeBrowsing') }}</th>
+                  <th>{{ $t('scanStatus.virusTotal') }}</th>
+                  <th>{{ $t('scanStatus.uptime') }}</th>
+                  <th>{{ $t('scanStatus.lastScanned') }}</th>
+                  <th>{{ $t('scanStatus.actions') }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="summary in summaries" :key="summary.domain_id">
+                  <td class="font-mono">{{ summary.domain_name }}</td>
+                  <td>
+                    <div class="px-2 py-0.5 rounded text-xs font-medium inline-flex items-center" :class="getHealthBadgeClass(summary.overall_health)">
+                      {{ summary.overall_health }}
+                    </div>
+                  </td>
+                  <td>
+                    <div class="px-2 py-0.5 rounded text-xs font-medium inline-flex items-center" :class="getStatusBadgeClass(summary.http_status)">
+                      {{ summary.http_status }}
+                    </div>
+                  </td>
+                  <td>
+                    <div class="px-2 py-0.5 rounded text-xs font-medium inline-flex items-center" :class="getStatusBadgeClass(summary.dns_status)">
+                      {{ summary.dns_status }}
+                    </div>
+                  </td>
+                  <td>
+                    <div class="px-2 py-0.5 rounded text-xs font-medium inline-flex items-center" :class="getStatusBadgeClass(summary.ssl_status)">
+                      {{ summary.ssl_status }}
+                    </div>
+                  </td>
+                  <td>
+                    <div class="px-2 py-0.5 rounded text-xs font-medium inline-flex items-center" :class="getSafeBrowsingBadgeClass(summary.safe_browsing_status)">
+                      {{ summary.safe_browsing_status }}
+                    </div>
+                  </td>
+                  <td>
+                    <div class="px-2 py-0.5 rounded text-xs font-medium inline-flex items-center" :class="getVirusTotalBadgeClass(summary.virustotal_status)">
+                      {{ summary.virustotal_status }}
+                    </div>
+                  </td>
+                  <td>
+                    <span :class="getUptimeClass(summary.uptime_percentage)">
+                      {{ summary.uptime_percentage ? summary.uptime_percentage.toFixed(2) + '%' : '-' }}
+                    </span>
+                  </td>
+                  <td>{{ formatDate(summary.last_scanned_at) }}</td>
+                  <td>
+                    <button @click="viewDetails(summary)" class="btn btn-sm btn-ghost">
+                      {{ $t('scanStatus.viewDetails') }}
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+            <!-- 分页 -->
+            <div v-if="summaryPagination.total_pages > 1" class="flex justify-center mt-6">
+              <div class="join">
+                <button
+                  class="join-item btn btn-sm"
+                  :disabled="summaryPagination.page === 1"
+                  @click="goToSummaryPage(summaryPagination.page - 1)"
+                >
+                  «
+                </button>
+                <button class="join-item btn btn-sm">
+                  {{ $t('scanStatus.page') }} {{ summaryPagination.page }} / {{ summaryPagination.total_pages }}
+                </button>
+                <button
+                  class="join-item btn btn-sm"
+                  :disabled="summaryPagination.page === summaryPagination.total_pages"
+                  @click="goToSummaryPage(summaryPagination.page + 1)"
+                >
+                  »
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div v-else-if="summaries.length === 0" class="text-center py-8 opacity-60">
-          {{ $t('scanStatus.noData') }}
-        </div>
+        <!-- Tab: Suspend History -->
+        <div v-show="activeTab === 'history'">
+          <!-- 搜索 -->
+          <div class="flex gap-4 mb-4">
+            <input
+              v-model="historySearchQuery"
+              type="text"
+              :placeholder="$t('scanStatus.searchDomain')"
+              class="input input-bordered flex-1"
+              @keyup.enter="fetchSuspendHistory"
+            />
+            <button @click="fetchSuspendHistory" class="btn btn-primary">
+              {{ $t('scanStatus.search') }}
+            </button>
+          </div>
 
-        <div v-else class="overflow-x-auto">
-          <table class="table table-zebra w-full">
-            <thead>
-              <tr>
-                <th>{{ $t('scanStatus.domain') }}</th>
-                <th>{{ $t('scanStatus.overallHealth') }}</th>
-                <th>{{ $t('scanStatus.httpStatus') }}</th>
-                <th>{{ $t('scanStatus.dnsStatus') }}</th>
-                <th>{{ $t('scanStatus.sslStatus') }}</th>
-                <th>{{ $t('scanStatus.safeBrowsing') }}</th>
-                <th>{{ $t('scanStatus.virusTotal') }}</th>
-                <th>{{ $t('scanStatus.uptime') }}</th>
-                <th>{{ $t('scanStatus.lastScanned') }}</th>
-                <th>{{ $t('scanStatus.actions') }}</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="summary in summaries" :key="summary.domain_id">
-                <td class="font-mono">{{ summary.domain_name }}</td>
-                <td>
-                  <div class="px-2 py-0.5 rounded text-xs font-medium inline-flex items-center" :class="getHealthBadgeClass(summary.overall_health)">
-                    {{ summary.overall_health }}
-                  </div>
-                </td>
-                <td>
-                  <div class="px-2 py-0.5 rounded text-xs font-medium inline-flex items-center" :class="getStatusBadgeClass(summary.http_status)">
-                    {{ summary.http_status }}
-                  </div>
-                </td>
-                <td>
-                  <div class="px-2 py-0.5 rounded text-xs font-medium inline-flex items-center" :class="getStatusBadgeClass(summary.dns_status)">
-                    {{ summary.dns_status }}
-                  </div>
-                </td>
-                <td>
-                  <div class="px-2 py-0.5 rounded text-xs font-medium inline-flex items-center" :class="getStatusBadgeClass(summary.ssl_status)">
-                    {{ summary.ssl_status }}
-                  </div>
-                </td>
-                <td>
-                  <div class="px-2 py-0.5 rounded text-xs font-medium inline-flex items-center" :class="getSafeBrowsingBadgeClass(summary.safe_browsing_status)">
-                    {{ summary.safe_browsing_status }}
-                  </div>
-                </td>
-                <td>
-                  <div class="px-2 py-0.5 rounded text-xs font-medium inline-flex items-center" :class="getVirusTotalBadgeClass(summary.virustotal_status)">
-                    {{ summary.virustotal_status }}
-                  </div>
-                </td>
-                <td>
-                  <span :class="getUptimeClass(summary.uptime_percentage)">
-                    {{ summary.uptime_percentage ? summary.uptime_percentage.toFixed(2) + '%' : '-' }}
-                  </span>
-                </td>
-                <td>{{ formatDate(summary.last_scanned_at) }}</td>
-                <td>
-                  <button @click="viewDetails(summary)" class="btn btn-sm btn-ghost">
-                    {{ $t('scanStatus.viewDetails') }}
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+          <div v-if="loadingHistory" class="flex justify-center py-8">
+            <span class="loading loading-spinner loading-lg"></span>
+          </div>
 
-          <!-- 分页 -->
-          <div v-if="summaryPagination.total_pages > 1" class="flex justify-center mt-6">
-            <div class="join">
-              <button
-                class="join-item btn btn-sm"
-                :disabled="summaryPagination.page === 1"
-                @click="goToSummaryPage(summaryPagination.page - 1)"
-              >
-                «
-              </button>
-              <button class="join-item btn btn-sm">
-                {{ $t('scanStatus.page') }} {{ summaryPagination.page }} / {{ summaryPagination.total_pages }}
-              </button>
-              <button
-                class="join-item btn btn-sm"
-                :disabled="summaryPagination.page === summaryPagination.total_pages"
-                @click="goToSummaryPage(summaryPagination.page + 1)"
-              >
-                »
-              </button>
+          <div v-else-if="suspendHistories.length === 0" class="text-center py-8 opacity-60">
+            {{ $t('scanStatus.noHistory') }}
+          </div>
+
+          <div v-else class="overflow-x-auto">
+            <table class="table table-zebra w-full">
+              <thead>
+                <tr>
+                  <th>{{ $t('scanStatus.domain') }}</th>
+                  <th>{{ $t('scanStatus.reason') }}</th>
+                  <th>{{ $t('scanStatus.details') }}</th>
+                  <th>{{ $t('scanStatus.suspendedAt') }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="history in suspendHistories" :key="history.id">
+                  <td class="font-mono">{{ history.domain_name }}</td>
+                  <td>
+                    <span class="px-2 py-0.5 rounded text-xs font-medium bg-error/10 text-error">
+                      {{ history.reason }}
+                    </span>
+                  </td>
+                  <td>
+                    <div class="max-w-md text-sm opacity-70">
+                      {{ history.details }}
+                    </div>
+                  </td>
+                  <td>{{ formatDateTime(history.created_at) }}</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <!-- 分页 -->
+            <div v-if="historyPagination.total_pages > 1" class="flex justify-center mt-6">
+              <div class="join">
+                <button
+                  class="join-item btn btn-sm"
+                  :disabled="historyPagination.page === 1"
+                  @click="goToHistoryPage(historyPagination.page - 1)"
+                >
+                  «
+                </button>
+                <button class="join-item btn btn-sm">
+                  {{ $t('scanStatus.page') }} {{ historyPagination.page }} / {{ historyPagination.total_pages }}
+                </button>
+                <button
+                  class="join-item btn btn-sm"
+                  :disabled="historyPagination.page === historyPagination.total_pages"
+                  @click="goToHistoryPage(historyPagination.page + 1)"
+                >
+                  »
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -279,6 +377,9 @@ import { useToast } from '../composables/useToast'
 const { t } = useI18n()
 const toast = useToast()
 
+// Tab state
+const activeTab = ref('summaries')
+
 const quota = ref({})
 const loadingQuota = ref(false)
 
@@ -303,8 +404,19 @@ const recordPagination = ref({
   total_pages: 0,
 })
 
+const suspendHistories = ref([])
+const loadingHistory = ref(false)
+const historySearchQuery = ref('')
+const historyPagination = ref({
+  page: 1,
+  page_size: 20,
+  total: 0,
+  total_pages: 0,
+})
+
 onMounted(() => {
   fetchQuota()
+  fetchSuspendHistory()
   fetchSummaries()
 })
 
@@ -350,6 +462,34 @@ const fetchSummaries = async () => {
 const goToSummaryPage = (page) => {
   summaryPagination.value.page = page
   fetchSummaries()
+}
+
+const fetchSuspendHistory = async () => {
+  loadingHistory.value = true
+  try {
+    const params = {
+      page: historyPagination.value.page,
+      page_size: historyPagination.value.page_size,
+    }
+    if (historySearchQuery.value) {
+      params.search = historySearchQuery.value
+    }
+    const response = await axios.get('/api/admin/suspend-history', { params })
+    suspendHistories.value = response.data.histories || []
+    if (response.data.pagination) {
+      historyPagination.value = response.data.pagination
+    }
+  } catch (error) {
+    console.error('Failed to fetch suspend history:', error)
+    toast.error(t('scanStatus.fetchHistoryFailed'))
+  } finally {
+    loadingHistory.value = false
+  }
+}
+
+const goToHistoryPage = (page) => {
+  historyPagination.value.page = page
+  fetchSuspendHistory()
 }
 
 const viewDetails = async (summary) => {

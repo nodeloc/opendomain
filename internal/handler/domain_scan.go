@@ -455,3 +455,78 @@ func (h *DomainScanHandler) GetDomainScanRecords(c *gin.Context) {
 		"total_pages": totalPages,
 	})
 }
+
+// GetSuspendHistory 获取域名挂起历史（管理员）
+func (h *DomainScanHandler) GetSuspendHistory(c *gin.Context) {
+	// 获取查询参数
+	page := c.DefaultQuery("page", "1")
+	pageSize := c.DefaultQuery("page_size", "50")
+	search := c.Query("search")
+
+	// 解析分页参数
+	var pageInt, pageSizeInt int
+	if _, err := fmt.Sscanf(page, "%d", &pageInt); err != nil || pageInt < 1 {
+		pageInt = 1
+	}
+	if _, err := fmt.Sscanf(pageSize, "%d", &pageSizeInt); err != nil || pageSizeInt < 1 {
+		pageSizeInt = 50
+	}
+	if pageSizeInt > 100 {
+		pageSizeInt = 100
+	}
+
+	offset := (pageInt - 1) * pageSizeInt
+
+	// 构建基础查询
+	baseQuery := h.db.Table("suspend_history").
+		Select("suspend_history.*, domains.full_domain as domain_name").
+		Joins("LEFT JOIN domains ON domains.id = suspend_history.domain_id")
+
+	// 搜索功能 - 通过域名搜索
+	if search != "" {
+		baseQuery = baseQuery.Where("domains.full_domain LIKE ?", "%"+search+"%")
+	}
+
+	// 统计总数
+	var total int64
+	countQuery := h.db.Table("suspend_history").
+		Joins("LEFT JOIN domains ON domains.id = suspend_history.domain_id")
+	if search != "" {
+		countQuery = countQuery.Where("domains.full_domain LIKE ?", "%"+search+"%")
+	}
+	if err := countQuery.Count(&total).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to count suspend history"})
+		return
+	}
+
+	// 获取历史记录
+	var histories []models.SuspendHistory
+	err := baseQuery.
+		Order("suspend_history.created_at DESC").
+		Limit(pageSizeInt).
+		Offset(offset).
+		Find(&histories).Error
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch suspend history"})
+		return
+	}
+
+	// 转换为响应格式
+	responses := make([]*models.SuspendHistoryResponse, len(histories))
+	for i, history := range histories {
+		responses[i] = history.ToResponse()
+	}
+
+	totalPages := int((total + int64(pageSizeInt) - 1) / int64(pageSizeInt))
+
+	c.JSON(http.StatusOK, gin.H{
+		"histories": responses,
+		"pagination": gin.H{
+			"page":        pageInt,
+			"page_size":   pageSizeInt,
+			"total":       total,
+			"total_pages": totalPages,
+		},
+	})
+}

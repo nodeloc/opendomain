@@ -1061,7 +1061,13 @@ export default {
     close: 'Close',
     fetchQuotaFailed: 'Failed to fetch quota status',
     fetchSummariesFailed: 'Failed to fetch scan summaries',
-    fetchRecordsFailed: 'Failed to fetch scan records'
+    fetchRecordsFailed: 'Failed to fetch scan records',
+    suspendHistory: 'Suspend History',
+    searchDomain: 'Search domain...',
+    reason: 'Reason',
+    suspendedAt: 'Suspended At',
+    noHistory: 'No suspend history',
+    fetchHistoryFailed: 'Failed to fetch suspend history'
   },
   validation: {
     required: 'This field is required',
