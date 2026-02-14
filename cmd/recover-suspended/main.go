@@ -59,8 +59,36 @@ func main() {
 		shouldRecover := false
 		reason := ""
 
-		// 如果 Safe Browsing 状态不是真正的 unsafe，应该恢复
-		if summary.SafeBrowsingStatus == "safe" || summary.SafeBrowsingStatus == "unknown" || summary.SafeBrowsingStatus == "" {
+		// 检查实际的扫描记录，区分真实威胁和API失败
+		if summary.SafeBrowsingStatus == "unsafe" {
+			// 查找最近的 Safe Browsing 扫描记录
+			var recentScan models.DomainScan
+			err := db.Where("domain_id = ? AND scan_type = ?", domain.ID, "safebrowsing").
+				Order("scanned_at DESC").
+				First(&recentScan).Error
+			
+			if err == nil {
+				// 如果扫描状态是 "failed" 且有错误信息，说明是API失败而非真实威胁
+				if recentScan.Status == "failed" && recentScan.ErrorMessage != "" {
+					shouldRecover = true
+					reason = fmt.Sprintf("Safe Browsing API 调用失败误判 (错误: %s)", recentScan.ErrorMessage)
+				} else if recentScan.Status == "threat_detected" {
+					// 真的检测到威胁，不恢复
+					fmt.Printf("⚠️  %s - 保持暂停状态 (检测到真实威胁)\n", domain.FullDomain)
+					skipped++
+					continue
+				} else {
+					// 其他状态也尝试恢复
+					shouldRecover = true
+					reason = fmt.Sprintf("Safe Browsing 扫描状态异常 (status: %s)", recentScan.Status)
+				}
+			} else {
+				// 找不到扫描记录，可能是旧数据，尝试恢复
+				shouldRecover = true
+				reason = "未找到 Safe Browsing 扫描记录，可能是历史误判"
+			}
+		} else if summary.SafeBrowsingStatus == "safe" || summary.SafeBrowsingStatus == "unknown" || summary.SafeBrowsingStatus == "" {
+			// Safe Browsing 状态正常
 			if summary.VirusTotalStatus != "malicious" {
 				shouldRecover = true
 				reason = fmt.Sprintf("Safe Browsing: %s, VirusTotal: %s (非恶意)",
