@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -194,32 +195,58 @@ func (h *CouponHandler) ApplyCoupon(c *gin.Context) {
 	// 查找优惠券
 	var coupon models.Coupon
 	if err := h.db.Where("code = ?", strings.ToUpper(req.Code)).First(&coupon).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Coupon not found"})
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "Coupon not found",
+			"code":  strings.ToUpper(req.Code),
+		})
 		return
 	}
 
 	// 验证优惠券类型 - 此接口只允许额度增加类型的优惠券
 	if coupon.DiscountType != "quota_increase" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Only quota increase coupons can be applied here. Discount coupons should be used during domain registration or renewal."})
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":         "Only quota increase coupons can be applied here. Discount coupons should be used during domain registration or renewal.",
+			"coupon_type":   coupon.DiscountType,
+			"required_type": "quota_increase",
+		})
 		return
 	}
 
 	// 验证优惠券是否有效
 	now := time.Now()
 	if !coupon.IsActive {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Coupon is not active"})
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":     "Coupon is not active",
+			"is_active": coupon.IsActive,
+			"reason":    "This coupon has been disabled by administrator",
+		})
 		return
 	}
 	if now.Before(coupon.ValidFrom) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Coupon is not yet valid"})
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":       "Coupon is not yet valid",
+			"valid_from":  coupon.ValidFrom.Format("2006-01-02 15:04:05"),
+			"current_time": now.Format("2006-01-02 15:04:05"),
+			"reason":      "This coupon will be available after " + coupon.ValidFrom.Format("2006-01-02 15:04:05"),
+		})
 		return
 	}
 	if coupon.ValidUntil != nil && now.After(*coupon.ValidUntil) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Coupon has expired"})
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":        "Coupon has expired",
+			"valid_until":  coupon.ValidUntil.Format("2006-01-02 15:04:05"),
+			"current_time": now.Format("2006-01-02 15:04:05"),
+			"reason":       "This coupon expired on " + coupon.ValidUntil.Format("2006-01-02 15:04:05"),
+		})
 		return
 	}
 	if coupon.MaxUses > 0 && coupon.UsedCount >= coupon.MaxUses {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Coupon has reached maximum uses"})
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":      "Coupon has reached maximum uses",
+			"used_count": coupon.UsedCount,
+			"max_uses":   coupon.MaxUses,
+			"reason":     fmt.Sprintf("This coupon has been used %d out of %d times", coupon.UsedCount, coupon.MaxUses),
+		})
 		return
 	}
 
@@ -227,7 +254,12 @@ func (h *CouponHandler) ApplyCoupon(c *gin.Context) {
 	if !coupon.IsReusable {
 		var existingUsage models.CouponUsage
 		if err := h.db.Where("coupon_id = ? AND user_id = ?", coupon.ID, userID).First(&existingUsage).Error; err == nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "You have already used this coupon"})
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":       "You have already used this coupon",
+				"is_reusable": coupon.IsReusable,
+				"used_at":     existingUsage.UsedAt.Format("2006-01-02 15:04:05"),
+				"reason":      "This coupon can only be used once per user. You used it on " + existingUsage.UsedAt.Format("2006-01-02 15:04:05"),
+			})
 			return
 		}
 	}
@@ -244,7 +276,7 @@ func (h *CouponHandler) ApplyCoupon(c *gin.Context) {
 	switch coupon.DiscountType {
 	case "quota_increase":
 		user.DomainQuota += coupon.QuotaIncrease
-		benefitApplied = "Domain quota increased by " + string(rune(coupon.QuotaIncrease))
+		benefitApplied = fmt.Sprintf("Domain quota increased by %d", coupon.QuotaIncrease)
 		// percentage 和 fixed 在注册域名时应用
 	}
 

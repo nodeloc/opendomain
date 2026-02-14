@@ -385,8 +385,9 @@ func (s *Scanner) ScanDomain(ctx context.Context, domain *models.Domain) error {
 		} else if sbScan.Status == "threat_detected" {
 			safeBrowsingStatus = "unsafe"
 		} else {
-			// API 调用失败，不应标记为 unsafe
-			safeBrowsingStatus = "unknown"
+			// API 调用失败（如超出额度或每日配额），保持原有状态不变
+			// 使用特殊标记 "keep" 表示保持现状，不更新 summary 中的 SafeBrowsingStatus
+			safeBrowsingStatus = "keep"
 		}
 	}
 
@@ -401,8 +402,9 @@ func (s *Scanner) ScanDomain(ctx context.Context, domain *models.Domain) error {
 		} else if vtScan.Status == "not_found" {
 			virusTotalStatus = "clean"
 		} else if vtScan.Status == "failed" || vtScan.Status == "quota_exceeded" {
-			// API 调用失败（如超出额度或每日配额），不应标记为恶意
-			virusTotalStatus = "unknown"
+			// API 调用失败（如超出额度或每日配额），保持原有状态不变
+			// 使用特殊标记 "keep" 表示保持现状
+			virusTotalStatus = "keep"
 		} else {
 			// 其他状态，检查扫描详情以区分恶意和可疑
 			virusTotalStatus = "malicious"
@@ -752,16 +754,24 @@ func (s *Scanner) updateSummary(domainID uint, dnsStatus, httpStatus, sslStatus,
 	}
 
 	// 更新安全扫描状态
-	if safeBrowsingStatus != "" {
+	if safeBrowsingStatus != "" && safeBrowsingStatus != "keep" {
 		summary.SafeBrowsingStatus = safeBrowsingStatus
-	} else {
-		summary.SafeBrowsingStatus = "unknown"
+	} else if safeBrowsingStatus == "" {
+		// 首次扫描或无数据时设为 unknown
+		if summary.SafeBrowsingStatus == "" {
+			summary.SafeBrowsingStatus = "unknown"
+		}
+		// safeBrowsingStatus == "keep" 时保持原状，不修改
 	}
 
-	if virusTotalStatus != "" {
+	if virusTotalStatus != "" && virusTotalStatus != "keep" {
 		summary.VirusTotalStatus = virusTotalStatus
-	} else {
-		summary.VirusTotalStatus = "unknown"
+	} else if virusTotalStatus == "" {
+		// 首次扫描或无数据时设为 unknown
+		if summary.VirusTotalStatus == "" {
+			summary.VirusTotalStatus = "unknown"
+		}
+		// virusTotalStatus == "keep" 时保持原状，不修改
 	}
 
 	// 计算整体健康状态
