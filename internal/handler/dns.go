@@ -431,12 +431,52 @@ func (h *DNSHandler) syncRecordSetToPowerDNS(record *models.DNSRecord, domain *m
 		})
 	}
 
-	if err := h.pdns.SetRecords(zoneDomain, recordFQDN, record.Type, entries, record.TTL); err != nil {
-		syncErr := err.Error()
-		for i := range allRecords {
-			allRecords[i].SyncError = &syncErr
-			allRecords[i].SyncedToPowerDNS = false
-			h.db.Save(&allRecords[i])
+	err := h.pdns.SetRecords(zoneDomain, recordFQDN, record.Type, entries, record.TTL)
+	if err != nil {
+		// 如果 zone 不存在，尝试创建
+		if strings.Contains(err.Error(), "not found") || 
+		   strings.Contains(err.Error(), "Could not find") ||
+		   strings.Contains(err.Error(), "404") {
+			fmt.Printf("Zone %s not found in PowerDNS, attempting to create...\n", zoneDomain)
+			
+			// 使用默认 nameservers 创建 zone
+			defaultNS := []string{h.cfg.DNS.DefaultNS1, h.cfg.DNS.DefaultNS2}
+			if createErr := h.pdns.CreateZone(zoneDomain, defaultNS); createErr != nil {
+				// 检查是否是因为zone已经存在（并发创建的情况）
+				if !strings.Contains(createErr.Error(), "Conflict") && !strings.Contains(createErr.Error(), "already exists") {
+					syncErr := fmt.Sprintf("Failed to create zone: %v", createErr)
+					for i := range allRecords {
+						allRecords[i].SyncError = &syncErr
+						allRecords[i].SyncedToPowerDNS = false
+						h.db.Save(&allRecords[i])
+					}
+					h.updateDomainSyncStatus(record.DomainID)
+					return
+				}
+				fmt.Printf("Zone %s already exists (possible race condition), retrying...\n", zoneDomain)
+			} else {
+				fmt.Printf("Successfully created zone %s in PowerDNS\n", zoneDomain)
+			}
+			
+			// 重试设置记录
+			err = h.pdns.SetRecords(zoneDomain, recordFQDN, record.Type, entries, record.TTL)
+		}
+		
+		if err != nil {
+			syncErr := err.Error()
+			for i := range allRecords {
+				allRecords[i].SyncError = &syncErr
+				allRecords[i].SyncedToPowerDNS = false
+				h.db.Save(&allRecords[i])
+			}
+		} else {
+			now := time.Now()
+			for i := range allRecords {
+				allRecords[i].SyncError = nil
+				allRecords[i].SyncedToPowerDNS = true
+				allRecords[i].LastSyncedAt = &now
+				h.db.Save(&allRecords[i])
+			}
 		}
 	} else {
 		now := time.Now()
@@ -488,8 +528,38 @@ func (h *DNSHandler) deleteRecordFromPowerDNS(record *models.DNSRecord, domain *
 				Priority: r.Priority,
 			})
 		}
-		if err := h.pdns.SetRecords(zoneDomain, recordFQDN, record.Type, entries, remaining[0].TTL); err != nil {
-			fmt.Printf("Warning: Failed to update RRset in PowerDNS: %v\n", err)
+		
+		// 尝试更新记录，如果 zone 不存在则创建
+		err := h.pdns.SetRecords(zoneDomain, recordFQDN, record.Type, entries, remaining[0].TTL)
+		if err != nil {
+			// 检测 zone 是否不存在
+			if strings.Contains(err.Error(), "not found") || 
+			   strings.Contains(err.Error(), "Could not find") ||
+			   strings.Contains(err.Error(), "404") {
+				fmt.Printf("Zone %s not found during record deletion/update, attempting to create it\n", zoneDomain)
+				
+				// 创建 zone（使用默认 NS）
+				defaultNS := []string{h.cfg.DNS.DefaultNS1, h.cfg.DNS.DefaultNS2}
+				if createErr := h.pdns.CreateZone(zoneDomain, defaultNS); createErr != nil {
+					// 如果出现冲突错误，说明zone已被其他请求创建，这是正常的
+					if !strings.Contains(createErr.Error(), "Conflict") && 
+					   !strings.Contains(createErr.Error(), "already exists") {
+						fmt.Printf("Failed to create zone %s: %v\n", zoneDomain, createErr)
+						return
+					}
+					fmt.Printf("Zone %s already exists (concurrent creation), proceeding with record update\n", zoneDomain)
+				} else {
+					fmt.Printf("Successfully created zone %s\n", zoneDomain)
+				}
+				
+				// 重试更新记录
+				err = h.pdns.SetRecords(zoneDomain, recordFQDN, record.Type, entries, remaining[0].TTL)
+				if err != nil {
+					fmt.Printf("Warning: Failed to update RRset in PowerDNS after zone creation: %v\n", err)
+				}
+			} else {
+				fmt.Printf("Warning: Failed to update RRset in PowerDNS: %v\n", err)
+			}
 		}
 	}
 
@@ -535,8 +605,42 @@ func (h *DNSHandler) SyncFromPowerDNS(c *gin.Context) {
 	// 从 PowerDNS 获取 zone 信息
 	zone, err := h.pdns.GetZone(domain.FullDomain)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to fetch zone from PowerDNS: %v", err)})
-		return
+		// 如果 zone 不存在，尝试创建
+		if strings.Contains(err.Error(), "not found") || 
+		   strings.Contains(err.Error(), "Could not find") ||
+		   strings.Contains(err.Error(), "404") {
+			fmt.Printf("Zone %s not found in PowerDNS, attempting to create...\n", domain.FullDomain)
+			
+			// 使用默认 nameservers 创建 zone
+			defaultNS := []string{h.cfg.DNS.DefaultNS1, h.cfg.DNS.DefaultNS2}
+			if createErr := h.pdns.CreateZone(domain.FullDomain, defaultNS); createErr != nil {
+				// 检查是否是因为zone已经存在（并发创建的情况）
+				if !strings.Contains(createErr.Error(), "Conflict") && !strings.Contains(createErr.Error(), "already exists") {
+					c.JSON(http.StatusInternalServerError, gin.H{
+						"error": fmt.Sprintf("Failed to create zone in PowerDNS: %v", createErr),
+					})
+					return
+				}
+				fmt.Printf("Zone %s already exists (possible race condition), continuing...\n", domain.FullDomain)
+			} else {
+				fmt.Printf("Successfully created zone %s in PowerDNS\n", domain.FullDomain)
+			}
+			
+			// 重新获取 zone 信息
+			zone, err = h.pdns.GetZone(domain.FullDomain)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"error": fmt.Sprintf("Failed to fetch zone after creation: %v", err),
+				})
+				return
+			}
+		} else {
+			// 其他错误
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": fmt.Sprintf("Failed to fetch zone from PowerDNS: %v", err),
+			})
+			return
+		}
 	}
 
 	// 统计信息
