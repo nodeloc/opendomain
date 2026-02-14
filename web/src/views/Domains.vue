@@ -70,43 +70,49 @@
               </span>
             </p>
             
-            <!-- Scan Status -->
+            <!-- Health Status -->
             <div v-if="domain.scan_summary" class="border-t pt-2 mt-2">
-              <p class="font-semibold mb-1">{{ $t('domains.scanStatus') }}:</p>
-              <div class="flex flex-wrap gap-1">
-                <div class="px-2 py-0.5 rounded text-xs font-medium inline-flex items-center" :class="getHealthBadgeClass(domain.scan_summary.overall_health)">
-                  {{ domain.scan_summary.overall_health || 'unknown' }}
+              <div class="flex items-center justify-between gap-2">
+                <div 
+                  class="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
+                  @click="viewHealthDetails(domain)"
+                >
+                  <span class="font-semibold text-sm">{{ $t('domains.healthStatus') }}:</span>
+                  <div class="px-3 py-1 rounded text-sm font-medium inline-flex items-center gap-1.5" :class="getHealthBadgeClass(domain.scan_summary.overall_health)">
+                    {{ domain.scan_summary.overall_health || 'unknown' }}
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
                 </div>
-                <div class="px-2 py-0.5 rounded text-xs font-medium inline-flex items-center" :class="getSafeBrowsingBadgeClass(domain.scan_summary.safe_browsing_status)">
-                  SB: {{ domain.scan_summary.safe_browsing_status || 'unknown' }}
-                </div>
-                <div class="px-2 py-0.5 rounded text-xs font-medium inline-flex items-center" :class="getVirusTotalBadgeClass(domain.scan_summary.virustotal_status)">
-                  VT: {{ domain.scan_summary.virustotal_status || 'unknown' }}
-                </div>
+                <button
+                  class="btn btn-xs btn-ghost"
+                  @click="viewScanDetails(domain)"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                  {{ $t('domains.scanDetails') }}
+                </button>
               </div>
-              <p class="text-xs mt-1 opacity-70">
-                {{ $t('domains.uptime') }}: 
-                <span :class="getUptimeClass(domain.scan_summary.uptime_percentage)">
-                  {{ domain.scan_summary.uptime_percentage ? domain.scan_summary.uptime_percentage.toFixed(1) + '%' : 'N/A' }}
-                </span>
-              </p>
             </div>
             <div v-else class="border-t pt-2 mt-2">
               <p class="text-xs opacity-50">{{ $t('domains.noScanData') }}</p>
             </div>
             
-            <p>
-              <span class="font-semibold">{{ $t('domains.dnsSynced') }}:</span>
-              <span :class="domain.dns_synced ? 'text-success' : 'text-warning'">
-                <svg v-if="domain.dns_synced" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <!-- DNS Synced Status -->
+            <div class="flex items-center gap-2 pt-2">
+              <span class="font-semibold text-sm">{{ $t('domains.dnsSynced') }}:</span>
+              <div class="px-3 py-1 rounded text-sm font-medium inline-flex items-center gap-1.5" :class="domain.dns_synced ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800'">
+                <svg v-if="domain.dns_synced" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                 </svg>
-                <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 {{ domain.dns_synced ? $t('domains.yes') : $t('domains.no') }}
-              </span>
-            </p>
+              </div>
+            </div>
           </div>
 
           <div v-if="domain.status !== 'suspended'" class="card-actions justify-end mt-4 flex-wrap gap-2">
@@ -124,18 +130,6 @@
                 DNS
               </button>
             </div>
-
-            <!-- View Scan Details Button -->
-            <button
-              v-if="domain.scan_summary"
-              class="btn btn-sm btn-info"
-              @click="viewScanDetails(domain)"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-              </svg>
-              {{ $t('domains.scanDetails') }}
-            </button>
 
             <!-- More Actions Dropdown -->
             <div class="dropdown dropdown-end">
@@ -517,6 +511,180 @@
       </form>
     </dialog>
 
+    <!-- Health Details Modal -->
+    <dialog :class="{ 'modal': true, 'modal-open': showHealthDetailsModal }">
+      <div class="modal-box max-w-3xl" v-if="selectedDomain && selectedDomain.scan_summary">
+        <h3 class="font-bold text-2xl mb-4">{{ $t('domains.healthDetails') }}</h3>
+        <p class="text-sm opacity-70 mb-6">{{ $t('domains.domain') }}: <span class="font-mono font-bold">{{ selectedDomain.full_domain }}</span></p>
+
+        <!-- Overall Health -->
+        <div class="card bg-base-200 mb-6">
+          <div class="card-body p-6">
+            <div class="flex items-center justify-between">
+              <div>
+                <h4 class="text-lg font-semibold mb-1">{{ $t('domains.overallHealth') }}</h4>
+                <p class="text-xs opacity-70">{{ $t('domains.overallHealthDesc') }}</p>
+              </div>
+              <div class="px-4 py-2 rounded-lg text-lg font-bold" :class="getHealthBadgeClass(selectedDomain.scan_summary.overall_health)">
+                {{ selectedDomain.scan_summary.overall_health || 'unknown' }}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Detailed Status -->
+        <div class="space-y-3">
+          <!-- HTTP Status -->
+          <div class="card bg-base-200">
+            <div class="card-body p-4">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                  </svg>
+                  <div>
+                    <h5 class="font-semibold">{{ $t('domains.httpStatus') }}</h5>
+                    <p class="text-xs opacity-70">{{ $t('domains.httpStatusDesc') }}</p>
+                  </div>
+                </div>
+                <div class="px-3 py-1 rounded text-sm font-medium" :class="getStatusBadgeClass(selectedDomain.scan_summary.http_status)">
+                  {{ selectedDomain.scan_summary.http_status || 'unknown' }}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- DNS Status -->
+          <div class="card bg-base-200">
+            <div class="card-body p-4">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
+                  </svg>
+                  <div>
+                    <h5 class="font-semibold">{{ $t('domains.dnsStatus') }}</h5>
+                    <p class="text-xs opacity-70">{{ $t('domains.dnsStatusDesc') }}</p>
+                  </div>
+                </div>
+                <div class="px-3 py-1 rounded text-sm font-medium" :class="getStatusBadgeClass(selectedDomain.scan_summary.dns_status)">
+                  {{ selectedDomain.scan_summary.dns_status || 'unknown' }}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- SSL Status -->
+          <div class="card bg-base-200">
+            <div class="card-body p-4">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                  <div>
+                    <h5 class="font-semibold">{{ $t('domains.sslStatus') }}</h5>
+                    <p class="text-xs opacity-70">{{ $t('domains.sslStatusDesc') }}</p>
+                  </div>
+                </div>
+                <div class="px-3 py-1 rounded text-sm font-medium" :class="getStatusBadgeClass(selectedDomain.scan_summary.ssl_status)">
+                  {{ selectedDomain.scan_summary.ssl_status || 'unknown' }}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Safe Browsing Status -->
+          <div class="card bg-base-200">
+            <div class="card-body p-4">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                  </svg>
+                  <div>
+                    <h5 class="font-semibold">{{ $t('domains.safeBrowsingStatus') }}</h5>
+                    <p class="text-xs opacity-70">{{ $t('domains.safeBrowsingStatusDesc') }}</p>
+                  </div>
+                </div>
+                <div class="px-3 py-1 rounded text-sm font-medium" :class="getSafeBrowsingBadgeClass(selectedDomain.scan_summary.safe_browsing_status)">
+                  {{ selectedDomain.scan_summary.safe_browsing_status || 'unknown' }}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- VirusTotal Status -->
+          <div class="card bg-base-200">
+            <div class="card-body p-4">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-warning" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <div>
+                    <h5 class="font-semibold">{{ $t('domains.virusTotalStatus') }}</h5>
+                    <p class="text-xs opacity-70">{{ $t('domains.virusTotalStatusDesc') }}</p>
+                  </div>
+                </div>
+                <div class="px-3 py-1 rounded text-sm font-medium" :class="getVirusTotalBadgeClass(selectedDomain.scan_summary.virustotal_status)">
+                  {{ selectedDomain.scan_summary.virustotal_status || 'unknown' }}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Uptime -->
+          <div class="card bg-base-200">
+            <div class="card-body p-4">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-info" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                  <div>
+                    <h5 class="font-semibold">{{ $t('domains.uptimePercentage') }}</h5>
+                    <p class="text-xs opacity-70">{{ $t('domains.uptimePercentageDesc') }}</p>
+                  </div>
+                </div>
+                <div class="text-lg font-bold" :class="getUptimeClass(selectedDomain.scan_summary.uptime_percentage)">
+                  {{ selectedDomain.scan_summary.uptime_percentage ? selectedDomain.scan_summary.uptime_percentage.toFixed(2) + '%' : 'N/A' }}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Scan Stats -->
+          <div class="card bg-base-200">
+            <div class="card-body p-4">
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <p class="text-xs opacity-70">{{ $t('domains.totalScans') }}</p>
+                  <p class="text-lg font-bold">{{ selectedDomain.scan_summary.total_scans || 0 }}</p>
+                </div>
+                <div>
+                  <p class="text-xs opacity-70">{{ $t('domains.successfulScans') }}</p>
+                  <p class="text-lg font-bold text-success">{{ selectedDomain.scan_summary.successful_scans || 0 }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Last Scanned -->
+          <div v-if="selectedDomain.scan_summary.last_scanned_at" class="text-center text-sm opacity-70 mt-4">
+            {{ $t('domains.lastScanned') }}: {{ new Date(selectedDomain.scan_summary.last_scanned_at).toLocaleString() }}
+          </div>
+        </div>
+
+        <div class="modal-action mt-6">
+          <button class="btn btn-primary" @click="closeHealthDetailsModal">{{ $t('common.close') }}</button>
+        </div>
+      </div>
+      <form method="dialog" class="modal-backdrop">
+        <button type="button" @click="closeHealthDetailsModal">close</button>
+      </form>
+    </dialog>
+
     <!-- Scan Details Modal -->
     <dialog :class="{ 'modal': true, 'modal-open': showScanDetailsModal }">
       <div class="modal-box max-w-6xl" v-if="selectedDomain">
@@ -691,6 +859,7 @@ const showRenewModal = ref(false)
 const showTransferModal = ref(false)
 const showSyncModal = ref(false)
 const showScanDetailsModal = ref(false)
+const showHealthDetailsModal = ref(false)
 const selectedDomain = ref(null)
 
 // NS modification
@@ -1097,6 +1266,17 @@ const closeSyncModal = () => {
     fossbilling_api_key: ''
   }
   syncResult.value = null
+}
+
+// Health Details
+const viewHealthDetails = (domain) => {
+  selectedDomain.value = domain
+  showHealthDetailsModal.value = true
+}
+
+const closeHealthDetailsModal = () => {
+  showHealthDetailsModal.value = false
+  selectedDomain.value = null
 }
 
 // Scan Details
