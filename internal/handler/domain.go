@@ -673,7 +673,7 @@ func (h *DomainHandler) RenewDomain(c *gin.Context) {
 			}
 			basePrice = *domain.RootDomain.PricePerYear * float64(req.Years)
 		}
-		
+
 		// 应用优惠券
 		var discountAmount float64
 		var couponID *uint
@@ -808,7 +808,6 @@ func (h *DomainHandler) generateOrderNumber() string {
 	randomStr := hex.EncodeToString(randomBytes)
 	return fmt.Sprintf("ORD%d%s", timestamp, randomStr[:8])
 }
-
 
 // TransferDomain 转移域名（站内转移）
 func (h *DomainHandler) TransferDomain(c *gin.Context) {
@@ -1057,7 +1056,7 @@ func (h *DomainHandler) CreateRootDomain(c *gin.Context) {
 	// 在 PowerDNS 中创建 Zone
 	var nameservers []string
 	if err := json.Unmarshal([]byte(nameserversJSON), &nameservers); err == nil {
-		if err := h.pdns.CreateZone(req.Domain, nameservers); err != nil {
+		if err := h.pdns.CreateZone(req.Domain, ensureCanonicalNS(nameservers)); err != nil {
 			fmt.Printf("Warning: Failed to create PowerDNS zone for %s: %v\n", req.Domain, err)
 		}
 	}
@@ -1441,7 +1440,7 @@ func (h *DomainHandler) updateDomainNSRecordsInPowerDNS(domain *models.Domain, n
 
 		// 2. 为子域名创建独立的 zone
 		defaultNS := []string{h.cfg.DNS.DefaultNS1, h.cfg.DNS.DefaultNS2}
-		if err := h.pdns.CreateZone(subdomainFQDN, defaultNS); err != nil {
+		if err := h.pdns.CreateZone(subdomainFQDN, ensureCanonicalNS(defaultNS)); err != nil {
 			// 如果 zone 已经存在，不是错误
 			if !strings.Contains(err.Error(), "Conflict") && !strings.Contains(err.Error(), "already exists") {
 				fmt.Printf("Warning: Failed to create zone for %s in PowerDNS: %v\n", subdomainFQDN, err)

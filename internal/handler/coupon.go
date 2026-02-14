@@ -245,7 +245,7 @@ func (h *CouponHandler) ApplyCoupon(c *gin.Context) {
 	case "quota_increase":
 		user.DomainQuota += coupon.QuotaIncrease
 		benefitApplied = "Domain quota increased by " + string(rune(coupon.QuotaIncrease))
-	// percentage 和 fixed 在注册域名时应用
+		// percentage 和 fixed 在注册域名时应用
 	}
 
 	// 开始事务
