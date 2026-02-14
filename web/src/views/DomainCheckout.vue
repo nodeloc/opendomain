@@ -228,7 +228,7 @@ const calculatePrice = async () => {
   try {
     const payload = {
       root_domain_id: rootDomainId.value,
-      years: years.value,
+      years: isLifetime.value ? 0 : years.value,
       is_lifetime: isLifetime.value,
     }
 
@@ -274,7 +274,7 @@ const createOrderAndPay = async () => {
     const orderPayload = {
       subdomain: subdomain.value,
       root_domain_id: rootDomainId.value,
-      years: years.value,
+      years: isLifetime.value ? 0 : years.value,
       is_lifetime: isLifetime.value,
     }
 

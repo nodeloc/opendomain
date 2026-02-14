@@ -55,7 +55,7 @@ func (Order) TableName() string {
 type OrderCreateRequest struct {
 	Subdomain    string  `json:"subdomain" binding:"required,min=3,max=63"`
 	RootDomainID uint    `json:"root_domain_id" binding:"required"`
-	Years        int     `json:"years" binding:"required,min=1,max=10"`
+	Years        int     `json:"years" binding:"omitempty,min=1,max=10"`
 	IsLifetime   bool    `json:"is_lifetime"`
 	CouponCode   *string `json:"coupon_code"`
 }
@@ -63,7 +63,7 @@ type OrderCreateRequest struct {
 // OrderCalculateRequest 计算价格请求
 type OrderCalculateRequest struct {
 	RootDomainID uint    `json:"root_domain_id" binding:"required"`
-	Years        int     `json:"years" binding:"required,min=1,max=10"`
+	Years        int     `json:"years" binding:"omitempty,min=1,max=10"`
 	IsLifetime   bool    `json:"is_lifetime"`
 	CouponCode   *string `json:"coupon_code"`
 }
