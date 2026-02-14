@@ -68,6 +68,14 @@ func (h *PaymentHandler) InitiatePayment(c *gin.Context) {
 		return
 	}
 
+	// 检查订单金额是否有效（必须 > 0.01）
+	if order.FinalPrice < 0.01 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Order amount is too small for payment. Please use complete-free endpoint for orders under 0.01",
+		})
+		return
+	}
+
 	// 检查是否已有支付记录
 	var existingPayment models.Payment
 	if err := h.db.Where("order_id = ? AND status IN (?)", order.ID, []string{"pending", "processing", "completed"}).First(&existingPayment).Error; err == nil {
@@ -186,19 +194,13 @@ func (h *PaymentHandler) CompleteFreeOrder(c *gin.Context) {
 		}
 	}()
 
-	// 创建支付记录（金额为0）
+	// 标记订单为已支付
 	now := time.Now()
-	payment := &models.Payment{
-		OrderID:     order.ID,
-		Amount:      0,
-		Currency:    "CNY",
-		Status:      "completed",
-		CompletedAt: &now,
-	}
-
-	if err := tx.Create(payment).Error; err != nil {
+	order.Status = "paid"
+	order.PaidAt = &now
+	if err := tx.Save(&order).Error; err != nil {
 		tx.Rollback()
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create payment record"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update order status"})
 		return
 	}
 

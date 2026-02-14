@@ -95,6 +95,8 @@ const processing = ref(true)
 const success = ref(false)
 const errorMessage = ref('')
 const orderInfo = ref(null)
+const retryCount = ref(0)
+const maxRetries = 5
 
 onMounted(async () => {
   // 检查路由参数
@@ -120,11 +122,16 @@ const checkOrderStatus = async (orderId) => {
 
     if (orderInfo.value.status === 'paid') {
       success.value = true
-    } else if (orderInfo.value.status === 'pending') {
+    } else if (orderInfo.value.status === 'pending' && retryCount.value < maxRetries) {
       // 订单还在处理中，等待一下再查询
+      retryCount.value++
       await new Promise(resolve => setTimeout(resolve, 2000))
       await checkOrderStatus(orderId)
       return
+    } else if (orderInfo.value.status === 'pending' && retryCount.value >= maxRetries) {
+      // 重试次数超限
+      success.value = false
+      errorMessage.value = 'Payment is still processing. Please check your order status later.'
     } else {
       success.value = false
       errorMessage.value = `Payment was ${orderInfo.value.status}`

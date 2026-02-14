@@ -713,6 +713,12 @@ func (h *DomainHandler) RenewDomain(c *gin.Context) {
 		// 生成订单号
 		orderNumber := h.generateOrderNumber()
 
+		// 设置年数：如果是lifetime，使用100年满足数据库约束
+		years := req.Years
+		if req.IsLifetime {
+			years = 100
+		}
+
 		// 创建续费订单（15分钟后过期）
 		order := &models.Order{
 			OrderNumber:    orderNumber,
@@ -721,7 +727,7 @@ func (h *DomainHandler) RenewDomain(c *gin.Context) {
 			Subdomain:      domain.Subdomain,
 			FullDomain:     domain.FullDomain,
 			DomainID:       &domain.ID,
-			Years:          req.Years,
+			Years:          years,
 			IsLifetime:     req.IsLifetime,
 			BasePrice:      basePrice,
 			DiscountAmount: discountAmount,
@@ -737,16 +743,56 @@ func (h *DomainHandler) RenewDomain(c *gin.Context) {
 			return
 		}
 
+		// 如果最终价格为0或接近0（处理浮点精度问题），直接完成续费
+		if finalPrice < 0.01 {
+			now := time.Now()
+			order.Status = "paid"
+			order.PaidAt = &now
+			if err := h.db.Save(order).Error; err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update order status"})
+				return
+			}
+
+			// 更新域名过期时间
+			var newExpiry time.Time
+			if req.IsLifetime {
+				// Lifetime: 设置为100年后
+				newExpiry = domain.ExpiresAt.AddDate(100, 0, 0)
+			} else {
+				newExpiry = domain.ExpiresAt.AddDate(req.Years, 0, 0)
+			}
+
+			if err := h.db.Model(&domain).Update("expires_at", newExpiry).Error; err != nil {
+				fmt.Printf("Failed to update domain expires_at: %v\n", err)
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to renew domain", "details": err.Error()})
+				return
+			}
+
+			c.JSON(http.StatusOK, gin.H{
+				"message":          "Domain renewed successfully",
+				"requires_payment": false,
+				"order_id":         order.ID,
+				"order_number":     order.OrderNumber,
+				"base_price":       basePrice,
+				"discount_amount":  discountAmount,
+				"final_price":      finalPrice,
+				"coupon_applied":   couponID != nil,
+				"years":            years,
+				"new_expiry":       newExpiry,
+			})
+			return
+		}
+
 		c.JSON(http.StatusOK, gin.H{
 			"message":          "Renewal order created successfully",
-			"requires_payment": true,
+			"requires_payment": finalPrice >= 0.01,
 			"order_id":         order.ID,
 			"order_number":     order.OrderNumber,
 			"base_price":       basePrice,
 			"discount_amount":  discountAmount,
 			"final_price":      finalPrice,
 			"coupon_applied":   couponID != nil,
-			"years":            req.Years,
+			"years":            years,
 		})
 		return
 	}
@@ -754,7 +800,8 @@ func (h *DomainHandler) RenewDomain(c *gin.Context) {
 	// 免费域名直接续费
 	newExpiry := domain.ExpiresAt.AddDate(req.Years, 0, 0)
 	if err := h.db.Model(&domain).Update("expires_at", newExpiry).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to renew domain"})
+		fmt.Printf("Failed to update free domain expires_at: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to renew domain", "details": err.Error()})
 		return
 	}
 

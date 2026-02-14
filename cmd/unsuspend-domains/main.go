@@ -127,7 +127,7 @@ func main() {
 	fmt.Print("是否要恢复这些域名？(y/n): ")
 	var confirm string
 	fmt.Scanln(&confirm)
-	
+
 	if confirm != "y" && confirm != "Y" && confirm != "yes" && confirm != "YES" {
 		fmt.Println("操作已取消")
 		return

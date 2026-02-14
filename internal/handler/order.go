@@ -218,6 +218,12 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 	// 生成订单号
 	orderNumber := h.generateOrderNumber()
 
+	// 设置年数：如果是lifetime，使用100年满足数据库约束
+	years := req.Years
+	if req.IsLifetime {
+		years = 100
+	}
+
 	// 创建订单（15分钟后过期）
 	order := &models.Order{
 		OrderNumber:    orderNumber,
@@ -225,7 +231,7 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 		Subdomain:      req.Subdomain,
 		RootDomainID:   req.RootDomainID,
 		FullDomain:     fullDomain,
-		Years:          req.Years,
+		Years:          years,
 		IsLifetime:     req.IsLifetime,
 		BasePrice:      basePrice,
 		DiscountAmount: discountAmount,
@@ -237,7 +243,8 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 	}
 
 	if err := h.db.Create(order).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create order"})
+		fmt.Printf("Failed to create order: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to create order: %v", err)})
 		return
 	}
 
@@ -388,17 +395,17 @@ func (h *OrderHandler) validateCoupon(coupon *models.Coupon, userID uint) error 
 
 	// 检查有效期
 	if now.Before(coupon.ValidFrom) {
-		return fmt.Errorf("Coupon is not yet valid. This coupon will be available after %s", 
+		return fmt.Errorf("Coupon is not yet valid. This coupon will be available after %s",
 			coupon.ValidFrom.Format("2006-01-02 15:04:05"))
 	}
 	if coupon.ValidUntil != nil && now.After(*coupon.ValidUntil) {
-		return fmt.Errorf("Coupon has expired on %s", 
+		return fmt.Errorf("Coupon has expired on %s",
 			coupon.ValidUntil.Format("2006-01-02 15:04:05"))
 	}
 
 	// 检查使用次数
 	if coupon.MaxUses > 0 && coupon.UsedCount >= coupon.MaxUses {
-		return fmt.Errorf("Coupon usage limit reached (%d/%d uses)", 
+		return fmt.Errorf("Coupon usage limit reached (%d/%d uses)",
 			coupon.UsedCount, coupon.MaxUses)
 	}
 
@@ -407,7 +414,7 @@ func (h *OrderHandler) validateCoupon(coupon *models.Coupon, userID uint) error 
 		var usage models.CouponUsage
 		if err := h.db.Where("coupon_id = ? AND user_id = ?", coupon.ID, userID).
 			First(&usage).Error; err == nil {
-			return fmt.Errorf("You have already used this coupon on %s. This coupon can only be used once per user", 
+			return fmt.Errorf("You have already used this coupon on %s. This coupon can only be used once per user",
 				usage.UsedAt.Format("2006-01-02 15:04:05"))
 		}
 	}

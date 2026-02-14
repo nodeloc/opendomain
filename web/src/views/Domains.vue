@@ -364,7 +364,7 @@
               <div class="divider my-1"></div>
               <div class="flex justify-between items-center">
                 <span class="font-bold">{{ $t('order.finalPrice') }}</span>
-                <span class="text-2xl font-bold">{{ formatPrice(renewPriceData?.final_price || calculateRenewPrice()) }}</span>
+                <span class="text-2xl font-bold">{{ formatPrice(renewPriceData ? renewPriceData.final_price : calculateRenewPrice()) }}</span>
               </div>
             </div>
           </div>
@@ -904,14 +904,30 @@ const renewDomain = async () => {
     
     const response = await axios.post(`/api/domains/${selectedDomain.value.id}/renew`, payload)
     
-    // 如果需要支付，跳转到支付页面
-    if (response.data.requires_payment && response.data.order_id) {
-      toast.success(t('domains.renewalOrderCreated'))
-      closeRenewModal()
-      router.push(`/payment/${response.data.order_id}`)
+    // 如果返回了订单ID，说明创建了订单（付费域名）
+    if (response.data.order_id) {
+      const orderId = response.data.order_id
+      const finalPrice = response.data.final_price || 0
+      
+      // 如果后端已经处理为免费订单（requires_payment: false），直接跳转成功页
+      // 后端在检测到 finalPrice < 0.01 时会自动完成续费
+      if (!response.data.requires_payment || finalPrice < 0.01) {
+        window.location.href = `/payment/success?order_id=${orderId}`
+        return
+      }
+      
+      // 需要支付，发起支付流程
+      const paymentResponse = await axios.post(`/api/payments/${orderId}/initiate`)
+      const redirectURL = paymentResponse.data.redirect_url
+      // 跳转到支付页面
+      window.location.href = redirectURL
     } else {
-      // 免费域名直接续费成功
-      toast.success(t('domains.renewedForYears', { years: renewYears.value }))
+      // 免费域名直接续费成功（没有创建订单）
+      if (renewIsLifetime.value) {
+        toast.success('Domain renewed for lifetime')
+      } else {
+        toast.success(`Domain renewed for ${renewYears.value} year(s)`)
+      }
       closeRenewModal()
       await fetchDomains()
     }

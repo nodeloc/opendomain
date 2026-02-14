@@ -6,14 +6,14 @@ import (
 
 // Order 订单模型
 type Order struct {
-	ID           uint      `gorm:"primarykey" json:"id"`
-	OrderNumber  string    `gorm:"size:32;unique;not null" json:"order_number"`
-	UserID       uint      `gorm:"not null;index" json:"user_id"`
+	ID          uint   `gorm:"primarykey" json:"id"`
+	OrderNumber string `gorm:"size:32;unique;not null" json:"order_number"`
+	UserID      uint   `gorm:"not null;index" json:"user_id"`
 
 	// Domain information
-	Subdomain    string    `gorm:"size:63;not null" json:"subdomain"`
-	RootDomainID uint      `gorm:"not null;index" json:"root_domain_id"`
-	FullDomain   string    `gorm:"size:255;not null" json:"full_domain"`
+	Subdomain    string `gorm:"size:63;not null" json:"subdomain"`
+	RootDomainID uint   `gorm:"not null;index" json:"root_domain_id"`
+	FullDomain   string `gorm:"size:255;not null" json:"full_domain"`
 
 	// Pricing details
 	Years          int     `gorm:"not null" json:"years"`
@@ -55,7 +55,7 @@ func (Order) TableName() string {
 type OrderCreateRequest struct {
 	Subdomain    string  `json:"subdomain" binding:"required,min=3,max=63"`
 	RootDomainID uint    `json:"root_domain_id" binding:"required"`
-	Years        int     `json:"years" binding:"omitempty,min=1,max=10"`
+	Years        int     `json:"years" binding:"omitempty,min=0,max=10"`
 	IsLifetime   bool    `json:"is_lifetime"`
 	CouponCode   *string `json:"coupon_code"`
 }
@@ -63,7 +63,7 @@ type OrderCreateRequest struct {
 // OrderCalculateRequest 计算价格请求
 type OrderCalculateRequest struct {
 	RootDomainID uint    `json:"root_domain_id" binding:"required"`
-	Years        int     `json:"years" binding:"omitempty,min=1,max=10"`
+	Years        int     `json:"years" binding:"omitempty,min=0,max=10"`
 	IsLifetime   bool    `json:"is_lifetime"`
 	CouponCode   *string `json:"coupon_code"`
 }

@@ -285,8 +285,9 @@ const createOrderAndPay = async () => {
     const orderResponse = await axios.post('/api/orders', orderPayload)
     const order = orderResponse.data.order
 
-    // 如果总价为 0，直接跳转到成功页面（不需要支付）
-    if (order.final_price === 0) {
+    // 如果总价接近 0（< 0.01），直接标记为免费订单
+    // 使用 < 0.01 而不是 === 0 来处理浮点精度问题和小额折扣
+    if (order.final_price < 0.01) {
       // 直接标记订单为已支付
       await axios.post(`/api/payments/${order.id}/complete-free`)
       // 跳转到支付成功页面

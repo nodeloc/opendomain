@@ -224,10 +224,10 @@ func (h *CouponHandler) ApplyCoupon(c *gin.Context) {
 	}
 	if now.Before(coupon.ValidFrom) {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error":       "Coupon is not yet valid",
-			"valid_from":  coupon.ValidFrom.Format("2006-01-02 15:04:05"),
+			"error":        "Coupon is not yet valid",
+			"valid_from":   coupon.ValidFrom.Format("2006-01-02 15:04:05"),
 			"current_time": now.Format("2006-01-02 15:04:05"),
-			"reason":      "This coupon will be available after " + coupon.ValidFrom.Format("2006-01-02 15:04:05"),
+			"reason":       "This coupon will be available after " + coupon.ValidFrom.Format("2006-01-02 15:04:05"),
 		})
 		return
 	}
