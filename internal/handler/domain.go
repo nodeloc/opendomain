@@ -919,9 +919,10 @@ func (h *DomainHandler) TransferDomain(c *gin.Context) {
 	})
 }
 
-// ListAllDomains 管理员：获取所有域名列表
+// ListAllDomains 管理员：获取所有域名列表（所有用户的域名）
 func (h *DomainHandler) ListAllDomains(c *gin.Context) {
 	search := c.Query("search")
+	status := c.Query("status") // 按状态筛选
 	page := 1
 	pageSize := 20
 
@@ -936,7 +937,13 @@ func (h *DomainHandler) ListAllDomains(c *gin.Context) {
 		}
 	}
 
+	// 注意：管理员查看所有域名，不限制user_id
 	query := h.db.Model(&models.Domain{})
+
+	// 状态筛选
+	if status != "" && (status == "active" || status == "expired" || status == "suspended") {
+		query = query.Where("status = ?", status)
+	}
 
 	// 搜索功能：支持按域名、子域名、用户名、邮箱搜索
 	if search != "" {
@@ -956,6 +963,12 @@ func (h *DomainHandler) ListAllDomains(c *gin.Context) {
 	var domains []models.Domain
 	offset := (page - 1) * pageSize
 	domainQuery := h.db.Preload("RootDomain").Preload("User")
+	
+	// 状态筛选
+	if status != "" && (status == "active" || status == "expired" || status == "suspended") {
+		domainQuery = domainQuery.Where("status = ?", status)
+	}
+	
 	if search != "" {
 		domainQuery = domainQuery.Joins("LEFT JOIN users ON users.id = domains.user_id").
 			Where("domains.full_domain LIKE ? OR domains.subdomain LIKE ? OR users.username LIKE ? OR users.email LIKE ?",
@@ -984,6 +997,47 @@ func (h *DomainHandler) ListAllDomains(c *gin.Context) {
 			"total":       total,
 			"total_pages": totalPages,
 		},
+	})
+}
+
+// GetDomainStatusStats 管理员：获取域名状态统计
+func (h *DomainHandler) GetDomainStatusStats(c *gin.Context) {
+	type StatusCount struct {
+		Status string `json:"status"`
+		Count  int64  `json:"count"`
+	}
+
+	var stats []StatusCount
+	if err := h.db.Model(&models.Domain{}).
+		Select("status, COUNT(*) as count").
+		Group("status").
+		Find(&stats).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get status stats"})
+		return
+	}
+
+	// 构建统计结果，确保所有状态都有值
+	statusMap := map[string]int64{
+		"active":    0,
+		"expired":   0,
+		"suspended": 0,
+	}
+
+	for _, stat := range stats {
+		statusMap[stat.Status] = stat.Count
+	}
+
+	// 计算总数
+	total := int64(0)
+	for _, count := range statusMap {
+		total += count
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"total":     total,
+		"active":    statusMap["active"],
+		"expired":   statusMap["expired"],
+		"suspended": statusMap["suspended"],
 	})
 }
 

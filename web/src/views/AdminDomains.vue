@@ -16,19 +16,39 @@
       </div>
     </div>
 
-    <!-- Stats -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-      <div class="stat bg-base-100 rounded-lg shadow">
-        <div class="stat-title">{{ $t('adminDomains.totalDomains') }}</div>
-        <div class="stat-value text-primary">{{ pagination.total }}</div>
+    <!-- Stats - 按域名状态统计（可点击筛选） -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div 
+        class="stat bg-base-100 rounded-lg shadow cursor-pointer hover:shadow-lg transition-shadow"
+        :class="{ 'ring-2 ring-primary': statusFilter === '' }"
+        @click="filterByStatus('')"
+      >
+        <div class="stat-title">总域名数</div>
+        <div class="stat-value text-primary">{{ stats.total || 0 }}</div>
       </div>
-      <div class="stat bg-base-100 rounded-lg shadow">
-        <div class="stat-title">{{ $t('adminDomains.currentPage') }}</div>
-        <div class="stat-value text-info">{{ domains.length }}</div>
+      <div 
+        class="stat bg-base-100 rounded-lg shadow cursor-pointer hover:shadow-lg transition-shadow"
+        :class="{ 'ring-2 ring-success': statusFilter === 'active' }"
+        @click="filterByStatus('active')"
+      >
+        <div class="stat-title">正常域名</div>
+        <div class="stat-value text-success">{{ stats.active || 0 }}</div>
       </div>
-      <div class="stat bg-base-100 rounded-lg shadow">
-        <div class="stat-title">{{ $t('adminDomains.pages') }}</div>
-        <div class="stat-value text-secondary">{{ pagination.total_pages }}</div>
+      <div 
+        class="stat bg-base-100 rounded-lg shadow cursor-pointer hover:shadow-lg transition-shadow"
+        :class="{ 'ring-2 ring-error': statusFilter === 'expired' }"
+        @click="filterByStatus('expired')"
+      >
+        <div class="stat-title">已过期</div>
+        <div class="stat-value text-error">{{ stats.expired || 0 }}</div>
+      </div>
+      <div 
+        class="stat bg-base-100 rounded-lg shadow cursor-pointer hover:shadow-lg transition-shadow"
+        :class="{ 'ring-2 ring-warning': statusFilter === 'suspended' }"
+        @click="filterByStatus('suspended')"
+      >
+        <div class="stat-title">已暂停</div>
+        <div class="stat-value text-warning">{{ stats.suspended || 0 }}</div>
       </div>
     </div>
 
@@ -297,6 +317,7 @@ const siteConfig = useSiteConfigStore()
 const allDomains = ref([]) // 存储所有域名
 const domains = ref([]) // 显示的域名（可能经过过滤）
 const searchQuery = ref('')
+const statusFilter = ref('') // 状态筛选：''=全部, 'active', 'expired', 'suspended'
 const loading = ref(true)
 const showDetailsModal = ref(false)
 const showDeleteModal = ref(false)
@@ -304,6 +325,12 @@ const selectedDomain = ref(null)
 const domainToDelete = ref(null)
 const deleting = ref(false)
 const syncing = ref(false) // FOSSBilling同步状态
+const stats = ref({
+  total: 0,
+  active: 0,
+  expired: 0,
+  suspended: 0
+})
 const pagination = ref({
   page: 1,
   page_size: 20,
@@ -314,6 +341,15 @@ let searchTimeout = null
 
 const fossbillingEnabled = computed(() => siteConfig.fossbilling.enabled)
 
+const fetchStats = async () => {
+  try {
+    const response = await axios.get('/api/admin/domains/stats')
+    stats.value = response.data
+  } catch (error) {
+    console.error('Failed to fetch domain stats:', error)
+  }
+}
+
 const fetchDomains = async (search = '') => {
   loading.value = true
   try {
@@ -323,6 +359,9 @@ const fetchDomains = async (search = '') => {
     }
     if (search) {
       params.search = search
+    }
+    if (statusFilter.value) {
+      params.status = statusFilter.value
     }
     const response = await axios.get('/api/admin/domains', { params })
     domains.value = response.data.domains || []
@@ -353,6 +392,13 @@ const debouncedSearch = () => {
 const clearSearch = () => {
   searchQuery.value = ''
   pagination.value.page = 1
+  fetchDomains()
+}
+
+const filterByStatus = (status) => {
+  statusFilter.value = status
+  pagination.value.page = 1
+  searchQuery.value = '' // 清空搜索
   fetchDomains()
 }
 
@@ -416,6 +462,7 @@ const handleDelete = async () => {
     await axios.delete(`/api/admin/domains/${domainToDelete.value.id}`)
     toast.success(t('adminDomains.deleteSuccess'))
     showDeleteModal.value = false
+    await fetchStats() // 刷新统计
     await fetchDomains(searchQuery.value)
   } catch (error) {
     toast.error(error.response?.data?.error || t('adminDomains.deleteFailed'))
@@ -429,6 +476,7 @@ const toggleDomainStatus = async (domain) => {
     const newStatus = domain.status === 'suspended' ? 'active' : 'suspended'
     await axios.put(`/api/admin/domains/${domain.id}/status`, { status: newStatus })
     toast.success(t('adminDomains.statusUpdateSuccess'))
+    await fetchStats() // 刷新统计
     await fetchDomains(searchQuery.value)
   } catch (error) {
     toast.error(error.response?.data?.error || t('adminDomains.statusUpdateFailed'))
@@ -458,7 +506,8 @@ const syncFOSSBilling = async () => {
 
     if (data.synced_count > 0 || data.skipped_count > 0) {
       toast.success(summary)
-      // 刷新域名列表
+      // 刷新域名列表和统计
+      await fetchStats()
       await fetchDomains(searchQuery.value)
     } else {
       toast.info(summary)
@@ -557,6 +606,7 @@ const formatNameservers = (nameservers) => {
 }
 
 onMounted(() => {
+  fetchStats()
   fetchDomains()
 })
 </script>
