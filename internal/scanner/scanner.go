@@ -203,8 +203,11 @@ func (s *Scanner) ScanDomain(ctx context.Context, domain *models.Domain) error {
 		s.db.Create(sbScan)
 		if sbScan.Status == "success" {
 			safeBrowsingStatus = "safe"
-		} else {
+		} else if sbScan.Status == "threat_detected" {
 			safeBrowsingStatus = "unsafe"
+		} else {
+			// API 调用失败，不应标记为 unsafe
+			safeBrowsingStatus = "unknown"
 		}
 	}
 
@@ -393,7 +396,7 @@ func (s *Scanner) checkGoogleSafeBrowsing(domain string) *models.DomainScan {
 
 	// 检查是否有威胁匹配
 	if matches, ok := result["matches"]; ok && matches != nil {
-		scan.Status = "failed"
+		scan.Status = "threat_detected"
 		details, _ := json.Marshal(map[string]interface{}{
 			"safe":    false,
 			"threats": matches,
