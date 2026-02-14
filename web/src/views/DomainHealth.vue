@@ -31,20 +31,21 @@
 
     <!-- Search Bar -->
     <div class="card bg-base-100 shadow-xl">
-      <div class="card-body">
-        <div class="form-control">
-          <div class="input-group">
-            <input
-              v-model="searchQuery"
-              type="text"
-              :placeholder="$t('health.searchPlaceholder') || 'Search domains...'"
-              class="input input-bordered w-full"
-              @keyup.enter="handleSearch"
-            />
-            <button class="btn btn-primary" @click="handleSearch">
-              {{ $t('health.search') || 'Search' }}
-            </button>
-          </div>
+      <div class="card-body p-6">
+        <div class="flex gap-3">
+          <input
+            v-model="searchQuery"
+            type="text"
+            :placeholder="$t('health.searchPlaceholder') || 'Search domains...'"
+            class="input input-bordered flex-1"
+            @keyup.enter="handleSearch"
+          />
+          <button class="btn btn-primary min-w-[100px]" @click="handleSearch">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            {{ $t('health.search') || 'Search' }}
+          </button>
         </div>
       </div>
     </div>
@@ -77,7 +78,6 @@
             <th>{{ $t('health.uptime') }}</th>
             <th>{{ $t('health.lastScanned') }}</th>
             <th>{{ $t('health.actionPending') }}</th>
-            <th>{{ $t('health.actions') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -136,11 +136,6 @@
                 </div>
               </div>
               <span v-else class="text-xs text-gray-500">-</span>
-            </td>
-            <td>
-              <button @click="viewDetails(report)" class="btn btn-sm btn-ghost">
-                {{ $t('health.details') }}
-              </button>
             </td>
           </tr>
         </tbody>
@@ -324,12 +319,16 @@ const fetchHealthReports = async () => {
 const handleSearch = () => {
   pagination.value.page = 1
   fetchHealthReports()
+  // Scroll to top of the page
+  window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
 const goToPage = (page) => {
   if (page >= 1 && page <= pagination.value.total_pages) {
     pagination.value.page = page
     fetchHealthReports()
+    // Scroll to top of the page
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 }
 
@@ -537,14 +536,21 @@ const maskDomain = (domain) => {
   // Get the subdomain (first part)
   const subdomain = parts[0]
 
-  // If subdomain is too short (1-2 chars), don't mask
-  if (subdomain.length <= 2) {
+  // If subdomain is too short (1 char), don't mask
+  if (subdomain.length <= 1) {
     return domain
+  }
+
+  // For 2-character subdomains: show first, mask rest
+  if (subdomain.length === 2) {
+    const maskedSubdomain = subdomain.substring(0, 1) + '*'
+    parts[0] = maskedSubdomain
+    return parts.join('.')
   }
 
   // For 3-character subdomains: show first and last, mask middle
   if (subdomain.length === 3) {
-    const maskedSubdomain = subdomain.substring(0, 1) + '**' + subdomain.substring(2)
+    const maskedSubdomain = subdomain.substring(0, 1) + '*' + subdomain.substring(2)
     parts[0] = maskedSubdomain
     return parts.join('.')
   }

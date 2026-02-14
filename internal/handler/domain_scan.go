@@ -40,12 +40,12 @@ func (h *DomainScanHandler) ListDomainHealth(c *gin.Context) {
 	}
 
 	// 构建查询
-	query := h.db.Model(&models.DomainScanSummary{}).Preload("Domain")
+	query := h.db.Model(&models.DomainScanSummary{})
 
 	// 如果有搜索关键词，通过域名名称搜索
 	if search != "" {
 		query = query.Joins("JOIN domains ON domains.id = domain_scan_summaries.domain_id").
-			Where("domains.name LIKE ?", "%"+search+"%")
+			Where("domains.full_domain LIKE ?", "%"+search+"%")
 	}
 
 	// 获取总数
@@ -53,6 +53,13 @@ func (h *DomainScanHandler) ListDomainHealth(c *gin.Context) {
 	if err := query.Count(&total).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to count domain health"})
 		return
+	}
+
+	// 重新构建查询用于分页（因为 Count 可能会修改查询状态）
+	query = h.db.Model(&models.DomainScanSummary{}).Preload("Domain")
+	if search != "" {
+		query = query.Joins("JOIN domains ON domains.id = domain_scan_summaries.domain_id").
+			Where("domains.full_domain LIKE ?", "%"+search+"%")
 	}
 
 	// 分页查询
@@ -123,10 +130,10 @@ func (h *DomainScanHandler) GetDomainScans(c *gin.Context) {
 // GetHealthStatistics 获取健康统计信息
 func (h *DomainScanHandler) GetHealthStatistics(c *gin.Context) {
 	var stats struct {
-		TotalDomains   int64 `json:"total_domains"`
-		HealthyDomains int64 `json:"healthy_domains"`
+		TotalDomains    int64 `json:"total_domains"`
+		HealthyDomains  int64 `json:"healthy_domains"`
 		DegradedDomains int64 `json:"degraded_domains"`
-		DownDomains    int64 `json:"down_domains"`
+		DownDomains     int64 `json:"down_domains"`
 	}
 
 	h.db.Model(&models.DomainScanSummary{}).Count(&stats.TotalDomains)
