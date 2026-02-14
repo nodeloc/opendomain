@@ -24,14 +24,81 @@ type Scanner struct {
 	cfg *config.Config
 
 	// VirusTotal 速率限制: 4 lookups/min, 500/day
-	vtMu            sync.Mutex
-	vtLastCall      time.Time
-	vtDailyCount    int
+	vtMu             sync.Mutex
+	vtLastCall       time.Time
+	vtDailyCount     int
 	vtDailyResetDate string // 格式: YYYY-MM-DD
+
+	// Google Safe Browsing 速率限制: 1 request/sec, 10000/day
+	gsbMu             sync.Mutex
+	gsbLastCall       time.Time
+	gsbDailyCount     int
+	gsbDailyResetDate string // 格式: YYYY-MM-DD
 }
 
 func NewScanner(db *gorm.DB, cfg *config.Config) *Scanner {
-	return &Scanner{db: db, cfg: cfg}
+	s := &Scanner{db: db, cfg: cfg}
+	
+	// 从数据库加载今天的配额使用情况
+	s.loadQuotaFromDB()
+	
+	return s
+}
+
+// loadQuotaFromDB 从数据库加载今天的配额使用情况
+func (s *Scanner) loadQuotaFromDB() {
+	today := time.Now().Format("2006-01-02")
+	
+	// 加载 Google Safe Browsing 配额
+	var gsbQuota models.APIQuota
+	if err := s.db.Where("api_name = ?", "google_safe_browsing").First(&gsbQuota).Error; err == nil {
+		if gsbQuota.Date == today {
+			s.gsbDailyCount = gsbQuota.UsedCount
+			s.gsbDailyResetDate = today
+			fmt.Printf("[INFO] Loaded Google Safe Browsing quota: %d/10000 for %s\n", s.gsbDailyCount, today)
+		}
+	}
+	
+	// 加载 VirusTotal 配额
+	var vtQuota models.APIQuota
+	if err := s.db.Where("api_name = ?", "virustotal").First(&vtQuota).Error; err == nil {
+		if vtQuota.Date == today {
+			s.vtDailyCount = vtQuota.UsedCount
+			s.vtDailyResetDate = today
+			fmt.Printf("[INFO] Loaded VirusTotal quota: %d/500 for %s\n", s.vtDailyCount, today)
+		}
+	}
+}
+
+// saveQuotaToDB 保存配额使用情况到数据库
+func (s *Scanner) saveQuotaToDB(apiName string, count int, limit int) {
+	today := time.Now().Format("2006-01-02")
+	
+	quota := models.APIQuota{
+		APIName:    apiName,
+		Date:       today,
+		UsedCount:  count,
+		DailyLimit: limit,
+	}
+	
+	// 使用 upsert 更新或插入
+	s.db.Where("api_name = ?", apiName).Assign(quota).FirstOrCreate(&quota)
+}
+
+// GetQuotaStatus 获取当前配额使用状态
+func (s *Scanner) GetQuotaStatus() map[string]interface{} {
+	return map[string]interface{}{
+		"google_safe_browsing": map[string]interface{}{
+			"used":  s.gsbDailyCount,
+			"limit": 10000,
+			"date":  s.gsbDailyResetDate,
+		},
+		"virustotal": map[string]interface{}{
+			"used":  s.vtDailyCount,
+			"limit": 500,
+			"date":  s.vtDailyResetDate,
+		},
+	}
 }
 
 // vtRateLimit 等待至少 15 秒间隔以遵守 VirusTotal 免费 API 速率限制 (4次/分钟)
@@ -70,6 +137,53 @@ func (s *Scanner) vtCheckDailyQuota() bool {
 
 	// 增加计数
 	s.vtDailyCount++
+	
+	// 保存到数据库
+	go s.saveQuotaToDB("virustotal", s.vtDailyCount, 500)
+	
+	return true
+}
+
+// gsbRateLimit 等待至少 1 秒间隔以遵守 Google Safe Browsing API 速率限制 (1次/秒)
+func (s *Scanner) gsbRateLimit() {
+	s.gsbMu.Lock()
+	defer s.gsbMu.Unlock()
+
+	if !s.gsbLastCall.IsZero() {
+		elapsed := time.Since(s.gsbLastCall)
+		if wait := time.Second - elapsed; wait > 0 {
+			time.Sleep(wait)
+		}
+	}
+	s.gsbLastCall = time.Now()
+}
+
+// gsbCheckDailyQuota 检查并更新 Google Safe Browsing 每日配额
+// 返回 true 表示可以继续调用，false 表示已超出配额
+func (s *Scanner) gsbCheckDailyQuota() bool {
+	s.gsbMu.Lock()
+	defer s.gsbMu.Unlock()
+
+	today := time.Now().Format("2006-01-02")
+
+	// 新的一天，重置计数器
+	if s.gsbDailyResetDate != today {
+		s.gsbDailyResetDate = today
+		s.gsbDailyCount = 0
+		fmt.Printf("[INFO] Google Safe Browsing daily quota reset for %s\n", today)
+	}
+
+	// 检查是否超出每日限制 (10000/day)
+	if s.gsbDailyCount >= 10000 {
+		return false
+	}
+
+	// 增加计数
+	s.gsbDailyCount++
+	
+	// 保存到数据库
+	go s.saveQuotaToDB("google_safe_browsing", s.gsbDailyCount, 10000)
+	
 	return true
 }
 
@@ -78,37 +192,92 @@ func strPtr(s string) *string {
 	return &s
 }
 
-// ScanAllDomains 扫描所有活跃域名
+// ScanAllDomains 扫描所有活跃域名（分批处理，遵守 API 速率限制）
 func (s *Scanner) ScanAllDomains(ctx context.Context) error {
 	var domains []models.Domain
 	if err := s.db.Where("status = ?", "active").Find(&domains).Error; err != nil {
 		return fmt.Errorf("failed to fetch domains: %w", err)
 	}
 
-	for _, domain := range domains {
-		if err := s.ScanDomain(ctx, &domain); err != nil {
-			fmt.Printf("Failed to scan domain %s: %v\n", domain.FullDomain, err)
+	totalDomains := len(domains)
+	if totalDomains == 0 {
+		fmt.Println("[INFO] No active domains to scan")
+		return nil
+	}
+
+	fmt.Printf("[INFO] Starting scan for %d domains\n", totalDomains)
+	fmt.Printf("[INFO] Google Safe Browsing quota used: %d/10000\n", s.gsbDailyCount)
+	fmt.Printf("[INFO] VirusTotal quota used: %d/500\n", s.vtDailyCount)
+
+	// 分批处理，每批处理完成后等待一段时间
+	batchSize := 50 // 每批50个域名
+	for i := 0; i < totalDomains; i += batchSize {
+		end := i + batchSize
+		if end > totalDomains {
+			end = totalDomains
+		}
+
+		batch := domains[i:end]
+		fmt.Printf("[INFO] Processing batch %d-%d of %d domains\n", i+1, end, totalDomains)
+
+		for _, domain := range batch {
+			if err := s.ScanDomain(ctx, &domain); err != nil {
+				fmt.Printf("[ERROR] Failed to scan domain %s: %v\n", domain.FullDomain, err)
+			}
+		}
+
+		// 批次之间等待，避免过快
+		if end < totalDomains {
+			fmt.Printf("[INFO] Batch complete. Waiting 5 seconds before next batch...\n")
+			time.Sleep(5 * time.Second)
 		}
 	}
 
+	fmt.Printf("[INFO] Scan complete. GSB used: %d/10000, VT used: %d/500\n",
+		s.gsbDailyCount, s.vtDailyCount)
 	return nil
 }
 
-// ScanAllPendingDomains 扫描所有待激活域名
+// ScanAllPendingDomains 扫描所有待激活域名（分批处理，遵守 API 速率限制）
 func (s *Scanner) ScanAllPendingDomains(ctx context.Context) error {
 	var pendingDomains []models.PendingDomain
 	if err := s.db.Where("deleted_at IS NULL").Find(&pendingDomains).Error; err != nil {
 		return fmt.Errorf("failed to fetch pending domains: %w", err)
 	}
 
-	fmt.Printf("[INFO] Scanning %d pending domains\n", len(pendingDomains))
+	totalDomains := len(pendingDomains)
+	if totalDomains == 0 {
+		fmt.Println("[INFO] No pending domains to scan")
+		return nil
+	}
 
-	for _, pending := range pendingDomains {
-		if err := s.ScanPendingDomain(ctx, &pending); err != nil {
-			fmt.Printf("Failed to scan pending domain %s: %v\n", pending.FullDomain, err)
+	fmt.Printf("[INFO] Starting scan for %d pending domains\n", totalDomains)
+
+	// 分批处理
+	batchSize := 50
+	for i := 0; i < totalDomains; i += batchSize {
+		end := i + batchSize
+		if end > totalDomains {
+			end = totalDomains
+		}
+
+		batch := pendingDomains[i:end]
+		fmt.Printf("[INFO] Processing batch %d-%d of %d pending domains\n", i+1, end, totalDomains)
+
+		for _, pending := range batch {
+			if err := s.ScanPendingDomain(ctx, &pending); err != nil {
+				fmt.Printf("[ERROR] Failed to scan pending domain %s: %v\n", pending.FullDomain, err)
+			}
+		}
+
+		// 批次之间等待
+		if end < totalDomains {
+			fmt.Printf("[INFO] Batch complete. Waiting 5 seconds before next batch...\n")
+			time.Sleep(5 * time.Second)
 		}
 	}
 
+	fmt.Printf("[INFO] Pending domains scan complete\n")
 	return nil
 }
 
@@ -333,6 +502,18 @@ func (s *Scanner) checkGoogleSafeBrowsing(domain string) *models.DomainScan {
 		ScanType: "safebrowsing",
 	}
 
+	// 检查每日配额
+	if !s.gsbCheckDailyQuota() {
+		scan.Status = "quota_exceeded"
+		scan.ErrorMessage = fmt.Sprintf("Daily quota exceeded (10000/day). Count: %d", s.gsbDailyCount)
+		fmt.Printf("[WARNING] Google Safe Browsing daily quota exceeded for domain %s (used: %d/10000)\n",
+			domain, s.gsbDailyCount)
+		return scan
+	}
+
+	// 速率限制：每秒最多1次请求
+	s.gsbRateLimit()
+
 	// 构建请求
 	reqBody := map[string]interface{}{
 		"client": map[string]string{
@@ -402,6 +583,7 @@ func (s *Scanner) checkGoogleSafeBrowsing(domain string) *models.DomainScan {
 			"threats": matches,
 		})
 		scan.ScanDetails = strPtr(string(details))
+		fmt.Printf("[SECURITY] Google Safe Browsing detected threat for domain %s: %v\n", domain, matches)
 	} else {
 		scan.Status = "success"
 		details, _ := json.Marshal(map[string]interface{}{
@@ -607,13 +789,70 @@ func (s *Scanner) handleAutoActions(domainID uint, safeBrowsingStatus, virusTota
 	now := time.Now()
 
 	// 1. 检测恶意内容 - 立即 suspend
+	// 但需要确认是真正的威胁检测，而不是 API 错误
 	if safeBrowsingStatus == "unsafe" || virusTotalStatus == "malicious" {
+		// 获取最新的扫描记录以确认
+		var latestScans []models.DomainScan
+		s.db.Where("domain_id = ? AND scan_type IN (?, ?)", domainID, "safebrowsing", "virustotal").
+			Order("scanned_at DESC").
+			Limit(2).
+			Find(&latestScans)
+
+		// 检查是否真的是威胁检测，而不是 API 错误
+		realThreat := false
+		scanDetails := ""
+		
+		for _, scan := range latestScans {
+			if scan.ScanType == "safebrowsing" && safeBrowsingStatus == "unsafe" {
+				if scan.Status == "threat_detected" {
+					realThreat = true
+					scanDetails += fmt.Sprintf("SafeBrowsing: threat_detected")
+					if scan.ScanDetails != nil {
+						scanDetails += fmt.Sprintf(" %s", *scan.ScanDetails)
+					}
+				} else {
+					scanDetails += fmt.Sprintf("SafeBrowsing: %s", scan.Status)
+					if scan.ErrorMessage != "" {
+						scanDetails += fmt.Sprintf(" (error: %s)", scan.ErrorMessage)
+					}
+				}
+			}
+			if scan.ScanType == "virustotal" && virusTotalStatus == "malicious" {
+				if scan.Status == "threat_detected" {
+					realThreat = true
+					if scanDetails != "" {
+						scanDetails += ", "
+					}
+					scanDetails += fmt.Sprintf("VirusTotal: threat_detected")
+					if scan.ScanDetails != nil {
+						scanDetails += fmt.Sprintf(" %s", *scan.ScanDetails)
+					}
+				} else {
+					if scanDetails != "" {
+						scanDetails += ", "
+					}
+					scanDetails += fmt.Sprintf("VirusTotal: %s", scan.Status)
+					if scan.ErrorMessage != "" {
+						scanDetails += fmt.Sprintf(" (error: %s)", scan.ErrorMessage)
+					}
+				}
+			}
+		}
+
+		// 只有在确认是真正的威胁时才挂起
+		if !realThreat {
+			fmt.Printf("[WARNING] Domain %s marked as unsafe/malicious but latest scan shows API error, not suspending\n",
+				domain.FullDomain)
+			fmt.Printf("[DEBUG] Scan details: %s\n", scanDetails)
+			return
+		}
+
 		if domain.Status != "suspended" {
 			domain.Status = "suspended"
 			s.db.Save(&domain)
 
-			reason := fmt.Sprintf("Malicious content detected (Safe Browsing: %s, VirusTotal: %s)",
-				safeBrowsingStatus, virusTotalStatus)
+			reason := fmt.Sprintf("Malicious content detected (Safe Browsing: %s, VirusTotal: %s)\nScan details: %s",
+				safeBrowsingStatus, virusTotalStatus, scanDetails)
 			telegram.SendAutoSuspendNotification(domain.FullDomain, reason)
 		}
 		return

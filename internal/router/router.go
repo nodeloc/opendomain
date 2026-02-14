@@ -182,6 +182,11 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 			admin.GET("/system-info", settingHandler.GetSystemInfo)
 			admin.GET("/dashboard-stats", settingHandler.GetDashboardStats)
 			admin.POST("/clear-cache", settingHandler.ClearCache)
+			
+			// 扫描管理
+			admin.GET("/api-quota", domainScanHandler.GetAPIQuotaStatus)
+			admin.GET("/scan-summaries", domainScanHandler.GetDomainScanSummaries)
+			admin.GET("/scan-records", domainScanHandler.ListDomainScans)
 
 			admin.GET("/users", userHandler.ListUsers)
 			admin.PUT("/users/:id", userHandler.AdminUpdateUser)

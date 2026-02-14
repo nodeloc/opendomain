@@ -59,11 +59,11 @@
             <td>{{ domain.root_domain?.domain || 'N/A' }}</td>
             <td>
               <span
-                class="badge"
+                class="px-2 py-0.5 rounded text-xs font-medium inline-flex items-center"
                 :class="{
-                  'badge-primary': domain.status === 'pending',
-                  'badge-success': domain.status === 'healthy',
-                  'badge-error': domain.status === 'unhealthy'
+                  'bg-blue-100 text-blue-800': domain.status === 'pending',
+                  'bg-green-100 text-green-800': domain.status === 'healthy',
+                  'bg-red-100 text-red-800': domain.status === 'unhealthy'
                 }"
               >
                 {{ getStatusText(domain.status) }}
@@ -110,9 +110,19 @@
         >
           «
         </button>
-        <button class="join-item btn">
-          {{ $t('adminPendingDomains.page') }} {{ pagination.page }} / {{ pagination.total_pages }}
-        </button>
+        <template v-for="(page, index) in visiblePages" :key="index">
+          <button
+            v-if="typeof page === 'number'"
+            class="join-item btn"
+            :class="{ 'btn-active': page === pagination.page }"
+            @click="changePage(page)"
+          >
+            {{ page }}
+          </button>
+          <button v-else class="join-item btn btn-disabled">
+            ...
+          </button>
+        </template>
         <button
           class="join-item btn"
           :disabled="pagination.page === pagination.total_pages"
@@ -206,6 +216,42 @@ const changePage = (page) => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 }
+
+const visiblePages = computed(() => {
+  const current = pagination.value.page
+  const total = pagination.value.total_pages
+  const pages = []
+
+  if (total <= 7) {
+    for (let i = 1; i <= total; i++) {
+      pages.push(i)
+    }
+  } else {
+    if (current <= 4) {
+      for (let i = 1; i <= 5; i++) {
+        pages.push(i)
+      }
+      pages.push('...')
+      pages.push(total)
+    } else if (current >= total - 3) {
+      pages.push(1)
+      pages.push('...')
+      for (let i = total - 4; i <= total; i++) {
+        pages.push(i)
+      }
+    } else {
+      pages.push(1)
+      pages.push('...')
+      for (let i = current - 1; i <= current + 1; i++) {
+        pages.push(i)
+      }
+      pages.push('...')
+      pages.push(total)
+    }
+  }
+
+  return pages.filter(p => p !== '...' || pages.indexOf(p) === pages.lastIndexOf(p))
+})
 
 const getStatusText = (status) => {
   return t(`adminPendingDomains.status_${status}`)

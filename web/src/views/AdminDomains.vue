@@ -12,51 +12,23 @@
           <span v-if="syncing" class="loading loading-spinner loading-sm"></span>
           {{ syncing ? $t('adminDomains.syncing') : $t('adminDomains.syncFOSSBilling') }}
         </button>
-        <div class="text-sm opacity-70">{{ $t('adminDomains.totalCount', { count: domains.length }) }}</div>
+        <div class="text-sm opacity-70">{{ $t('adminDomains.totalCount', { count: pagination.total }) }}</div>
       </div>
     </div>
 
     <!-- Stats -->
-    <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
-      <div
-        @click="setFilter('all')"
-        class="stat bg-base-100 rounded-lg shadow cursor-pointer hover:shadow-lg transition-shadow"
-        :class="{ 'ring-2 ring-primary': currentFilter === 'all' }"
-      >
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div class="stat bg-base-100 rounded-lg shadow">
         <div class="stat-title">{{ $t('adminDomains.totalDomains') }}</div>
-        <div class="stat-value text-primary">{{ allDomains.length }}</div>
+        <div class="stat-value text-primary">{{ pagination.total }}</div>
       </div>
-      <div
-        @click="setFilter('active')"
-        class="stat bg-base-100 rounded-lg shadow cursor-pointer hover:shadow-lg transition-shadow"
-        :class="{ 'ring-2 ring-success': currentFilter === 'active' }"
-      >
-        <div class="stat-title">{{ $t('adminDomains.activeDomains') }}</div>
-        <div class="stat-value text-success">{{ activeDomains }}</div>
+      <div class="stat bg-base-100 rounded-lg shadow">
+        <div class="stat-title">{{ $t('adminDomains.currentPage') }}</div>
+        <div class="stat-value text-info">{{ domains.length }}</div>
       </div>
-      <div
-        @click="setFilter('suspended')"
-        class="stat bg-base-100 rounded-lg shadow cursor-pointer hover:shadow-lg transition-shadow"
-        :class="{ 'ring-2 ring-warning': currentFilter === 'suspended' }"
-      >
-        <div class="stat-title">{{ $t('adminDomains.suspendedDomains') }}</div>
-        <div class="stat-value text-warning">{{ suspendedDomains }}</div>
-      </div>
-      <div
-        @click="setFilter('expiring')"
-        class="stat bg-base-100 rounded-lg shadow cursor-pointer hover:shadow-lg transition-shadow"
-        :class="{ 'ring-2 ring-error': currentFilter === 'expiring' }"
-      >
-        <div class="stat-title">{{ $t('adminDomains.expiringSoon') }}</div>
-        <div class="stat-value text-error">{{ expiringSoon }}</div>
-      </div>
-      <div
-        @click="setFilter('pending-deletion')"
-        class="stat bg-base-100 rounded-lg shadow cursor-pointer hover:shadow-lg transition-shadow"
-        :class="{ 'ring-2 ring-error': currentFilter === 'pending-deletion' }"
-      >
-        <div class="stat-title">{{ $t('adminDomains.pendingDeletion') }}</div>
-        <div class="stat-value text-error">{{ pendingDeletion }}</div>
+      <div class="stat bg-base-100 rounded-lg shadow">
+        <div class="stat-title">{{ $t('adminDomains.pages') }}</div>
+        <div class="stat-value text-secondary">{{ pagination.total_pages }}</div>
       </div>
     </div>
 
@@ -85,21 +57,9 @@
           </svg>
         </button>
       </div>
-      <div class="flex items-center justify-between mt-2">
-        <p v-if="searchQuery" class="text-sm text-gray-500">
-          {{ $t('adminDomains.searchResults', { count: domains.length, query: searchQuery }) }}
-        </p>
-        <div v-if="currentFilter !== 'all'" class="flex items-center gap-2">
-          <span class="text-sm text-gray-500">{{ $t('adminDomains.filtering') }}: </span>
-          <span class="badge badge-primary">{{ getFilterLabel(currentFilter) }}</span>
-          <button @click="setFilter('all')" class="btn btn-xs btn-ghost">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-            {{ $t('common.clear') }}
-          </button>
-        </div>
-      </div>
+      <p v-if="searchQuery" class="text-sm text-gray-500 mt-2">
+        {{ $t('adminDomains.searchResults', { count: domains.length, query: searchQuery }) }}
+      </p>
     </div>
 
     <!-- Loading -->
@@ -200,6 +160,39 @@
       </table>
       <div v-if="domains.length === 0" class="text-center py-8 text-gray-500">
         {{ searchQuery ? $t('adminDomains.noSearchResults') : $t('adminDomains.noData') }}
+      </div>
+    </div>
+
+    <!-- Pagination -->
+    <div v-if="!loading && pagination.total_pages > 1" class="flex justify-center mt-6">
+      <div class="join">
+        <button
+          class="join-item btn"
+          :disabled="pagination.page === 1"
+          @click="goToPage(pagination.page - 1)"
+        >
+          «
+        </button>
+        <template v-for="(page, index) in visiblePages" :key="index">
+          <button
+            v-if="typeof page === 'number'"
+            class="join-item btn"
+            :class="{ 'btn-active': page === pagination.page }"
+            @click="goToPage(page)"
+          >
+            {{ page }}
+          </button>
+          <button v-else class="join-item btn btn-disabled">
+            ...
+          </button>
+        </template>
+        <button
+          class="join-item btn"
+          :disabled="pagination.page === pagination.total_pages"
+          @click="goToPage(pagination.page + 1)"
+        >
+          »
+        </button>
       </div>
     </div>
 
@@ -310,45 +303,36 @@ const showDeleteModal = ref(false)
 const selectedDomain = ref(null)
 const domainToDelete = ref(null)
 const deleting = ref(false)
-const currentFilter = ref('all') // 当前过滤器
 const syncing = ref(false) // FOSSBilling同步状态
+const pagination = ref({
+  page: 1,
+  page_size: 20,
+  total: 0,
+  total_pages: 0
+})
 let searchTimeout = null
 
 const fossbillingEnabled = computed(() => siteConfig.fossbilling.enabled)
 
-const activeDomains = computed(() => {
-  return allDomains.value.filter(d => d.status === 'active').length
-})
-
-const suspendedDomains = computed(() => {
-  return allDomains.value.filter(d => d.status === 'suspended').length
-})
-
-const expiringSoon = computed(() => {
-  const now = new Date()
-  const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
-  return allDomains.value.filter(d => {
-    const expiresAt = new Date(d.expires_at)
-    return expiresAt <= thirtyDaysFromNow && expiresAt > now
-  }).length
-})
-
-const pendingDeletion = computed(() => {
-  const now = new Date()
-  const twentyDaysAgo = new Date(now.getTime() - 20 * 24 * 60 * 60 * 1000)
-  return allDomains.value.filter(d => {
-    const expiresAt = new Date(d.expires_at)
-    return expiresAt <= twentyDaysAgo
-  }).length
-})
-
 const fetchDomains = async (search = '') => {
   loading.value = true
   try {
-    const params = search ? { search } : {}
+    const params = {
+      page: pagination.value.page,
+      page_size: pagination.value.page_size
+    }
+    if (search) {
+      params.search = search
+    }
     const response = await axios.get('/api/admin/domains', { params })
-    allDomains.value = response.data.domains || []
-    applyFilter()
+    domains.value = response.data.domains || []
+    if (response.data.pagination) {
+      pagination.value = response.data.pagination
+    }
+    // 首次加载时也获取所有域名用于统计（只在第一页时）
+    if (pagination.value.page === 1 && !search) {
+      allDomains.value = domains.value
+    }
   } catch (error) {
     toast.error(t('adminDomains.fetchFailed'))
   } finally {
@@ -356,62 +340,65 @@ const fetchDomains = async (search = '') => {
   }
 }
 
-// 应用过滤器
-const applyFilter = () => {
-  if (currentFilter.value === 'all') {
-    domains.value = allDomains.value
-  } else if (currentFilter.value === 'active') {
-    domains.value = allDomains.value.filter(d => d.status === 'active')
-  } else if (currentFilter.value === 'suspended') {
-    domains.value = allDomains.value.filter(d => d.status === 'suspended')
-  } else if (currentFilter.value === 'expiring') {
-    const now = new Date()
-    const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
-    domains.value = allDomains.value.filter(d => {
-      const expiresAt = new Date(d.expires_at)
-      return expiresAt <= thirtyDaysFromNow && expiresAt > now
-    })
-  } else if (currentFilter.value === 'pending-deletion') {
-    const now = new Date()
-    const twentyDaysAgo = new Date(now.getTime() - 20 * 24 * 60 * 60 * 1000)
-    domains.value = allDomains.value.filter(d => {
-      const expiresAt = new Date(d.expires_at)
-      return expiresAt <= twentyDaysAgo
-    })
-  }
-}
-
-// 设置过滤器
-const setFilter = (filter) => {
-  currentFilter.value = filter
-  applyFilter()
-}
-
-// 获取过滤器标签
-const getFilterLabel = (filter) => {
-  const labels = {
-    'all': t('adminDomains.totalDomains'),
-    'active': t('adminDomains.activeDomains'),
-    'suspended': t('adminDomains.suspendedDomains'),
-    'expiring': t('adminDomains.expiringSoon'),
-    'pending-deletion': t('adminDomains.pendingDeletion')
-  }
-  return labels[filter] || filter
-}
-
 const debouncedSearch = () => {
   if (searchTimeout) {
     clearTimeout(searchTimeout)
   }
   searchTimeout = setTimeout(() => {
+    pagination.value.page = 1
     fetchDomains(searchQuery.value)
   }, 500)
 }
 
 const clearSearch = () => {
   searchQuery.value = ''
+  pagination.value.page = 1
   fetchDomains()
 }
+
+const goToPage = (page) => {
+  if (page >= 1 && page <= pagination.value.total_pages) {
+    pagination.value.page = page
+    fetchDomains(searchQuery.value)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+}
+
+const visiblePages = computed(() => {
+  const current = pagination.value.page
+  const total = pagination.value.total_pages
+  const pages = []
+
+  if (total <= 7) {
+    for (let i = 1; i <= total; i++) {
+      pages.push(i)
+    }
+  } else {
+    if (current <= 4) {
+      for (let i = 1; i <= 5; i++) {
+        pages.push(i)
+      }
+      pages.push('...')
+      pages.push(total)
+    } else if (current >= total - 3) {
+      pages.push(1)
+      pages.push('...')
+      for (let i = total - 4; i <= total; i++) {
+        pages.push(i)
+      }
+    } else {
+      pages.push(1)
+      pages.push('...')
+      for (let i = current - 1; i <= current + 1; i++) {
+        pages.push(i)
+      }
+      pages.push('...')
+      pages.push(total)
+    }
+  }
+
+  return pages.filter(p => p !== '...' || pages.indexOf(p) === pages.lastIndexOf(p))
+})
 
 const viewDomainDetails = (domain) => {
   selectedDomain.value = domain

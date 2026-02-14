@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -265,6 +266,19 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 // ListUsers 管理员：获取用户列表
 func (h *UserHandler) ListUsers(c *gin.Context) {
 	search := c.Query("search")
+	page := 1
+	pageSize := 20
+
+	if p := c.Query("page"); p != "" {
+		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
+			page = parsed
+		}
+	}
+	if ps := c.Query("page_size"); ps != "" {
+		if parsed, err := strconv.Atoi(ps); err == nil && parsed > 0 && parsed <= 100 {
+			pageSize = parsed
+		}
+	}
 
 	query := h.db.Model(&models.User{})
 
@@ -274,8 +288,17 @@ func (h *UserHandler) ListUsers(c *gin.Context) {
 			"%"+search+"%", "%"+search+"%", "%"+search+"%")
 	}
 
+	// 计算总数
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to count users"})
+		return
+	}
+
+	// 分页查询
 	var users []models.User
-	if err := query.Find(&users).Error; err != nil {
+	offset := (page - 1) * pageSize
+	if err := query.Order("created_at DESC").Offset(offset).Limit(pageSize).Find(&users).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch users"})
 		return
 	}
@@ -285,7 +308,20 @@ func (h *UserHandler) ListUsers(c *gin.Context) {
 		responses[i] = user.ToResponse()
 	}
 
-	c.JSON(http.StatusOK, gin.H{"users": responses})
+	totalPages := int(total) / pageSize
+	if int(total)%pageSize != 0 {
+		totalPages++
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"users": responses,
+		"pagination": gin.H{
+			"page":        page,
+			"page_size":   pageSize,
+			"total":       total,
+			"total_pages": totalPages,
+		},
+	})
 }
 
 // AdminUpdateUserStatus 管理员：更新用户状态

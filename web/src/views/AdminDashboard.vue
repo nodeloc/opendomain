@@ -95,6 +95,23 @@
         </div>
       </router-link>
 
+      <!-- Scan Status -->
+      <router-link to="/admin/scan-status" class="card bg-base-100 shadow-xl hover:shadow-2xl transition-all duration-300 border border-base-300">
+        <div class="card-body">
+          <div class="flex items-center gap-4">
+            <div class="p-3 rounded-lg bg-info/10">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-info" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+            </div>
+            <div>
+              <h2 class="card-title">{{ $t('admin.scanStatus') }}</h2>
+              <p class="text-sm opacity-70">{{ $t('admin.scanStatusDesc') }}</p>
+            </div>
+          </div>
+        </div>
+      </router-link>
+
       <!-- Coupons Management -->
       <router-link to="/admin/coupons" class="card bg-base-100 shadow-xl hover:shadow-2xl transition-all duration-300 border border-base-300">
         <div class="card-body">

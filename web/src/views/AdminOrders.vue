@@ -160,29 +160,36 @@
     </div>
 
     <!-- Pagination -->
-    <div v-if="pagination.total_page > 1" class="flex justify-center mt-6 gap-2">
-      <button 
-        @click="goToPage(currentPage - 1)" 
-        :disabled="currentPage === 1"
-        class="btn btn-sm"
-      >
-        {{ $t('admin.orderManagement.pagination.previous') }}
-      </button>
-      <button 
-        v-for="page in visiblePages" 
-        :key="page"
-        @click="goToPage(page)"
-        :class="['btn btn-sm', currentPage === page ? 'btn-primary' : '']"
-      >
-        {{ page }}
-      </button>
-      <button 
-        @click="goToPage(currentPage + 1)" 
-        :disabled="currentPage === pagination.total_page"
-        class="btn btn-sm"
-      >
-        {{ $t('admin.orderManagement.pagination.next') }}
-      </button>
+    <div v-if="pagination.total_page > 1" class="flex justify-center mt-6">
+      <div class="join">
+        <button
+          class="join-item btn"
+          :disabled="currentPage === 1"
+          @click="goToPage(currentPage - 1)"
+        >
+          «
+        </button>
+        <template v-for="(page, index) in visiblePages" :key="index">
+          <button
+            v-if="typeof page === 'number'"
+            class="join-item btn"
+            :class="{ 'btn-active': page === currentPage }"
+            @click="goToPage(page)"
+          >
+            {{ page }}
+          </button>
+          <button v-else class="join-item btn btn-disabled">
+            ...
+          </button>
+        </template>
+        <button
+          class="join-item btn"
+          :disabled="currentPage === pagination.total_page"
+          @click="goToPage(currentPage + 1)"
+        >
+          »
+        </button>
+      </div>
     </div>
 
     <!-- Order Details Modal -->
@@ -288,16 +295,39 @@ const totalRevenue = computed(() => {
 })
 
 const visiblePages = computed(() => {
-  const total = pagination.value.total_page
   const current = currentPage.value
-  const delta = 2
+  const total = pagination.value.total_page
   const pages = []
-  
-  for (let i = Math.max(1, current - delta); i <= Math.min(total, current + delta); i++) {
-    pages.push(i)
+
+  if (total <= 7) {
+    for (let i = 1; i <= total; i++) {
+      pages.push(i)
+    }
+  } else {
+    if (current <= 4) {
+      for (let i = 1; i <= 5; i++) {
+        pages.push(i)
+      }
+      pages.push('...')
+      pages.push(total)
+    } else if (current >= total - 3) {
+      pages.push(1)
+      pages.push('...')
+      for (let i = total - 4; i <= total; i++) {
+        pages.push(i)
+      }
+    } else {
+      pages.push(1)
+      pages.push('...')
+      for (let i = current - 1; i <= current + 1; i++) {
+        pages.push(i)
+      }
+      pages.push('...')
+      pages.push(total)
+    }
   }
-  
-  return pages
+
+  return pages.filter(p => p !== '...' || pages.indexOf(p) === pages.lastIndexOf(p))
 })
 
 const getStatusCount = (status) => {

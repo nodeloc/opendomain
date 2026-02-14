@@ -2,14 +2,14 @@
   <div class="container mx-auto px-4 py-8">
     <div class="flex justify-between items-center mb-6">
       <h1 class="text-3xl font-bold">{{ $t('adminUsers.title') }}</h1>
-      <div class="text-sm opacity-70">{{ $t('adminUsers.totalCount', { count: users.length }) }}</div>
+      <div class="text-sm opacity-70">{{ $t('adminUsers.totalCount', { count: pagination.total }) }}</div>
     </div>
 
     <!-- Stats -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
       <div class="stat bg-base-100 rounded-lg shadow">
         <div class="stat-title">{{ $t('adminUsers.totalUsers') }}</div>
-        <div class="stat-value text-primary">{{ users.length }}</div>
+        <div class="stat-value text-primary">{{ pagination.total }}</div>
       </div>
       <div class="stat bg-base-100 rounded-lg shadow">
         <div class="stat-title">{{ $t('adminUsers.activeUsers') }}</div>
@@ -127,6 +127,39 @@
       </table>
       <div v-if="users.length === 0" class="text-center py-8 text-gray-500">
         {{ $t('adminUsers.noData') }}
+      </div>
+    </div>
+
+    <!-- Pagination -->
+    <div v-if="pagination.total_pages > 1" class="flex justify-center mt-6">
+      <div class="join">
+        <button
+          class="join-item btn"
+          :disabled="pagination.page === 1"
+          @click="goToPage(pagination.page - 1)"
+        >
+          «
+        </button>
+        <template v-for="(page, index) in visiblePages" :key="index">
+          <button
+            v-if="typeof page === 'number'"
+            class="join-item btn"
+            :class="{ 'btn-active': page === pagination.page }"
+            @click="goToPage(page)"
+          >
+            {{ page }}
+          </button>
+          <button v-else class="join-item btn btn-disabled">
+            ...
+          </button>
+        </template>
+        <button
+          class="join-item btn"
+          :disabled="pagination.page === pagination.total_pages"
+          @click="goToPage(pagination.page + 1)"
+        >
+          »
+        </button>
       </div>
     </div>
 
@@ -255,6 +288,12 @@ const showEditModal = ref(false)
 const submitting = ref(false)
 const selectedUser = ref(null)
 const editingUser = ref(null)
+const pagination = ref({
+  page: 1,
+  page_size: 20,
+  total: 0,
+  total_pages: 0
+})
 let searchTimeout = null
 
 const editForm = ref({
@@ -279,9 +318,18 @@ const bannedUsers = computed(() => {
 
 const fetchUsers = async (search = '') => {
   try {
-    const params = search ? { search } : {}
+    const params = {
+      page: pagination.value.page,
+      page_size: pagination.value.page_size
+    }
+    if (search) {
+      params.search = search
+    }
     const response = await axios.get('/api/admin/users', { params })
     users.value = response.data.users || []
+    if (response.data.pagination) {
+      pagination.value = response.data.pagination
+    }
   } catch (error) {
     toast.error(t('adminUsers.fetchFailed'))
   }
@@ -292,14 +340,60 @@ const debouncedSearch = () => {
     clearTimeout(searchTimeout)
   }
   searchTimeout = setTimeout(() => {
+    pagination.value.page = 1
     fetchUsers(searchQuery.value)
   }, 500)
 }
 
 const clearSearch = () => {
   searchQuery.value = ''
+  pagination.value.page = 1
   fetchUsers()
 }
+
+const goToPage = (page) => {
+  if (page >= 1 && page <= pagination.value.total_pages) {
+    pagination.value.page = page
+    fetchUsers(searchQuery.value)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+}
+
+const visiblePages = computed(() => {
+  const current = pagination.value.page
+  const total = pagination.value.total_pages
+  const pages = []
+
+  if (total <= 7) {
+    for (let i = 1; i <= total; i++) {
+      pages.push(i)
+    }
+  } else {
+    if (current <= 4) {
+      for (let i = 1; i <= 5; i++) {
+        pages.push(i)
+      }
+      pages.push('...')
+      pages.push(total)
+    } else if (current >= total - 3) {
+      pages.push(1)
+      pages.push('...')
+      for (let i = total - 4; i <= total; i++) {
+        pages.push(i)
+      }
+    } else {
+      pages.push(1)
+      pages.push('...')
+      for (let i = current - 1; i <= current + 1; i++) {
+        pages.push(i)
+      }
+      pages.push('...')
+      pages.push(total)
+    }
+  }
+
+  return pages.filter(p => p !== '...' || pages.indexOf(p) === pages.lastIndexOf(p))
+})
 
 const viewUserDetails = (user) => {
   selectedUser.value = user

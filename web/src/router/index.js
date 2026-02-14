@@ -167,6 +167,12 @@ const routes = [
     meta: { requiresAuth: true, requiresAdmin: true },
   },
   {
+    path: '/admin/scan-status',
+    name: 'AdminScanStatus',
+    component: () => import('../views/AdminScanStatus.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true },
+  },
+  {
     path: '/pages/:slug',
     name: 'PageView',
     component: () => import('../views/PageView.vue'),

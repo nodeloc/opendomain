@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -679,8 +680,21 @@ func (h *DomainHandler) TransferDomain(c *gin.Context) {
 // ListAllDomains 管理员：获取所有域名列表
 func (h *DomainHandler) ListAllDomains(c *gin.Context) {
 	search := c.Query("search")
+	page := 1
+	pageSize := 20
 
-	query := h.db.Preload("RootDomain").Preload("User")
+	if p := c.Query("page"); p != "" {
+		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
+			page = parsed
+		}
+	}
+	if ps := c.Query("page_size"); ps != "" {
+		if parsed, err := strconv.Atoi(ps); err == nil && parsed > 0 && parsed <= 100 {
+			pageSize = parsed
+		}
+	}
+
+	query := h.db.Model(&models.Domain{})
 
 	// 搜索功能：支持按域名、子域名、用户名、邮箱搜索
 	if search != "" {
@@ -689,8 +703,23 @@ func (h *DomainHandler) ListAllDomains(c *gin.Context) {
 				"%"+search+"%", "%"+search+"%", "%"+search+"%", "%"+search+"%")
 	}
 
+	// 计算总数
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to count domains"})
+		return
+	}
+
+	// 分页查询（重新构建query以包含Preload）
 	var domains []models.Domain
-	if err := query.Order("created_at DESC").Find(&domains).Error; err != nil {
+	offset := (page - 1) * pageSize
+	domainQuery := h.db.Preload("RootDomain").Preload("User")
+	if search != "" {
+		domainQuery = domainQuery.Joins("LEFT JOIN users ON users.id = domains.user_id").
+			Where("domains.full_domain LIKE ? OR domains.subdomain LIKE ? OR users.username LIKE ? OR users.email LIKE ?",
+				"%"+search+"%", "%"+search+"%", "%"+search+"%", "%"+search+"%")
+	}
+	if err := domainQuery.Order("domains.created_at DESC").Offset(offset).Limit(pageSize).Find(&domains).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch domains"})
 		return
 	}
@@ -700,7 +729,20 @@ func (h *DomainHandler) ListAllDomains(c *gin.Context) {
 		responses[i] = domain.ToResponse()
 	}
 
-	c.JSON(http.StatusOK, gin.H{"domains": responses})
+	totalPages := int(total) / pageSize
+	if int(total)%pageSize != 0 {
+		totalPages++
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"domains": responses,
+		"pagination": gin.H{
+			"page":        page,
+			"page_size":   pageSize,
+			"total":       total,
+			"total_pages": totalPages,
+		},
+	})
 }
 
 // isValidSubdomain 验证子域名格式
