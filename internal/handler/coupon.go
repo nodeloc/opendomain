@@ -198,6 +198,12 @@ func (h *CouponHandler) ApplyCoupon(c *gin.Context) {
 		return
 	}
 
+	// 验证优惠券类型 - 此接口只允许额度增加类型的优惠券
+	if coupon.DiscountType != "quota_increase" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Only quota increase coupons can be applied here. Discount coupons should be used during domain registration or renewal."})
+		return
+	}
+
 	// 验证优惠券是否有效
 	now := time.Now()
 	if !coupon.IsActive {

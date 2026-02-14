@@ -29,27 +29,6 @@
       </div>
     </div>
 
-    <!-- Search Bar -->
-    <div class="card bg-base-100 shadow-xl">
-      <div class="card-body p-6">
-        <div class="flex gap-3">
-          <input
-            v-model="searchQuery"
-            type="text"
-            :placeholder="$t('health.searchPlaceholder') || 'Search domains...'"
-            class="input input-bordered flex-1"
-            @keyup.enter="handleSearch"
-          />
-          <button class="btn btn-primary min-w-[100px]" @click="handleSearch">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            {{ $t('health.search') || 'Search' }}
-          </button>
-        </div>
-      </div>
-    </div>
-
     <!-- Health Reports -->
     <div v-if="loading" class="flex justify-center py-12">
       <span class="loading loading-spinner loading-lg"></span>
@@ -282,7 +261,6 @@ const loading = ref(true)
 const selectedReport = ref(null)
 const scans = ref([])
 const loadingScans = ref(false)
-const searchQuery = ref('')
 const pagination = ref({
   page: 1,
   page_size: 20,
@@ -301,9 +279,6 @@ const fetchHealthReports = async () => {
       page: pagination.value.page,
       page_size: pagination.value.page_size,
     }
-    if (searchQuery.value) {
-      params.search = searchQuery.value
-    }
     const response = await axios.get('/api/public/domain-health', { params })
     healthReports.value = response.data.health_reports || []
     if (response.data.pagination) {
@@ -314,13 +289,6 @@ const fetchHealthReports = async () => {
   } finally {
     loading.value = false
   }
-}
-
-const handleSearch = () => {
-  pagination.value.page = 1
-  fetchHealthReports()
-  // Scroll to top of the page
-  window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
 const goToPage = (page) => {

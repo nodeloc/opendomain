@@ -69,6 +69,32 @@
                 ({{ getDaysUntilExpiry(domain.expires_at) }} {{ $t('domains.daysLeft') }})
               </span>
             </p>
+            
+            <!-- Scan Status -->
+            <div v-if="domain.scan_summary" class="border-t pt-2 mt-2">
+              <p class="font-semibold mb-1">{{ $t('domains.scanStatus') }}:</p>
+              <div class="flex flex-wrap gap-1">
+                <div class="px-2 py-0.5 rounded text-xs font-medium inline-flex items-center" :class="getHealthBadgeClass(domain.scan_summary.overall_health)">
+                  {{ domain.scan_summary.overall_health || 'unknown' }}
+                </div>
+                <div class="px-2 py-0.5 rounded text-xs font-medium inline-flex items-center" :class="getSafeBrowsingBadgeClass(domain.scan_summary.safe_browsing_status)">
+                  SB: {{ domain.scan_summary.safe_browsing_status || 'unknown' }}
+                </div>
+                <div class="px-2 py-0.5 rounded text-xs font-medium inline-flex items-center" :class="getVirusTotalBadgeClass(domain.scan_summary.virustotal_status)">
+                  VT: {{ domain.scan_summary.virustotal_status || 'unknown' }}
+                </div>
+              </div>
+              <p class="text-xs mt-1 opacity-70">
+                {{ $t('domains.uptime') }}: 
+                <span :class="getUptimeClass(domain.scan_summary.uptime_percentage)">
+                  {{ domain.scan_summary.uptime_percentage ? domain.scan_summary.uptime_percentage.toFixed(1) + '%' : 'N/A' }}
+                </span>
+              </p>
+            </div>
+            <div v-else class="border-t pt-2 mt-2">
+              <p class="text-xs opacity-50">{{ $t('domains.noScanData') }}</p>
+            </div>
+            
             <p>
               <span class="font-semibold">{{ $t('domains.dnsSynced') }}:</span>
               <span :class="domain.dns_synced ? 'text-success' : 'text-warning'">
@@ -99,6 +125,18 @@
               </button>
             </div>
 
+            <!-- View Scan Details Button -->
+            <button
+              v-if="domain.scan_summary"
+              class="btn btn-sm btn-info"
+              @click="viewScanDetails(domain)"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+              {{ $t('domains.scanDetails') }}
+            </button>
+
             <!-- More Actions Dropdown -->
             <div class="dropdown dropdown-end">
               <label tabindex="0" class="btn btn-sm btn-ghost">
@@ -111,19 +149,19 @@
                   <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
                   </svg>
-                  Modify Nameservers
+                  {{ $t('domains.modifyNameservers') }}
                 </a></li>
                 <li><a @click="openRenew(domain)">
                   <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                   </svg>
-                  Renew Domain
+                  {{ $t('domains.renewDomainTitle') }}
                 </a></li>
                 <li><a @click="openTransfer(domain)">
                   <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                   </svg>
-                  Transfer Domain
+                  {{ $t('domains.transferDomainTitle') }}
                 </a></li>
                 <li><a @click="confirmDelete(domain)" class="text-error">
                   <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -141,8 +179,8 @@
     <!-- Modify Nameservers Modal -->
     <dialog :class="{ 'modal': true, 'modal-open': showNSModal }">
       <div class="modal-box" v-if="selectedDomain">
-        <h3 class="font-bold text-2xl mb-4">Modify Nameservers</h3>
-        <p class="text-sm opacity-70 mb-4">Domain: <span class="font-mono font-bold">{{ selectedDomain.full_domain }}</span></p>
+        <h3 class="font-bold text-2xl mb-4">{{ $t('domains.modifyNameservers') }}</h3>
+        <p class="text-sm opacity-70 mb-4">{{ $t('domains.domain') }}: <span class="font-mono font-bold">{{ selectedDomain.full_domain }}</span></p>
 
         <div class="form-control mb-4">
           <label class="label cursor-pointer justify-start gap-3">
@@ -224,22 +262,22 @@
     <!-- Renew Domain Modal -->
     <dialog :class="{ 'modal': true, 'modal-open': showRenewModal }">
       <div class="modal-box" v-if="selectedDomain">
-        <h3 class="font-bold text-2xl mb-4">Renew Domain</h3>
-        <p class="text-sm opacity-70 mb-4">Domain: <span class="font-mono font-bold">{{ selectedDomain.full_domain }}</span></p>
+        <h3 class="font-bold text-2xl mb-4">{{ $t('domains.renewDomainTitle') }}</h3>
+        <p class="text-sm opacity-70 mb-4">{{ $t('domains.domain') }}: <span class="font-mono font-bold">{{ selectedDomain.full_domain }}</span></p>
 
         <div class="alert alert-info mb-4">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <div>
-            <div class="font-bold">Current Expiration</div>
+            <div class="font-bold">{{ $t('domains.currentExpiration') }}</div>
             <div class="text-sm">{{ formatDate(selectedDomain.expires_at) }}</div>
           </div>
         </div>
 
         <div class="form-control mb-4">
           <label class="label">
-            <span class="label-text font-semibold">Renewal Period</span>
+            <span class="label-text font-semibold">{{ $t('domains.renewalPeriod') }}</span>
           </label>
           <input
             v-model.number="renewYears"
@@ -247,12 +285,28 @@
             min="1"
             max="10"
             class="range range-primary"
+            :disabled="renewIsLifetime"
           />
           <div class="flex justify-between text-xs px-2 mt-2">
-            <span>1 Year</span>
-            <span>{{ renewYears }} {{ renewYears === 1 ? 'Year' : 'Years' }}</span>
-            <span>10 Years</span>
+            <span>1 {{ $t('domains.year') }}</span>
+            <span>{{ $t('domains.yearCount', { count: renewYears }) }}</span>
+            <span>10 {{ $t('domains.years') }}</span>
           </div>
+        </div>
+
+        <!-- Lifetime Option (for paid domains) -->
+        <div v-if="selectedDomain.root_domain && !selectedDomain.root_domain.is_free && selectedDomain.root_domain.lifetime_price" class="form-control mb-4">
+          <label class="label cursor-pointer justify-start gap-3">
+            <input
+              v-model="renewIsLifetime"
+              type="checkbox"
+              class="checkbox checkbox-secondary"
+            />
+            <span class="label-text">
+              <span class="font-semibold">{{ $t('domains.lifetimeRenewal') }}</span>
+              <span class="ml-2 text-sm opacity-70">{{ $t('domains.lifetimeRenewalDesc') }}</span>
+            </span>
+          </label>
         </div>
 
         <div class="alert alert-success">
@@ -260,22 +314,67 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <div>
-            <div class="font-bold">New Expiration</div>
+            <div class="font-bold">{{ $t('domains.newExpiration') }}</div>
             <div class="text-sm">{{ calculateNewExpiry(selectedDomain.expires_at, renewYears) }}</div>
           </div>
         </div>
 
+        <!-- Coupon Code (for paid domains) -->
         <div v-if="selectedDomain.root_domain && !selectedDomain.root_domain.is_free" class="mt-4">
-          <div class="text-lg font-bold text-center">
-            Price: {{ formatPrice(calculateRenewPrice()) }}
+          <label class="label">
+            <span class="label-text">{{ $t('order.couponCode') }} ({{ $t('order.optional') }})</span>
+          </label>
+          <div class="join w-full">
+            <input
+              v-model="renewCouponCode"
+              type="text"
+              :placeholder="$t('coupon.enterCode')"
+              class="input input-bordered join-item flex-1"
+              @keyup.enter="applyRenewCoupon"
+            />
+            <button 
+              class="btn btn-primary join-item"
+              @click="applyRenewCoupon"
+              :disabled="!renewCouponCode || renewCouponApplying"
+            >
+              <span v-if="renewCouponApplying" class="loading loading-spinner loading-xs"></span>
+              <span v-else>{{ $t('coupon.apply') }}</span>
+            </button>
+          </div>
+          <label v-if="renewCouponError" class="label">
+            <span class="label-text-alt text-error">{{ renewCouponError }}</span>
+          </label>
+          <label v-if="renewCouponApplied" class="label">
+            <span class="label-text-alt text-success">✓ {{ $t('order.couponApplied') }}</span>
+          </label>
+        </div>
+
+        <!-- Price Display -->
+        <div v-if="selectedDomain.root_domain && !selectedDomain.root_domain.is_free" class="mt-4">
+          <div class="card bg-base-200">
+            <div class="card-body p-4">
+              <div class="flex justify-between items-center mb-2">
+                <span class="text-sm opacity-70">{{ $t('order.originalPrice') }}</span>
+                <span class="text-sm">{{ formatPrice(calculateRenewPrice()) }}</span>
+              </div>
+              <div v-if="renewPriceData && renewPriceData.discount_amount > 0" class="flex justify-between items-center mb-2 text-success">
+                <span class="text-sm">{{ $t('order.discount') }}</span>
+                <span class="text-sm">-{{ formatPrice(renewPriceData.discount_amount) }}</span>
+              </div>
+              <div class="divider my-1"></div>
+              <div class="flex justify-between items-center">
+                <span class="font-bold">{{ $t('order.finalPrice') }}</span>
+                <span class="text-2xl font-bold">{{ formatPrice(renewPriceData?.final_price || calculateRenewPrice()) }}</span>
+              </div>
+            </div>
           </div>
         </div>
 
         <div class="modal-action">
-          <button class="btn btn-ghost" @click="closeRenewModal">Cancel</button>
+          <button class="btn btn-ghost" @click="closeRenewModal">{{ $t('common.cancel') }}</button>
           <button class="btn btn-primary" @click="renewDomain" :disabled="submitting">
             <span v-if="submitting" class="loading loading-spinner loading-sm"></span>
-            <span v-else>Renew</span>
+            <span v-else>{{ $t('domains.renew') }}</span>
           </button>
         </div>
       </div>
@@ -287,8 +386,8 @@
     <!-- Transfer Domain Modal -->
     <dialog :class="{ 'modal': true, 'modal-open': showTransferModal }">
       <div class="modal-box" v-if="selectedDomain">
-        <h3 class="font-bold text-2xl mb-4">Transfer Domain</h3>
-        <p class="text-sm opacity-70 mb-4">Domain: <span class="font-mono font-bold">{{ selectedDomain.full_domain }}</span></p>
+        <h3 class="font-bold text-2xl mb-4">{{ $t('domains.transferDomainTitle') }}</h3>
+        <p class="text-sm opacity-70 mb-4">{{ $t('domains.domain') }}: <span class="font-mono font-bold">{{ selectedDomain.full_domain }}</span></p>
 
         <div class="alert alert-warning mb-4">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -417,18 +516,159 @@
         <button type="button" @click="closeSyncModal" :disabled="syncInProgress">close</button>
       </form>
     </dialog>
+
+    <!-- Scan Details Modal -->
+    <dialog :class="{ 'modal': true, 'modal-open': showScanDetailsModal }">
+      <div class="modal-box max-w-6xl" v-if="selectedDomain">
+        <h3 class="font-bold text-2xl mb-4">{{ $t('domains.scanDetails') }}</h3>
+        <p class="text-sm opacity-70 mb-4">{{ $t('domains.domain') }}: <span class="font-mono font-bold">{{ selectedDomain.full_domain }}</span></p>
+
+        <!-- Scan Summary -->
+        <div v-if="selectedDomain.scan_summary" class="card bg-base-300 mb-4">
+          <div class="card-body p-4">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div>
+                <div class="text-xs opacity-70">Overall Health</div>
+                <div class="mt-1">
+                  <span class="px-2 py-1 rounded text-xs font-medium" :class="getHealthBadgeClass(selectedDomain.scan_summary.overall_health)">
+                    {{ selectedDomain.scan_summary.overall_health || 'N/A' }}
+                  </span>
+                </div>
+              </div>
+              <div>
+                <div class="text-xs opacity-70">Safe Browsing</div>
+                <div class="mt-1">
+                  <span class="px-2 py-1 rounded text-xs font-medium" :class="getSafeBrowsingBadgeClass(selectedDomain.scan_summary.safe_browsing_status)">
+                    {{ selectedDomain.scan_summary.safe_browsing_status || 'N/A' }}
+                  </span>
+                </div>
+              </div>
+              <div>
+                <div class="text-xs opacity-70">VirusTotal</div>
+                <div class="mt-1">
+                  <span class="px-2 py-1 rounded text-xs font-medium" :class="getVirusTotalBadgeClass(selectedDomain.scan_summary.virustotal_status)">
+                    {{ selectedDomain.scan_summary.virustotal_status || 'N/A' }}
+                  </span>
+                </div>
+              </div>
+              <div>
+                <div class="text-xs opacity-70">Uptime</div>
+                <div class="mt-1 font-semibold">
+                  {{ selectedDomain.scan_summary.uptime_percentage ? selectedDomain.scan_summary.uptime_percentage.toFixed(2) + '%' : 'N/A' }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Scan Records Table -->
+        <div class="overflow-x-auto">
+          <div v-if="scanLoading" class="flex justify-center py-8">
+            <span class="loading loading-spinner loading-lg"></span>
+          </div>
+
+          <table v-else-if="scanRecords.length > 0" class="table table-sm">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Status</th>
+                <th>HTTP</th>
+                <th>DNS</th>
+                <th>SSL</th>
+                <th>Safe Browsing</th>
+                <th>VirusTotal</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="scan in scanRecords" :key="scan.id">
+                <td class="text-xs">{{ new Date(scan.scanned_at).toLocaleString() }}</td>
+                <td>
+                  <span class="px-2 py-0.5 rounded text-xs font-medium" :class="getScanStatusBadgeClass(scan.status)">
+                    {{ scan.status }}
+                  </span>
+                </td>
+                <td>
+                  <span class="px-2 py-0.5 rounded text-xs font-medium" :class="getStatusBadgeClass(scan.http_status)">
+                    {{ scan.http_status || 'N/A' }}
+                  </span>
+                </td>
+                <td>
+                  <span class="px-2 py-0.5 rounded text-xs font-medium" :class="getStatusBadgeClass(scan.dns_status)">
+                    {{ scan.dns_status || 'N/A' }}
+                  </span>
+                </td>
+                <td>
+                  <span class="px-2 py-0.5 rounded text-xs font-medium" :class="getStatusBadgeClass(scan.ssl_status)">
+                    {{ scan.ssl_status || 'N/A' }}
+                  </span>
+                </td>
+                <td>
+                  <span class="px-2 py-0.5 rounded text-xs font-medium" :class="getSafeBrowsingBadgeClass(scan.safe_browsing_status)">
+                    {{ scan.safe_browsing_status || 'N/A' }}
+                  </span>
+                </td>
+                <td>
+                  <span class="px-2 py-0.5 rounded text-xs font-medium" :class="getVirusTotalBadgeClass(scan.virustotal_status)">
+                    {{ scan.virustotal_status || 'N/A' }}
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div v-else class="text-center py-8 opacity-70">
+            No scan records found
+          </div>
+        </div>
+
+        <!-- Pagination -->
+        <div v-if="scanTotalPages > 1" class="flex justify-center mt-4">
+          <div class="join">
+            <button
+              class="join-item btn btn-sm"
+              @click="changeScanPage(scanPage - 1)"
+              :disabled="scanPage === 1 || scanLoading"
+            >«</button>
+            <template v-for="page in visibleScanPages" :key="page">
+              <button
+                v-if="page !== '...'"
+                class="join-item btn btn-sm"
+                :class="{ 'btn-active': page === scanPage }"
+                @click="changeScanPage(page)"
+                :disabled="scanLoading"
+              >{{ page }}</button>
+              <button v-else class="join-item btn btn-sm btn-disabled">...</button>
+            </template>
+            <button
+              class="join-item btn btn-sm"
+              @click="changeScanPage(scanPage + 1)"
+              :disabled="scanPage === scanTotalPages || scanLoading"
+            >»</button>
+          </div>
+        </div>
+
+        <div class="modal-action">
+          <button class="btn" @click="closeScanDetailsModal">Close</button>
+        </div>
+      </div>
+      <form method="dialog" class="modal-backdrop">
+        <button type="button" @click="closeScanDetailsModal">close</button>
+      </form>
+    </dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import axios from '../utils/axios'
 import { useToast } from '../composables/useToast'
 import { useCurrency } from '../composables/useCurrency'
 import { useSiteConfigStore } from '../stores/siteConfig'
 
 const router = useRouter()
+const { t } = useI18n()
 const toast = useToast()
 const { formatPrice } = useCurrency()
 const siteConfig = useSiteConfigStore()
@@ -450,6 +690,7 @@ const showNSModal = ref(false)
 const showRenewModal = ref(false)
 const showTransferModal = ref(false)
 const showSyncModal = ref(false)
+const showScanDetailsModal = ref(false)
 const selectedDomain = ref(null)
 
 // NS modification
@@ -458,6 +699,12 @@ const useCustomNS = ref(false)
 
 // Renew
 const renewYears = ref(1)
+const renewIsLifetime = ref(false)
+const renewCouponCode = ref('')
+const renewCouponApplying = ref(false)
+const renewCouponApplied = ref(false)
+const renewCouponError = ref('')
+const renewPriceData = ref(null)
 
 // Transfer
 const transferTarget = ref('')
@@ -469,6 +716,29 @@ const syncForm = ref({
   fossbilling_api_key: ''
 })
 const syncResult = ref(null)
+
+// Scan Details
+const scanRecords = ref([])
+const scanLoading = ref(false)
+const scanPage = ref(1)
+const scanPageSize = ref(10)
+const scanTotalPages = ref(1)
+
+// Watch renewYears changes to reset coupon
+watch(renewYears, () => {
+  // Reset coupon state when years change
+  renewCouponApplied.value = false
+  renewCouponError.value = ''
+  renewPriceData.value = null
+})
+
+// Watch renewIsLifetime changes to reset coupon
+watch(renewIsLifetime, () => {
+  // Reset coupon state when lifetime toggle changes
+  renewCouponApplied.value = false
+  renewCouponError.value = ''
+  renewPriceData.value = null
+})
 
 onMounted(async () => {
   await fetchDomains()
@@ -598,31 +868,55 @@ const closeNSModal = () => {
 const openRenew = (domain) => {
   selectedDomain.value = domain
   renewYears.value = 1
+  renewIsLifetime.value = false
   showRenewModal.value = true
 }
 
 const calculateNewExpiry = (currentExpiry, years) => {
+  if (renewIsLifetime.value) {
+    return t('domains.permanentDomain')
+  }
   const expiry = new Date(currentExpiry)
   expiry.setFullYear(expiry.getFullYear() + years)
   return formatDate(expiry)
 }
 
 const calculateRenewPrice = () => {
-  if (!selectedDomain.value?.root_domain?.price_per_year) return 0
-  return selectedDomain.value.root_domain.price_per_year * renewYears.value
+  if (!selectedDomain.value?.root_domain) return 0
+  if (renewIsLifetime.value) {
+    return selectedDomain.value.root_domain.lifetime_price || 0
+  }
+  return (selectedDomain.value.root_domain.price_per_year || 0) * renewYears.value
 }
 
 const renewDomain = async () => {
   submitting.value = true
   try {
-    await axios.post(`/api/domains/${selectedDomain.value.id}/renew`, {
-      years: renewYears.value
-    })
-    toast.success(`Domain renewed for ${renewYears.value} year(s)`)
-    closeRenewModal()
-    await fetchDomains()
+    const payload = {
+      years: renewIsLifetime.value ? 0 : renewYears.value,
+      is_lifetime: renewIsLifetime.value
+    }
+    
+    // 添加优惠券参数（如果有）
+    if (renewCouponCode.value && renewCouponCode.value.trim() !== '') {
+      payload.coupon_code = renewCouponCode.value.trim()
+    }
+    
+    const response = await axios.post(`/api/domains/${selectedDomain.value.id}/renew`, payload)
+    
+    // 如果需要支付，跳转到支付页面
+    if (response.data.requires_payment && response.data.order_id) {
+      toast.success(t('domains.renewalOrderCreated'))
+      closeRenewModal()
+      router.push(`/payment/${response.data.order_id}`)
+    } else {
+      // 免费域名直接续费成功
+      toast.success(t('domains.renewedForYears', { years: renewYears.value }))
+      closeRenewModal()
+      await fetchDomains()
+    }
   } catch (error) {
-    toast.error(error.response?.data?.error || 'Failed to renew domain')
+    toast.error(error.response?.data?.error || t('domains.renewFailed'))
   } finally {
     submitting.value = false
   }
@@ -632,6 +926,43 @@ const closeRenewModal = () => {
   showRenewModal.value = false
   selectedDomain.value = null
   renewYears.value = 1
+  renewIsLifetime.value = false
+  renewCouponCode.value = ''
+  renewCouponApplied.value = false
+  renewCouponError.value = ''
+  renewCouponApplying.value = false
+  renewPriceData.value = null
+}
+
+const applyRenewCoupon = async () => {
+  if (!renewCouponCode.value || !selectedDomain.value) return
+  
+  renewCouponApplying.value = true
+  renewCouponError.value = ''
+  renewCouponApplied.value = false
+  
+  try {
+    const response = await axios.post('/api/orders/calculate-price', {
+      root_domain_id: selectedDomain.value.root_domain_id,
+      years: renewIsLifetime.value ? 0 : renewYears.value,
+      is_lifetime: renewIsLifetime.value,
+      coupon_code: renewCouponCode.value
+    })
+    
+    renewPriceData.value = response.data
+    
+    if (response.data.coupon_applied) {
+      renewCouponApplied.value = true
+      toast.success(t('coupon.applySuccess'))
+    } else {
+      renewCouponError.value = t('domains.cannotApplyToRenewal')
+    }
+  } catch (error) {
+    renewCouponError.value = error.response?.data?.error || t('coupon.applyFailed')
+    renewPriceData.value = null
+  } finally {
+    renewCouponApplying.value = false
+  }
 }
 
 // Transfer Domain
@@ -643,11 +974,11 @@ const openTransfer = (domain) => {
 
 const transferDomain = async () => {
   if (!transferTarget.value.trim()) {
-    toast.warning('Please enter recipient email or username')
+    toast.warning(t('domains.transferRecipientRequired'))
     return
   }
 
-  if (!confirm(`Are you sure you want to transfer ${selectedDomain.value.full_domain} to ${transferTarget.value}?`)) {
+  if (!confirm(t('domains.confirmTransfer', { domain: selectedDomain.value.full_domain, target: transferTarget.value }))) {
     return
   }
 
@@ -656,11 +987,11 @@ const transferDomain = async () => {
     await axios.post(`/api/domains/${selectedDomain.value.id}/transfer`, {
       target: transferTarget.value
     })
-    toast.success('Domain transferred successfully')
+    toast.success(t('domains.transferSuccess'))
     closeTransferModal()
     await fetchDomains()
   } catch (error) {
-    toast.error(error.response?.data?.error || 'Failed to transfer domain')
+    toast.error(error.response?.data?.error || t('domains.transferFailed'))
   } finally {
     submitting.value = false
   }
@@ -674,13 +1005,13 @@ const closeTransferModal = () => {
 
 // Delete Domain
 const confirmDelete = async (domain) => {
-  if (confirm(`Are you sure you want to delete ${domain.full_domain}? This action cannot be undone.`)) {
+  if (confirm(t('domains.deleteWarningDomain', { domain: domain.full_domain }))) {
     try {
       await axios.delete(`/api/domains/${domain.id}`)
-      toast.success('Domain deleted successfully')
+      toast.success(t('domains.deleteSuccess'))
       await fetchDomains()
     } catch (error) {
-      toast.error(error.response?.data?.error || 'Failed to delete domain')
+      toast.error(error.response?.data?.error || t('domains.deleteFailed'))
     }
   }
 }
@@ -748,4 +1079,151 @@ const closeSyncModal = () => {
   }
   syncResult.value = null
 }
+
+// Scan Details
+const viewScanDetails = async (domain) => {
+  selectedDomain.value = domain
+  showScanDetailsModal.value = true
+  scanPage.value = 1
+  await fetchScanRecords()
+}
+
+const fetchScanRecords = async () => {
+  if (!selectedDomain.value) return
+  
+  scanLoading.value = true
+  try {
+    const response = await axios.get(`/api/domain-scans/${selectedDomain.value.id}`, {
+      params: {
+        page: scanPage.value,
+        page_size: scanPageSize.value
+      }
+    })
+    scanRecords.value = response.data.scans || []
+    scanTotalPages.value = response.data.total_pages || 1
+  } catch (error) {
+    toast.error('Failed to load scan records')
+    scanRecords.value = []
+  } finally {
+    scanLoading.value = false
+  }
+}
+
+const changeScanPage = async (page) => {
+  if (page < 1 || page > scanTotalPages.value) return
+  scanPage.value = page
+  await fetchScanRecords()
+}
+
+const closeScanDetailsModal = () => {
+  showScanDetailsModal.value = false
+  selectedDomain.value = null
+  scanRecords.value = []
+  scanPage.value = 1
+  scanTotalPages.value = 1
+}
+
+// Badge helper functions for scan status
+const getHealthBadgeClass = (status) => {
+  switch (status?.toLowerCase()) {
+    case 'healthy':
+      return 'bg-green-100 text-green-800'
+    case 'degraded':
+      return 'bg-yellow-100 text-yellow-800'
+    case 'down':
+      return 'bg-red-100 text-red-800'
+    default:
+      return 'bg-gray-100 text-gray-800'
+  }
+}
+
+const getSafeBrowsingBadgeClass = (status) => {
+  switch (status?.toLowerCase()) {
+    case 'safe':
+      return 'bg-green-100 text-green-800'
+    case 'unsafe':
+      return 'bg-red-100 text-red-800'
+    default:
+      return 'bg-gray-100 text-gray-800'
+  }
+}
+
+const getVirusTotalBadgeClass = (status) => {
+  switch (status?.toLowerCase()) {
+    case 'clean':
+      return 'bg-green-100 text-green-800'
+    case 'malicious':
+      return 'bg-red-100 text-red-800'
+    case 'suspicious':
+      return 'bg-yellow-100 text-yellow-800'
+    default:
+      return 'bg-gray-100 text-gray-800'
+  }
+}
+
+const getUptimeClass = (percentage) => {
+  if (!percentage && percentage !== 0) return 'text-gray-400'
+  if (percentage >= 99) return 'text-green-600 font-semibold'
+  if (percentage >= 95) return 'text-green-500'
+  if (percentage >= 90) return 'text-yellow-500'
+  return 'text-red-500'
+}
+
+const getScanStatusBadgeClass = (status) => {
+  switch (status?.toLowerCase()) {
+    case 'completed':
+      return 'bg-green-100 text-green-800'
+    case 'failed':
+      return 'bg-red-100 text-red-800'
+    case 'threat_detected':
+      return 'bg-red-100 text-red-800'
+    case 'quota_exceeded':
+      return 'bg-yellow-100 text-yellow-800'
+    default:
+      return 'bg-gray-100 text-gray-800'
+  }
+}
+
+const getStatusBadgeClass = (status) => {
+  switch (status?.toLowerCase()) {
+    case 'ok':
+    case 'valid':
+      return 'bg-green-100 text-green-800'
+    case 'error':
+    case 'invalid':
+      return 'bg-red-100 text-red-800'
+    default:
+      return 'bg-gray-100 text-gray-800'
+  }
+}
+
+const visibleScanPages = computed(() => {
+  const pages = []
+  const total = scanTotalPages.value
+  const current = scanPage.value
+
+  if (total <= 7) {
+    for (let i = 1; i <= total; i++) {
+      pages.push(i)
+    }
+  } else {
+    pages.push(1)
+    if (current > 3) pages.push('...')
+    
+    const start = Math.max(2, current - 1)
+    const end = Math.min(total - 1, current + 1)
+    
+    for (let i = start; i <= end; i++) {
+      if (!pages.includes(i)) {
+        pages.push(i)
+      }
+    }
+    
+    if (current < total - 2) pages.push('...')
+    pages.push(total)
+  }
+  
+  return pages
+})
+
 </script>

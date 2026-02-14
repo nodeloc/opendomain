@@ -127,6 +127,9 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 				domains.POST("/:id/transfer", domainHandler.TransferDomain)
 			}
 
+			// 域名扫描记录
+			protected.GET("/domain-scans/:id", domainScanHandler.GetDomainScanRecords)
+
 			// DNS 记录管理
 			dns := protected.Group("/dns/:domainId/records")
 			{
@@ -182,7 +185,7 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 			admin.GET("/system-info", settingHandler.GetSystemInfo)
 			admin.GET("/dashboard-stats", settingHandler.GetDashboardStats)
 			admin.POST("/clear-cache", settingHandler.ClearCache)
-			
+
 			// 扫描管理
 			admin.GET("/api-quota", domainScanHandler.GetAPIQuotaStatus)
 			admin.GET("/scan-summaries", domainScanHandler.GetDomainScanSummaries)

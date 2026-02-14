@@ -94,6 +94,9 @@
                 <th>{{ $t('scanStatus.httpStatus') }}</th>
                 <th>{{ $t('scanStatus.dnsStatus') }}</th>
                 <th>{{ $t('scanStatus.sslStatus') }}</th>
+                <th>{{ $t('scanStatus.safeBrowsing') }}</th>
+                <th>{{ $t('scanStatus.virusTotal') }}</th>
+                <th>{{ $t('scanStatus.uptime') }}</th>
                 <th>{{ $t('scanStatus.lastScanned') }}</th>
                 <th>{{ $t('scanStatus.actions') }}</th>
               </tr>
@@ -120,6 +123,21 @@
                   <div class="px-2 py-0.5 rounded text-xs font-medium inline-flex items-center" :class="getStatusBadgeClass(summary.ssl_status)">
                     {{ summary.ssl_status }}
                   </div>
+                </td>
+                <td>
+                  <div class="px-2 py-0.5 rounded text-xs font-medium inline-flex items-center" :class="getSafeBrowsingBadgeClass(summary.safe_browsing_status)">
+                    {{ summary.safe_browsing_status }}
+                  </div>
+                </td>
+                <td>
+                  <div class="px-2 py-0.5 rounded text-xs font-medium inline-flex items-center" :class="getVirusTotalBadgeClass(summary.virustotal_status)">
+                    {{ summary.virustotal_status }}
+                  </div>
+                </td>
+                <td>
+                  <span :class="getUptimeClass(summary.uptime_percentage)">
+                    {{ summary.uptime_percentage ? summary.uptime_percentage.toFixed(2) + '%' : '-' }}
+                  </span>
                 </td>
                 <td>{{ formatDate(summary.last_scanned_at) }}</td>
                 <td>
@@ -398,6 +416,27 @@ const getScanStatusClass = (status) => {
   if (status === 'failed') return 'bg-yellow-100 text-yellow-800'
   if (status === 'quota_exceeded') return 'bg-blue-100 text-blue-800'
   return 'bg-gray-100 text-gray-800'
+}
+
+const getSafeBrowsingBadgeClass = (status) => {
+  if (status === 'safe') return 'bg-green-100 text-green-800'
+  if (status === 'unsafe') return 'bg-red-100 text-red-800'
+  return 'bg-gray-100 text-gray-800'
+}
+
+const getVirusTotalBadgeClass = (status) => {
+  if (status === 'clean') return 'bg-green-100 text-green-800'
+  if (status === 'malicious') return 'bg-red-100 text-red-800'
+  if (status === 'suspicious') return 'bg-yellow-100 text-yellow-800'
+  return 'bg-gray-100 text-gray-800'
+}
+
+const getUptimeClass = (uptime) => {
+  if (!uptime) return 'text-gray-400'
+  if (uptime >= 99) return 'text-green-600 font-semibold'
+  if (uptime >= 95) return 'text-green-500'
+  if (uptime >= 90) return 'text-yellow-600'
+  return 'text-red-600 font-semibold'
 }
 
 const formatDate = (dateString) => {

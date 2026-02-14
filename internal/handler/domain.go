@@ -1,8 +1,11 @@
 package handler
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -212,7 +215,7 @@ func (h *DomainHandler) RegisterDomain(c *gin.Context) {
 	var pendingDomain models.PendingDomain
 	if err := h.db.Where("full_domain = ? AND deleted_at IS NULL", fullDomain).First(&pendingDomain).Error; err == nil {
 		c.JSON(http.StatusConflict, gin.H{
-			"error": "This domain is reserved and can only be activated by syncing from FOSSBilling",
+			"error":    "This domain is reserved and can only be activated by syncing from FOSSBilling",
 			"reserved": true,
 		})
 		return
@@ -401,9 +404,64 @@ func (h *DomainHandler) ListMyDomains(c *gin.Context) {
 		return
 	}
 
-	responses := make([]*models.DomainResponse, len(domains))
+	// 获取域名的扫描摘要
+	domainIDs := make([]uint, len(domains))
 	for i, domain := range domains {
-		responses[i] = domain.ToResponse()
+		domainIDs[i] = domain.ID
+	}
+
+	var summaries []models.DomainScanSummary
+	if len(domainIDs) > 0 {
+		h.db.Where("domain_id IN ?", domainIDs).Find(&summaries)
+	}
+
+	// 创建域名ID到扫描摘要的映射
+	summaryMap := make(map[uint]*models.DomainScanSummary)
+	for i := range summaries {
+		summaryMap[summaries[i].DomainID] = &summaries[i]
+	}
+
+	responses := make([]map[string]interface{}, len(domains))
+	for i, domain := range domains {
+		resp := domain.ToResponse()
+		domainMap := map[string]interface{}{
+			"id":                      resp.ID,
+			"user_id":                 resp.UserID,
+			"root_domain_id":          resp.RootDomainID,
+			"subdomain":               resp.Subdomain,
+			"full_domain":             resp.FullDomain,
+			"status":                  resp.Status,
+			"registered_at":           resp.RegisteredAt,
+			"expires_at":              resp.ExpiresAt,
+			"auto_renew":              resp.AutoRenew,
+			"nameservers":             resp.Nameservers,
+			"use_default_nameservers": resp.UseDefaultNameservers,
+			"dns_synced":              resp.DNSSynced,
+			"root_domain":             resp.RootDomain,
+		}
+
+		// 添加扫描状态
+		if summary, ok := summaryMap[domain.ID]; ok {
+			domainMap["scan_summary"] = map[string]interface{}{
+				"overall_health":       summary.OverallHealth,
+				"http_status":          summary.HTTPStatus,
+				"dns_status":           summary.DNSStatus,
+				"ssl_status":           summary.SSLStatus,
+				"safe_browsing_status": summary.SafeBrowsingStatus,
+				"virustotal_status":    summary.VirusTotalStatus,
+				"last_scanned_at":      summary.LastScannedAt,
+				"total_scans":          summary.TotalScans,
+				"successful_scans":     summary.SuccessfulScans,
+			}
+			if summary.TotalScans > 0 {
+				uptime := float64(summary.SuccessfulScans) / float64(summary.TotalScans) * 100
+				domainMap["scan_summary"].(map[string]interface{})["uptime_percentage"] = uptime
+			}
+		} else {
+			domainMap["scan_summary"] = nil
+		}
+
+		responses[i] = domainMap
 	}
 
 	c.JSON(http.StatusOK, gin.H{"domains": responses})
@@ -534,8 +592,8 @@ func (h *DomainHandler) ModifyNameservers(c *gin.Context) {
 		req.Nameservers[1] == defaultNS[1]
 
 	if err := h.db.Model(&domain).Updates(map[string]interface{}{
-		"nameservers":              string(nameserversJSON),
-		"use_default_nameservers":  isDefault,
+		"nameservers":             string(nameserversJSON),
+		"use_default_nameservers": isDefault,
 	}).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update nameservers"})
 		return
@@ -580,7 +638,9 @@ func (h *DomainHandler) RenewDomain(c *gin.Context) {
 	}
 
 	var req struct {
-		Years int `json:"years" binding:"required,min=1,max=10"`
+		Years      int     `json:"years"`
+		IsLifetime bool    `json:"is_lifetime"`
+		CouponCode *string `json:"coupon_code"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -588,14 +648,102 @@ func (h *DomainHandler) RenewDomain(c *gin.Context) {
 		return
 	}
 
+	// 验证参数
+	if !req.IsLifetime && (req.Years < 1 || req.Years > 10) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Years must be between 1 and 10"})
+		return
+	}
+
 	// 如果是付费域名，需要创建续费订单
 	if !domain.RootDomain.IsFree {
-		// TODO: 创建续费订单，跳转到支付页面
-		// 这里简化处理，直接返回需要支付的信息
-		c.JSON(http.StatusPaymentRequired, gin.H{
-			"error":            "Payment required for renewal",
+		// 计算价格
+		var basePrice float64
+		if req.IsLifetime {
+			if domain.RootDomain.LifetimePrice == nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Lifetime pricing not available"})
+				return
+			}
+			basePrice = *domain.RootDomain.LifetimePrice
+		} else {
+			if domain.RootDomain.PricePerYear == nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Pricing not configured"})
+				return
+			}
+			basePrice = *domain.RootDomain.PricePerYear * float64(req.Years)
+		}
+		
+		// 应用优惠券
+		var discountAmount float64
+		var couponID *uint
+		var couponCode *string
+
+		if req.CouponCode != nil && *req.CouponCode != "" {
+			var coupon models.Coupon
+			if err := h.db.Where("UPPER(code) = UPPER(?)", *req.CouponCode).First(&coupon).Error; err != nil {
+				c.JSON(http.StatusNotFound, gin.H{"error": "Coupon not found"})
+				return
+			}
+
+			// 验证优惠券
+			if err := h.validateCouponForOrder(&coupon, userID); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+
+			// 应用折扣
+			if coupon.DiscountType == "percentage" && coupon.DiscountValue != nil {
+				discountAmount = basePrice * (*coupon.DiscountValue / 100.0)
+			} else if coupon.DiscountType == "fixed" && coupon.DiscountValue != nil {
+				discountAmount = math.Min(*coupon.DiscountValue, basePrice)
+			} else if coupon.DiscountType == "quota_increase" {
+				c.JSON(http.StatusBadRequest, gin.H{
+					"error": "This coupon type cannot be used for renewals",
+				})
+				return
+			}
+
+			couponID = &coupon.ID
+			couponCode = &coupon.Code
+		}
+
+		finalPrice := math.Max(0, basePrice-discountAmount)
+
+		// 生成订单号
+		orderNumber := h.generateOrderNumber()
+
+		// 创建续费订单（15分钟后过期）
+		order := &models.Order{
+			OrderNumber:    orderNumber,
+			UserID:         userID,
+			RootDomainID:   domain.RootDomainID,
+			Subdomain:      domain.Subdomain,
+			FullDomain:     domain.FullDomain,
+			DomainID:       &domain.ID,
+			Years:          req.Years,
+			IsLifetime:     req.IsLifetime,
+			BasePrice:      basePrice,
+			DiscountAmount: discountAmount,
+			FinalPrice:     finalPrice,
+			Status:         "pending",
+			CouponID:       couponID,
+			CouponCode:     couponCode,
+			ExpiresAt:      time.Now().Add(15 * time.Minute),
+		}
+
+		if err := h.db.Create(order).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create order"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"message":          "Renewal order created successfully",
 			"requires_payment": true,
-			"price":            *domain.RootDomain.PricePerYear * float64(req.Years),
+			"order_id":         order.ID,
+			"order_number":     order.OrderNumber,
+			"base_price":       basePrice,
+			"discount_amount":  discountAmount,
+			"final_price":      finalPrice,
+			"coupon_applied":   couponID != nil,
 			"years":            req.Years,
 		})
 		return
@@ -614,6 +762,51 @@ func (h *DomainHandler) RenewDomain(c *gin.Context) {
 		"years":      req.Years,
 	})
 }
+
+// validateCouponForOrder 验证订单优惠券
+func (h *DomainHandler) validateCouponForOrder(coupon *models.Coupon, userID uint) error {
+	now := time.Now()
+
+	// 检查是否激活
+	if !coupon.IsActive {
+		return fmt.Errorf("coupon is not active")
+	}
+
+	// 检查有效期
+	if now.Before(coupon.ValidFrom) {
+		return fmt.Errorf("coupon not yet valid")
+	}
+	if coupon.ValidUntil != nil && now.After(*coupon.ValidUntil) {
+		return fmt.Errorf("coupon has expired")
+	}
+
+	// 检查使用次数
+	if coupon.MaxUses > 0 && coupon.UsedCount >= coupon.MaxUses {
+		return fmt.Errorf("coupon usage limit reached")
+	}
+
+	// 如果优惠券不可重复使用，检查用户是否已使用
+	if !coupon.IsReusable {
+		var usage models.CouponUsage
+		if err := h.db.Where("coupon_id = ? AND user_id = ?", coupon.ID, userID).
+			First(&usage).Error; err == nil {
+			return fmt.Errorf("you have already used this coupon")
+		}
+	}
+
+	return nil
+}
+
+// generateOrderNumber 生成订单号
+func (h *DomainHandler) generateOrderNumber() string {
+	// 格式: ORD + 时间戳 + 随机字符
+	timestamp := time.Now().Unix()
+	randomBytes := make([]byte, 4)
+	rand.Read(randomBytes)
+	randomStr := hex.EncodeToString(randomBytes)
+	return fmt.Sprintf("ORD%d%s", timestamp, randomStr[:8])
+}
+
 
 // TransferDomain 转移域名（站内转移）
 func (h *DomainHandler) TransferDomain(c *gin.Context) {

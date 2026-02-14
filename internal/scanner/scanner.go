@@ -38,17 +38,17 @@ type Scanner struct {
 
 func NewScanner(db *gorm.DB, cfg *config.Config) *Scanner {
 	s := &Scanner{db: db, cfg: cfg}
-	
+
 	// 从数据库加载今天的配额使用情况
 	s.loadQuotaFromDB()
-	
+
 	return s
 }
 
 // loadQuotaFromDB 从数据库加载今天的配额使用情况
 func (s *Scanner) loadQuotaFromDB() {
 	today := time.Now().Format("2006-01-02")
-	
+
 	// 加载 Google Safe Browsing 配额
 	var gsbQuota models.APIQuota
 	if err := s.db.Where("api_name = ?", "google_safe_browsing").First(&gsbQuota).Error; err == nil {
@@ -57,8 +57,11 @@ func (s *Scanner) loadQuotaFromDB() {
 			s.gsbDailyResetDate = today
 			fmt.Printf("[INFO] Loaded Google Safe Browsing quota: %d/10000 for %s\n", s.gsbDailyCount, today)
 		}
+	} else if err != gorm.ErrRecordNotFound {
+		// 如果是表不存在等其他错误，记录警告但不中断启动
+		fmt.Printf("[WARNING] Failed to load Google Safe Browsing quota: %v\n", err)
 	}
-	
+
 	// 加载 VirusTotal 配额
 	var vtQuota models.APIQuota
 	if err := s.db.Where("api_name = ?", "virustotal").First(&vtQuota).Error; err == nil {
@@ -67,22 +70,28 @@ func (s *Scanner) loadQuotaFromDB() {
 			s.vtDailyResetDate = today
 			fmt.Printf("[INFO] Loaded VirusTotal quota: %d/500 for %s\n", s.vtDailyCount, today)
 		}
+	} else if err != gorm.ErrRecordNotFound {
+		// 如果是表不存在等其他错误，记录警告但不中断启动
+		fmt.Printf("[WARNING] Failed to load VirusTotal quota: %v\n", err)
 	}
 }
 
 // saveQuotaToDB 保存配额使用情况到数据库
 func (s *Scanner) saveQuotaToDB(apiName string, count int, limit int) {
 	today := time.Now().Format("2006-01-02")
-	
+
 	quota := models.APIQuota{
 		APIName:    apiName,
 		Date:       today,
 		UsedCount:  count,
 		DailyLimit: limit,
 	}
-	
+
 	// 使用 upsert 更新或插入
-	s.db.Where("api_name = ?", apiName).Assign(quota).FirstOrCreate(&quota)
+	if err := s.db.Where("api_name = ?", apiName).Assign(quota).FirstOrCreate(&quota).Error; err != nil {
+		// 如果表不存在或其他错误，记录警告但不中断运行
+		fmt.Printf("[WARNING] Failed to save quota for %s: %v\n", apiName, err)
+	}
 }
 
 // GetQuotaStatus 获取当前配额使用状态
@@ -137,10 +146,10 @@ func (s *Scanner) vtCheckDailyQuota() bool {
 
 	// 增加计数
 	s.vtDailyCount++
-	
+
 	// 保存到数据库
 	go s.saveQuotaToDB("virustotal", s.vtDailyCount, 500)
-	
+
 	return true
 }
 
@@ -180,10 +189,10 @@ func (s *Scanner) gsbCheckDailyQuota() bool {
 
 	// 增加计数
 	s.gsbDailyCount++
-	
+
 	// 保存到数据库
 	go s.saveQuotaToDB("google_safe_browsing", s.gsbDailyCount, 10000)
-	
+
 	return true
 }
 
@@ -801,7 +810,7 @@ func (s *Scanner) handleAutoActions(domainID uint, safeBrowsingStatus, virusTota
 		// 检查是否真的是威胁检测，而不是 API 错误
 		realThreat := false
 		scanDetails := ""
-		
+
 		for _, scan := range latestScans {
 			if scan.ScanType == "safebrowsing" && safeBrowsingStatus == "unsafe" {
 				if scan.Status == "threat_detected" {
