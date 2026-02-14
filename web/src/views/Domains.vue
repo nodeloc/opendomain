@@ -942,7 +942,7 @@ const applyRenewCoupon = async () => {
   renewCouponApplied.value = false
   
   try {
-    const response = await axios.post('/api/orders/calculate-price', {
+    const response = await axios.post('/api/orders/calculate', {
       root_domain_id: selectedDomain.value.root_domain_id,
       years: renewIsLifetime.value ? 0 : renewYears.value,
       is_lifetime: renewIsLifetime.value,
