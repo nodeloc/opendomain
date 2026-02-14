@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -10,6 +9,7 @@ import (
 	"opendomain/internal/config"
 	"opendomain/internal/middleware"
 	"opendomain/internal/models"
+	"opendomain/pkg/timeutil"
 )
 
 type AnnouncementHandler struct {
@@ -140,7 +140,7 @@ func (h *AnnouncementHandler) UpdateAnnouncement(c *gin.Context) {
 		announcement.IsPublished = *req.IsPublished
 		// 如果发布，设置发布时间
 		if *req.IsPublished && announcement.PublishedAt == nil {
-			now := time.Now()
+			now := timeutil.Now()
 			announcement.PublishedAt = &now
 		}
 	}

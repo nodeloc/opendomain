@@ -17,6 +17,7 @@ import (
 	"opendomain/internal/config"
 	"opendomain/internal/middleware"
 	"opendomain/internal/models"
+	"opendomain/pkg/timeutil"
 )
 
 type FOSSBillingSyncHandler struct {
@@ -381,7 +382,7 @@ func (h *FOSSBillingSyncHandler) syncDomains(userID uint, fossDomains []FOSSBill
 		}
 
 		// 设置日期
-		registeredAt := time.Now()
+		registeredAt := timeutil.Now()
 		if !fossDomain.RegisteredAt.IsZero() {
 			registeredAt = fossDomain.RegisteredAt
 		}
@@ -815,7 +816,7 @@ func (h *FOSSBillingSyncHandler) syncToPendingDomains(fossDomains []FOSSBillingD
 		}
 
 		// 设置日期
-		registeredAt := time.Now()
+		registeredAt := timeutil.Now()
 		if !fossDomain.RegisteredAt.IsZero() {
 			registeredAt = fossDomain.RegisteredAt
 		}

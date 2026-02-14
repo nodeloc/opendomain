@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/oauth2"
@@ -19,6 +18,7 @@ import (
 
 	"opendomain/internal/config"
 	"opendomain/internal/models"
+	"opendomain/pkg/timeutil"
 )
 
 // OAuthHandler OAuth 处理器
@@ -236,7 +236,7 @@ func (h *OAuthHandler) findOrCreateOAuthUser(provider, oauthID, email, username,
 	if err == nil {
 		// 已有 OAuth 用户，更新登录信息
 		updates := map[string]interface{}{
-			"last_login_at": time.Now(),
+			"last_login_at": timeutil.Now(),
 			"last_login_ip": clientIP,
 		}
 		// NodeLoc 用户再次登录时更新等级和配额
@@ -255,7 +255,7 @@ func (h *OAuthHandler) findOrCreateOAuthUser(provider, oauthID, email, username,
 		updates := map[string]interface{}{
 			"provider":      provider,
 			"oauth_id":      oauthID,
-			"last_login_at": time.Now(),
+			"last_login_at": timeutil.Now(),
 			"last_login_ip": clientIP,
 		}
 		if provider == "nodeloc" {
@@ -285,7 +285,7 @@ func (h *OAuthHandler) findOrCreateOAuthUser(provider, oauthID, email, username,
 		finalUsername = fmt.Sprintf("%s_%s", username, hex.EncodeToString(suffix))
 	}
 
-	now := time.Now()
+	now := timeutil.Now()
 	newUser := &models.User{
 		Username:    finalUsername,
 		Email:       email,

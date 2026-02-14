@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -14,6 +13,7 @@ import (
 	"opendomain/internal/middleware"
 	"opendomain/internal/models"
 	"opendomain/pkg/powerdns"
+	"opendomain/pkg/timeutil"
 )
 
 type DNSHandler struct {
@@ -483,7 +483,7 @@ func (h *DNSHandler) syncRecordSetToPowerDNS(record *models.DNSRecord, domain *m
 				h.db.Save(&allRecords[i])
 			}
 		} else {
-			now := time.Now()
+			now := timeutil.Now()
 			for i := range allRecords {
 				allRecords[i].SyncError = nil
 				allRecords[i].SyncedToPowerDNS = true
@@ -492,7 +492,7 @@ func (h *DNSHandler) syncRecordSetToPowerDNS(record *models.DNSRecord, domain *m
 			}
 		}
 	} else {
-		now := time.Now()
+		now := timeutil.Now()
 		for i := range allRecords {
 			allRecords[i].SyncError = nil
 			allRecords[i].SyncedToPowerDNS = true
@@ -697,7 +697,7 @@ func (h *DNSHandler) SyncFromPowerDNS(c *gin.Context) {
 			err := h.db.Where("domain_id = ? AND name = ? AND type = ? AND content = ?",
 				domain.ID, recordName, rrset.Type, content).First(&existingRecord).Error
 
-			now := time.Now()
+			now := timeutil.Now()
 			if err == gorm.ErrRecordNotFound {
 				// 创建新记录
 				newRecord := &models.DNSRecord{

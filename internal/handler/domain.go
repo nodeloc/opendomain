@@ -19,6 +19,7 @@ import (
 	"opendomain/internal/middleware"
 	"opendomain/internal/models"
 	"opendomain/pkg/powerdns"
+	"opendomain/pkg/timeutil"
 )
 
 type DomainHandler struct {
@@ -266,7 +267,7 @@ func (h *DomainHandler) RegisterDomain(c *gin.Context) {
 	// 开始事务注册域名
 	err := h.db.Transaction(func(tx *gorm.DB) error {
 		// 创建域名
-		now := time.Now()
+		now := timeutil.Now()
 		domain := &models.Domain{
 			UserID:                userID,
 			RootDomainID:          req.RootDomainID,
@@ -355,7 +356,7 @@ func (h *DomainHandler) RegisterDomain(c *gin.Context) {
 
 // validateCouponForFreeRegistration 验证免费注册时的优惠券
 func (h *DomainHandler) validateCouponForFreeRegistration(coupon *models.Coupon, userID uint) error {
-	now := time.Now()
+	now := timeutil.Now()
 
 	// 检查是否激活
 	if !coupon.IsActive {
@@ -735,7 +736,7 @@ func (h *DomainHandler) RenewDomain(c *gin.Context) {
 			Status:         "pending",
 			CouponID:       couponID,
 			CouponCode:     couponCode,
-			ExpiresAt:      time.Now().Add(15 * time.Minute),
+			ExpiresAt:      timeutil.Now().Add(15 * time.Minute),
 		}
 
 		if err := h.db.Create(order).Error; err != nil {
@@ -745,7 +746,7 @@ func (h *DomainHandler) RenewDomain(c *gin.Context) {
 
 		// 如果最终价格为0或接近0（处理浮点精度问题），直接完成续费
 		if finalPrice < 0.01 {
-			now := time.Now()
+			now := timeutil.Now()
 			order.Status = "paid"
 			order.PaidAt = &now
 			if err := h.db.Save(order).Error; err != nil {
@@ -814,7 +815,7 @@ func (h *DomainHandler) RenewDomain(c *gin.Context) {
 
 // validateCouponForOrder 验证订单优惠券
 func (h *DomainHandler) validateCouponForOrder(coupon *models.Coupon, userID uint) error {
-	now := time.Now()
+	now := timeutil.Now()
 
 	// 检查是否激活
 	if !coupon.IsActive {
@@ -849,7 +850,7 @@ func (h *DomainHandler) validateCouponForOrder(coupon *models.Coupon, userID uin
 // generateOrderNumber 生成订单号
 func (h *DomainHandler) generateOrderNumber() string {
 	// 格式: ORD + 时间戳 + 随机字符
-	timestamp := time.Now().Unix()
+	timestamp := timeutil.Now().Unix()
 	randomBytes := make([]byte, 4)
 	rand.Read(randomBytes)
 	randomStr := hex.EncodeToString(randomBytes)
@@ -1412,7 +1413,7 @@ func (h *DomainHandler) CleanupExpiredDomains(daysAfterExpiry int) {
 		daysAfterExpiry = 30 // 默认过期 30 天后删除
 	}
 
-	cutoffTime := time.Now().AddDate(0, 0, -daysAfterExpiry)
+	cutoffTime := timeutil.Now().AddDate(0, 0, -daysAfterExpiry)
 
 	fmt.Printf("Starting cleanup of domains expired before %s...\n", cutoffTime.Format("2006-01-02 15:04:05"))
 

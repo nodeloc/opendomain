@@ -11,6 +11,7 @@ import (
 
 	"opendomain/internal/config"
 	"opendomain/internal/models"
+	"opendomain/pkg/timeutil"
 )
 
 type DomainScanHandler struct {
@@ -148,7 +149,7 @@ func (h *DomainScanHandler) GetHealthStatistics(c *gin.Context) {
 
 // GetAPIQuotaStatus 获取 API 配额使用状态（管理员）
 func (h *DomainScanHandler) GetAPIQuotaStatus(c *gin.Context) {
-	today := time.Now().Format("2006-01-02")
+	today := timeutil.Now().Format("2006-01-02")
 
 	var quotas []models.APIQuota
 	if err := h.db.Where("date = ?", today).Find(&quotas).Error; err != nil {

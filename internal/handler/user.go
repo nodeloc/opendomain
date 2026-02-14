@@ -15,6 +15,7 @@ import (
 	"opendomain/internal/config"
 	"opendomain/internal/middleware"
 	"opendomain/internal/models"
+	"opendomain/pkg/timeutil"
 )
 
 type UserHandler struct {
@@ -181,7 +182,7 @@ func (h *UserHandler) Login(c *gin.Context) {
 	}
 
 	// 更新最后登录信息
-	now := time.Now()
+	now := timeutil.Now()
 	clientIP := c.ClientIP()
 	user.LastLoginAt = &now
 	user.LastLoginIP = &clientIP
@@ -515,8 +516,8 @@ func generateToken(user *models.User, cfg *config.Config) (string, error) {
 		Email:    user.Email,
 		IsAdmin:  user.IsAdmin,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Duration(cfg.JWT.ExpiresIn) * time.Hour)),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			ExpiresAt: jwt.NewNumericDate(timeutil.Now().Add(time.Duration(cfg.JWT.ExpiresIn) * time.Hour)),
+			IssuedAt:  jwt.NewNumericDate(timeutil.Now()),
 		},
 	}
 

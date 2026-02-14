@@ -18,6 +18,7 @@ import (
 	"opendomain/internal/config"
 	"opendomain/internal/models"
 	"opendomain/internal/services"
+	"opendomain/pkg/timeutil"
 )
 
 type Scanner struct {
@@ -48,7 +49,7 @@ func NewScanner(db *gorm.DB, cfg *config.Config) *Scanner {
 
 // loadQuotaFromDB 从数据库加载今天的配额使用情况
 func (s *Scanner) loadQuotaFromDB() {
-	today := time.Now().Format("2006-01-02")
+	today := timeutil.Now().Format("2006-01-02")
 
 	// 加载 Google Safe Browsing 配额
 	var gsbQuota models.APIQuota
@@ -79,7 +80,7 @@ func (s *Scanner) loadQuotaFromDB() {
 
 // saveQuotaToDB 保存配额使用情况到数据库
 func (s *Scanner) saveQuotaToDB(apiName string, count int, limit int) {
-	today := time.Now().Format("2006-01-02")
+	today := timeutil.Now().Format("2006-01-02")
 
 	quota := models.APIQuota{
 		APIName:    apiName,
@@ -122,7 +123,7 @@ func (s *Scanner) vtRateLimit() {
 			time.Sleep(wait)
 		}
 	}
-	s.vtLastCall = time.Now()
+	s.vtLastCall = timeutil.Now()
 }
 
 // vtCheckDailyQuota 检查并更新每日配额
@@ -131,7 +132,7 @@ func (s *Scanner) vtCheckDailyQuota() bool {
 	s.vtMu.Lock()
 	defer s.vtMu.Unlock()
 
-	today := time.Now().Format("2006-01-02")
+	today := timeutil.Now().Format("2006-01-02")
 
 	// 新的一天，重置计数器
 	if s.vtDailyResetDate != today {
@@ -165,7 +166,7 @@ func (s *Scanner) gsbRateLimit() {
 			time.Sleep(wait)
 		}
 	}
-	s.gsbLastCall = time.Now()
+	s.gsbLastCall = timeutil.Now()
 }
 
 // gsbCheckDailyQuota 检查并更新 Google Safe Browsing 每日配额
@@ -174,7 +175,7 @@ func (s *Scanner) gsbCheckDailyQuota() bool {
 	s.gsbMu.Lock()
 	defer s.gsbMu.Unlock()
 
-	today := time.Now().Format("2006-01-02")
+	today := timeutil.Now().Format("2006-01-02")
 
 	// 新的一天，重置计数器
 	if s.gsbDailyResetDate != today {
@@ -303,7 +304,7 @@ func (s *Scanner) ScanPendingDomain(ctx context.Context, pending *models.Pending
 	// 判断域名是否不可访问
 	isDown := (dnsStatus == "failed" || httpStatus == "offline")
 
-	now := time.Now()
+	now := timeutil.Now()
 	telegram := services.NewTelegramService(s.cfg)
 
 	if isDown {
@@ -358,27 +359,27 @@ func (s *Scanner) ScanDomain(ctx context.Context, domain *models.Domain) error {
 		DomainID:  domain.ID,
 		ScanType:  "dns",
 		Status:    dnsStatus,
-		ScannedAt: time.Now(),
+		ScannedAt: timeutil.Now(),
 	}
 	s.db.Create(dnsScan)
 
 	// HTTP 检查
 	httpScan := s.checkHTTP(domain.FullDomain)
 	httpScan.DomainID = domain.ID
-	httpScan.ScannedAt = time.Now()
+	httpScan.ScannedAt = timeutil.Now()
 	s.db.Create(httpScan)
 
 	// SSL 检查
 	sslScan := s.checkSSL(domain.FullDomain)
 	sslScan.DomainID = domain.ID
-	sslScan.ScannedAt = time.Now()
+	sslScan.ScannedAt = timeutil.Now()
 	s.db.Create(sslScan)
 
 	// Google Safe Browsing 检查
 	var safeBrowsingStatus string
 	if sbScan := s.checkGoogleSafeBrowsing(domain.FullDomain); sbScan != nil {
 		sbScan.DomainID = domain.ID
-		sbScan.ScannedAt = time.Now()
+		sbScan.ScannedAt = timeutil.Now()
 		s.db.Create(sbScan)
 		if sbScan.Status == "success" {
 			safeBrowsingStatus = "safe"
@@ -395,7 +396,7 @@ func (s *Scanner) ScanDomain(ctx context.Context, domain *models.Domain) error {
 	var virusTotalStatus string
 	if vtScan := s.checkVirusTotal(domain.FullDomain); vtScan != nil {
 		vtScan.DomainID = domain.ID
-		vtScan.ScannedAt = time.Now()
+		vtScan.ScannedAt = timeutil.Now()
 		s.db.Create(vtScan)
 		if vtScan.Status == "success" {
 			virusTotalStatus = "clean"
@@ -447,7 +448,7 @@ func (s *Scanner) checkHTTP(domain string) *models.DomainScan {
 		},
 	}
 
-	start := time.Now()
+	start := timeutil.Now()
 	resp, err := client.Get("http://" + domain)
 	duration := int(time.Since(start).Milliseconds())
 	scan.ResponseTime = &duration
@@ -491,7 +492,7 @@ func (s *Scanner) checkSSL(domain string) *models.DomainScan {
 		scan.SSLExpiryDate = &cert.NotAfter
 
 		// 检查证书是否有效
-		now := time.Now()
+		now := timeutil.Now()
 		sslValid := now.After(cert.NotBefore) && now.Before(cert.NotAfter)
 		scan.SSLValid = &sslValid
 	} else {
@@ -551,7 +552,7 @@ func (s *Scanner) checkGoogleSafeBrowsing(domain string) *models.DomainScan {
 	}
 
 	client := &http.Client{Timeout: 15 * time.Second}
-	start := time.Now()
+	start := timeutil.Now()
 	resp, err := client.Post(
 		"https://safebrowsing.googleapis.com/v4/threatMatches:find?key="+apiKey,
 		"application/json",
@@ -639,7 +640,7 @@ func (s *Scanner) checkVirusTotal(domain string) *models.DomainScan {
 	}
 	req.Header.Set("x-apikey", apiKey)
 
-	start := time.Now()
+	start := timeutil.Now()
 	resp, err := client.Do(req)
 	duration := int(time.Since(start).Milliseconds())
 	scan.ResponseTime = &duration
@@ -727,7 +728,7 @@ func (s *Scanner) updateSummary(domainID uint, dnsStatus, httpStatus, sslStatus,
 		}
 	}
 
-	now := time.Now()
+	now := timeutil.Now()
 	summary.LastScannedAt = &now
 	summary.TotalScans++
 
@@ -806,7 +807,7 @@ func (s *Scanner) handleAutoActions(domainID uint, safeBrowsingStatus, virusTota
 
 	// 导入 Telegram 服务
 	telegram := services.NewTelegramService(s.cfg)
-	now := time.Now()
+	now := timeutil.Now()
 
 	// 1. 检测恶意内容 - 立即 suspend
 	// 但需要确认是真正的威胁检测，而不是 API 错误

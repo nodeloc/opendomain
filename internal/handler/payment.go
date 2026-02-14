@@ -20,6 +20,7 @@ import (
 	"opendomain/internal/middleware"
 	"opendomain/internal/models"
 	"opendomain/pkg/powerdns"
+	"opendomain/pkg/timeutil"
 )
 
 // PaymentHandler 支付处理器
@@ -61,7 +62,7 @@ func (h *PaymentHandler) InitiatePayment(c *gin.Context) {
 	}
 
 	// 检查订单是否过期
-	if time.Now().After(order.ExpiresAt) {
+	if timeutil.Now().After(order.ExpiresAt) {
 		order.Status = "expired"
 		h.db.Save(&order)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Order has expired"})
@@ -195,7 +196,7 @@ func (h *PaymentHandler) CompleteFreeOrder(c *gin.Context) {
 	}()
 
 	// 标记订单为已支付
-	now := time.Now()
+	now := timeutil.Now()
 	order.Status = "paid"
 	order.PaidAt = &now
 	if err := tx.Save(&order).Error; err != nil {
@@ -294,7 +295,7 @@ func (h *PaymentHandler) HandleCallback(c *gin.Context) {
 	}
 
 	// 根据支付状态处理
-	now := time.Now()
+	now := timeutil.Now()
 	clientIP := c.ClientIP()
 
 	if req.Status == "completed" {
@@ -697,7 +698,7 @@ func (h *PaymentHandler) getFailureRedirectURL(order *models.Order) string {
 
 // createDomainFromOrder 从订单创建域名（用于免费订单和支付成功后）
 func (h *PaymentHandler) createDomainFromOrder(tx *gorm.DB, order *models.Order) error {
-	now := time.Now()
+	now := timeutil.Now()
 
 	// 计算域名过期时间
 	var expiresAt time.Time

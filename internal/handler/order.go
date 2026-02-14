@@ -15,6 +15,7 @@ import (
 	"opendomain/internal/config"
 	"opendomain/internal/middleware"
 	"opendomain/internal/models"
+	"opendomain/pkg/timeutil"
 )
 
 // OrderHandler 订单处理器
@@ -239,7 +240,7 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 		CouponID:       couponID,
 		CouponCode:     couponCode,
 		Status:         "pending",
-		ExpiresAt:      time.Now().Add(15 * time.Minute),
+		ExpiresAt:      timeutil.Now().Add(15 * time.Minute),
 	}
 
 	if err := h.db.Create(order).Error; err != nil {
@@ -370,7 +371,7 @@ func (h *OrderHandler) CancelOrder(c *gin.Context) {
 // CleanupExpiredOrders 清理过期订单（后台任务）
 func (h *OrderHandler) CleanupExpiredOrders() error {
 	result := h.db.Model(&models.Order{}).
-		Where("status = ? AND expires_at < ?", "pending", time.Now()).
+		Where("status = ? AND expires_at < ?", "pending", timeutil.Now()).
 		Update("status", "expired")
 
 	if result.Error != nil {
@@ -386,7 +387,7 @@ func (h *OrderHandler) CleanupExpiredOrders() error {
 
 // validateCoupon 验证优惠券
 func (h *OrderHandler) validateCoupon(coupon *models.Coupon, userID uint) error {
-	now := time.Now()
+	now := timeutil.Now()
 
 	// 检查是否激活
 	if !coupon.IsActive {
@@ -425,7 +426,7 @@ func (h *OrderHandler) validateCoupon(coupon *models.Coupon, userID uint) error 
 // generateOrderNumber 生成订单号
 func (h *OrderHandler) generateOrderNumber() string {
 	// 格式: ORD + 时间戳 + 随机字符
-	timestamp := time.Now().Unix()
+	timestamp := timeutil.Now().Unix()
 	randomBytes := make([]byte, 4)
 	rand.Read(randomBytes)
 	randomStr := hex.EncodeToString(randomBytes)

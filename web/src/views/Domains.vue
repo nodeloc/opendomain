@@ -749,7 +749,7 @@
             </thead>
             <tbody>
               <tr v-for="scan in scanRecords" :key="scan.id">
-                <td class="text-xs">{{ new Date(scan.scanned_at).toLocaleString() }}</td>
+                <td class="text-xs">{{ formatDateTime(scan.scanned_at) }}</td>
                 <td>
                   <span class="px-2 py-0.5 rounded text-xs font-medium" :class="getScanStatusBadgeClass(scan.status)">
                     {{ scan.status }}
@@ -833,6 +833,7 @@ import { useI18n } from 'vue-i18n'
 import axios from '../utils/axios'
 import { useToast } from '../composables/useToast'
 import { useCurrency } from '../composables/useCurrency'
+import { formatDate as formatDateUtil, formatDateTime, daysUntilExpiry, addYears } from '../utils/time'
 import { useSiteConfigStore } from '../stores/siteConfig'
 
 const router = useRouter()
@@ -939,18 +940,11 @@ const getStatusClass = (status) => {
 }
 
 const formatDate = (dateString) => {
-  return new Date(dateString).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  })
+  return formatDateUtil(dateString)
 }
 
 const getDaysUntilExpiry = (expiryDate) => {
-  const now = new Date()
-  const expiry = new Date(expiryDate)
-  const diff = expiry - now
-  return Math.ceil(diff / (1000 * 60 * 60 * 24))
+  return daysUntilExpiry(expiryDate)
 }
 
 const isUsingDefaultNS = (domain) => {
@@ -1045,9 +1039,8 @@ const calculateNewExpiry = (currentExpiry, years) => {
   if (renewIsLifetime.value) {
     return t('domains.permanentDomain')
   }
-  const expiry = new Date(currentExpiry)
-  expiry.setFullYear(expiry.getFullYear() + years)
-  return formatDate(expiry)
+  const newDate = addYears(currentExpiry, years)
+  return formatDate(newDate)
 }
 
 const calculateRenewPrice = () => {

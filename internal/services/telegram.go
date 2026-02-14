@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"time"
 
 	"opendomain/internal/config"
+	"opendomain/pkg/timeutil"
 )
 
 type TelegramService struct {
@@ -36,7 +36,7 @@ func (s *TelegramService) SendHealthAlert(domain string, issues []string, action
 	// Build message
 	message := fmt.Sprintf("🚨 *Domain Health Alert*\n\n")
 	message += fmt.Sprintf("📍 Domain: `%s`\n", domain)
-	message += fmt.Sprintf("⏰ Time: %s\n\n", time.Now().UTC().Format("2006-01-02 15:04:05 UTC"))
+	message += fmt.Sprintf("⏰ Time: %s\n\n", timeutil.Now().UTC().Format("2006-01-02 15:04:05 UTC"))
 
 	if len(issues) > 0 {
 		message += "*Issues Detected:*\n"
@@ -62,7 +62,7 @@ func (s *TelegramService) SendAutoSuspendNotification(domain, reason string) err
 	message := fmt.Sprintf("🔒 *Domain Auto-Suspended*\n\n")
 	message += fmt.Sprintf("📍 Domain: `%s`\n", domain)
 	message += fmt.Sprintf("📝 Reason: %s\n", reason)
-	message += fmt.Sprintf("⏰ Time: %s\n", time.Now().UTC().Format("2006-01-02 15:04:05 UTC"))
+	message += fmt.Sprintf("⏰ Time: %s\n", timeutil.Now().UTC().Format("2006-01-02 15:04:05 UTC"))
 
 	return s.sendMessage(message)
 }
@@ -76,7 +76,7 @@ func (s *TelegramService) SendDeletionWarning(domain string, daysRemaining int) 
 	message := fmt.Sprintf("⚠️ *Domain Deletion Warning*\n\n")
 	message += fmt.Sprintf("📍 Domain: `%s`\n", domain)
 	message += fmt.Sprintf("⏳ Days until deletion: *%d*\n", daysRemaining)
-	message += fmt.Sprintf("⏰ Time: %s\n", time.Now().UTC().Format("2006-01-02 15:04:05 UTC"))
+	message += fmt.Sprintf("⏰ Time: %s\n", timeutil.Now().UTC().Format("2006-01-02 15:04:05 UTC"))
 
 	return s.sendMessage(message)
 }

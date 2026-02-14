@@ -13,9 +13,10 @@ import (
 
 	"opendomain/internal/config"
 	"opendomain/internal/models"
+	"opendomain/pkg/timeutil"
 )
 
-var startTime = time.Now()
+var startTime = timeutil.Now()
 
 type SettingHandler struct {
 	db  *gorm.DB

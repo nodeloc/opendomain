@@ -12,6 +12,7 @@ import (
 	"opendomain/internal/config"
 	"opendomain/internal/middleware"
 	"opendomain/internal/models"
+	"opendomain/pkg/timeutil"
 )
 
 type CouponHandler struct {
@@ -74,7 +75,7 @@ func (h *CouponHandler) CreateCoupon(c *gin.Context) {
 	}
 
 	// 设置默认值
-	validFrom := time.Now()
+	validFrom := timeutil.Now()
 	if req.ValidFrom != nil {
 		validFrom = req.ValidFrom.Time
 	}
@@ -213,7 +214,7 @@ func (h *CouponHandler) ApplyCoupon(c *gin.Context) {
 	}
 
 	// 验证优惠券是否有效
-	now := time.Now()
+	now := timeutil.Now()
 	if !coupon.IsActive {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error":     "Coupon is not active",
@@ -302,7 +303,7 @@ func (h *CouponHandler) ApplyCoupon(c *gin.Context) {
 	usage := &models.CouponUsage{
 		CouponID:       coupon.ID,
 		UserID:         userID,
-		UsedAt:         time.Now(),
+		UsedAt:         timeutil.Now(),
 		BenefitApplied: benefitApplied,
 	}
 	if err := tx.Create(usage).Error; err != nil {
