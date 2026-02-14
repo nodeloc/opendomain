@@ -7,6 +7,11 @@ build: ## 编译项目
 	@echo "Building..."
 	@go build -o bin/api cmd/api/main.go
 
+build-tools: ## 编译管理工具
+	@echo "Building tools..."
+	@go build -o bin/recover-suspended cmd/recover-suspended/main.go
+	@echo "Built: bin/recover-suspended"
+
 run: ## 运行 API 服务
 	@echo "Starting API server..."
 	@go run cmd/api/main.go
