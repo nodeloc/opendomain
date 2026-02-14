@@ -77,6 +77,7 @@ func (h *OrderHandler) CalculatePrice(c *gin.Context) {
 	var discountAmount float64
 	var coupon *models.Coupon
 	var couponType *string
+	var couponError *string
 
 	if req.CouponCode != nil && *req.CouponCode != "" {
 		if err := h.db.Where("UPPER(code) = UPPER(?)", *req.CouponCode).First(&coupon).Error; err == nil {
@@ -93,13 +94,19 @@ func (h *OrderHandler) CalculatePrice(c *gin.Context) {
 					discountAmount = math.Min(*coupon.DiscountValue, basePrice)
 					fmt.Printf("[DEBUG] Applied fixed discount: %.2f\n", *coupon.DiscountValue)
 				} else {
-					fmt.Printf("[DEBUG] Coupon type '%s' cannot be applied in checkout (only percentage and fixed allowed)\n", coupon.DiscountType)
+					errMsg := fmt.Sprintf("Coupon type '%s' cannot be applied in checkout. Only 'percentage' and 'fixed' discount coupons are valid for domain orders. This coupon may be for account quota increase.", coupon.DiscountType)
+					couponError = &errMsg
+					fmt.Printf("[DEBUG] %s\n", errMsg)
 				}
 				couponType = &coupon.DiscountType
 			} else {
+				errMsg := err.Error()
+				couponError = &errMsg
 				fmt.Printf("[DEBUG] Coupon validation failed: %v\n", err)
 			}
 		} else {
+			errMsg := fmt.Sprintf("Coupon code '%s' not found", *req.CouponCode)
+			couponError = &errMsg
 			fmt.Printf("[DEBUG] Coupon not found: %s\n", *req.CouponCode)
 		}
 	}
@@ -113,6 +120,7 @@ func (h *OrderHandler) CalculatePrice(c *gin.Context) {
 		CouponApplied:  discountAmount > 0,
 		CouponCode:     req.CouponCode,
 		CouponType:     couponType,
+		CouponError:    couponError,
 	})
 }
 
@@ -375,20 +383,23 @@ func (h *OrderHandler) validateCoupon(coupon *models.Coupon, userID uint) error 
 
 	// 检查是否激活
 	if !coupon.IsActive {
-		return fmt.Errorf("coupon is not active")
+		return fmt.Errorf("Coupon is not active. This coupon has been disabled by administrator")
 	}
 
 	// 检查有效期
 	if now.Before(coupon.ValidFrom) {
-		return fmt.Errorf("coupon not yet valid")
+		return fmt.Errorf("Coupon is not yet valid. This coupon will be available after %s", 
+			coupon.ValidFrom.Format("2006-01-02 15:04:05"))
 	}
 	if coupon.ValidUntil != nil && now.After(*coupon.ValidUntil) {
-		return fmt.Errorf("coupon has expired")
+		return fmt.Errorf("Coupon has expired on %s", 
+			coupon.ValidUntil.Format("2006-01-02 15:04:05"))
 	}
 
 	// 检查使用次数
 	if coupon.MaxUses > 0 && coupon.UsedCount >= coupon.MaxUses {
-		return fmt.Errorf("coupon usage limit reached")
+		return fmt.Errorf("Coupon usage limit reached (%d/%d uses)", 
+			coupon.UsedCount, coupon.MaxUses)
 	}
 
 	// 对于不可重复使用的优惠券，检查用户是否已使用
@@ -396,7 +407,8 @@ func (h *OrderHandler) validateCoupon(coupon *models.Coupon, userID uint) error 
 		var usage models.CouponUsage
 		if err := h.db.Where("coupon_id = ? AND user_id = ?", coupon.ID, userID).
 			First(&usage).Error; err == nil {
-			return fmt.Errorf("you have already used this coupon")
+			return fmt.Errorf("You have already used this coupon on %s. This coupon can only be used once per user", 
+				usage.UsedAt.Format("2006-01-02 15:04:05"))
 		}
 	}
 

@@ -954,6 +954,9 @@ const applyRenewCoupon = async () => {
     if (response.data.coupon_applied) {
       renewCouponApplied.value = true
       toast.success(t('coupon.applySuccess'))
+    } else if (response.data.coupon_error) {
+      // 使用后端返回的详细错误信息
+      renewCouponError.value = response.data.coupon_error
     } else {
       renewCouponError.value = t('domains.cannotApplyToRenewal')
     }

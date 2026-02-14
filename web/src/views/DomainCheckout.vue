@@ -239,8 +239,10 @@ const calculatePrice = async () => {
     const response = await axios.post('/api/orders/calculate', payload)
     priceInfo.value = response.data
 
-    // 清除优惠券输入如果没有应用成功
-    if (couponCode.value && !response.data.coupon_applied) {
+    // 显示优惠券错误信息（如果有）
+    if (response.data.coupon_error) {
+      couponError.value = response.data.coupon_error
+    } else if (couponCode.value && !response.data.coupon_applied) {
       couponError.value = 'Coupon could not be applied'
     }
   } catch (error) {

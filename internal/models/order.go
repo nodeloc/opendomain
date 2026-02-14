@@ -94,6 +94,7 @@ type PriceCalculationResponse struct {
 	CouponApplied  bool    `json:"coupon_applied"`
 	CouponCode     *string `json:"coupon_code,omitempty"`
 	CouponType     *string `json:"coupon_type,omitempty"`
+	CouponError    *string `json:"coupon_error,omitempty"` // 优惠券验证失败的详细原因
 }
 
 // ToResponse 转换为响应格式
