@@ -812,7 +812,12 @@ export default {
     syncFromPowerDNS: '从 PowerDNS 同步',
     syncConfirm: '这将从 PowerDNS 同步所有 DNS 记录到数据库，已存在的记录将被更新。是否继续？',
     syncSuccess: '同步完成：新建 {created} 条，更新 {updated} 条，跳过 {skipped} 条',
-    syncFailed: '从 PowerDNS 同步失败'
+    syncFailed: '从 PowerDNS 同步失败',
+    clickToViewError: '点击查看错误详情',
+    syncErrorTitle: '同步错误详情',
+    copyError: '复制错误',
+    copied: '已复制！',
+    copyFailed: '复制失败'
   },
   page: {
     lastUpdated: '最后更新',

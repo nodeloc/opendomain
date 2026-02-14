@@ -812,7 +812,12 @@ export default {
     syncFromPowerDNS: 'Sync from PowerDNS',
     syncConfirm: 'This will sync all DNS records from PowerDNS to the database. Existing records will be updated. Continue?',
     syncSuccess: 'Sync completed: {created} created, {updated} updated, {skipped} skipped',
-    syncFailed: 'Failed to sync from PowerDNS'
+    syncFailed: 'Failed to sync from PowerDNS',
+    clickToViewError: 'Click to view error details',
+    syncErrorTitle: 'Sync Error Details',
+    copyError: 'Copy Error',
+    copied: 'Copied!',
+    copyFailed: 'Failed to copy'
   },
   page: {
     lastUpdated: 'Last Updated',

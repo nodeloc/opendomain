@@ -89,10 +89,12 @@
                 <span v-if="!record.is_active" class="px-2 py-0.5 rounded-full text-xs font-medium bg-error/10 text-error">
                   {{ $t('dnsManagement.inactive') }}
                 </span>
-                <div v-if="record.sync_error" class="tooltip tooltip-error" :data-tip="record.sync_error">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-error cursor-help" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
+                <div v-if="record.sync_error" class="tooltip tooltip-error" :data-tip="$t('dnsManagement.clickToViewError')">
+                  <button @click="showErrorDetails(record.sync_error)" class="btn btn-ghost btn-xs btn-square">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-error" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                  </button>
                 </div>
               </div>
             </td>
@@ -205,6 +207,40 @@
         <button>close</button>
       </form>
     </dialog>
+
+    <!-- Error Details Modal -->
+    <dialog class="modal" :class="{ 'modal-open': showErrorModal }">
+      <div class="modal-box">
+        <h3 class="font-bold text-lg text-error flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          {{ $t('dnsManagement.syncErrorTitle') }}
+        </h3>
+        
+        <div class="mt-4">
+          <div class="bg-base-200 p-4 rounded-lg">
+            <pre class="text-sm whitespace-pre-wrap break-words font-mono">{{ currentError }}</pre>
+          </div>
+        </div>
+
+        <div class="modal-action">
+          <button @click="copyError" class="btn btn-outline gap-2">
+            <svg v-if="!errorCopied" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+            <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            </svg>
+            {{ errorCopied ? $t('dnsManagement.copied') : $t('dnsManagement.copyError') }}
+          </button>
+          <button @click="closeErrorModal" class="btn">{{ $t('common.close') }}</button>
+        </div>
+      </div>
+      <form method="dialog" class="modal-backdrop" @click="closeErrorModal">
+        <button>close</button>
+      </form>
+    </dialog>
   </div>
 </template>
 
@@ -226,8 +262,11 @@ const loading = ref(true)
 const syncing = ref(false)
 const showAddModal = ref(false)
 const showEditModal = ref(false)
+const showErrorModal = ref(false)
 const submitting = ref(false)
 const editingRecord = ref(null)
+const currentError = ref('')
+const errorCopied = ref(false)
 
 const form = ref({
   name: '@',
@@ -348,5 +387,30 @@ const syncFromPowerDNS = async () => {
 
 const truncate = (str, length) => {
   return str.length > length ? str.substring(0, length) + '...' : str
+}
+
+const showErrorDetails = (error) => {
+  currentError.value = error
+  errorCopied.value = false
+  showErrorModal.value = true
+}
+
+const closeErrorModal = () => {
+  showErrorModal.value = false
+  currentError.value = ''
+  errorCopied.value = false
+}
+
+const copyError = async () => {
+  try {
+    await navigator.clipboard.writeText(currentError.value)
+    errorCopied.value = true
+    setTimeout(() => {
+      errorCopied.value = false
+    }, 2000)
+  } catch (error) {
+    console.error('Failed to copy error:', error)
+    toast.error(t('dnsManagement.copyFailed'))
+  }
 }
 </script>
