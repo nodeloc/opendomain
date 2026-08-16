@@ -37,7 +37,13 @@ export default {
     login: '登录',
     register: '注册',
     logout: '退出',
-    admin: '管理后台'
+    admin: '管理后台',
+    language: '语言',
+    theme: '主题',
+    darkMode: '深色',
+    lightMode: '浅色',
+    account: '账号',
+    navigation: '导航'
   },
   footer: {
     services: '服务',
