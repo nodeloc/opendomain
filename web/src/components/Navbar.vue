@@ -1,7 +1,7 @@
 <template>
   <div class="navbar bg-base-100 shadow-lg sticky top-0 z-50">
     <div class="navbar-start">
-      <div class="dropdown min-[500px]:hidden">
+      <div class="dropdown lg:hidden">
         <div tabindex="0" role="button" class="btn btn-ghost">
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -32,14 +32,14 @@
           <li v-if="isAuthenticated"><router-link to="/invitations">{{ $t('nav.invitations') }}</router-link></li>
 
           <!-- Language -->
-          <li class="menu-title mt-2"><span>{{ $t('nav.language') }}</span></li>
-          <li>
+          <li class="menu-title mt-2 min-[500px]:hidden"><span>{{ $t('nav.language') }}</span></li>
+          <li class="min-[500px]:hidden">
             <a @click="changeLocale('zh-CN')" :class="{ 'active': currentLocale === 'zh-CN' }">
               <span class="text-xl">🇨🇳</span>
               <span>简体中文</span>
             </a>
           </li>
-          <li>
+          <li class="min-[500px]:hidden">
             <a @click="changeLocale('en-US')" :class="{ 'active': currentLocale === 'en-US' }">
               <span class="text-xl">🇺🇸</span>
               <span>English</span>
@@ -47,8 +47,8 @@
           </li>
 
           <!-- Theme -->
-          <li class="menu-title mt-2"><span>{{ $t('nav.theme') }}</span></li>
-          <li>
+          <li class="menu-title mt-2 min-[500px]:hidden"><span>{{ $t('nav.theme') }}</span></li>
+          <li class="min-[500px]:hidden">
             <a @click="toggleTheme">
               <!-- Sun icon (shown when dark, click to go light) -->
               <svg v-if="isDark" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -64,9 +64,9 @@
 
           <!-- Auth (logged out) -->
           <template v-if="!isAuthenticated">
-            <li class="menu-title mt-2"><span>{{ $t('nav.account') }}</span></li>
-            <li><router-link to="/login">{{ $t('nav.login') }}</router-link></li>
-            <li><router-link to="/register" class="text-primary">{{ $t('nav.register') }}</router-link></li>
+            <li class="menu-title mt-2 min-[500px]:hidden"><span>{{ $t('nav.account') }}</span></li>
+            <li class="min-[500px]:hidden"><router-link to="/login">{{ $t('nav.login') }}</router-link></li>
+            <li class="min-[500px]:hidden"><router-link to="/register" class="text-primary">{{ $t('nav.register') }}</router-link></li>
           </template>
         </ul>
       </div>
