@@ -1,8 +1,8 @@
 <template>
   <div class="navbar bg-base-100 shadow-lg sticky top-0 z-50">
     <div class="navbar-start">
-      <div class="dropdown">
-        <div tabindex="0" role="button" class="btn btn-ghost lg:hidden">
+      <div class="dropdown lg:hidden">
+        <div tabindex="0" role="button" class="btn btn-ghost">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             class="h-5 w-5"
@@ -20,17 +20,57 @@
         </div>
         <ul
           tabindex="0"
-          class="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow bg-base-100 rounded-box w-52"
+          class="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow bg-base-100 rounded-box w-56"
         >
+          <!-- Navigation -->
+          <li class="menu-title"><span>{{ $t('nav.navigation') }}</span></li>
           <li><router-link to="/">{{ $t('nav.home') }}</router-link></li>
           <li><router-link to="/announcements">{{ $t('nav.announcements') }}</router-link></li>
           <li><router-link to="/domain-health">{{ $t('nav.domainHealth') }}</router-link></li>
           <li v-if="isAuthenticated"><router-link to="/domains">{{ $t('nav.domains') }}</router-link></li>
           <li v-if="isAuthenticated"><router-link to="/coupons">{{ $t('nav.coupons') }}</router-link></li>
           <li v-if="isAuthenticated"><router-link to="/invitations">{{ $t('nav.invitations') }}</router-link></li>
+
+          <!-- Language -->
+          <li class="menu-title mt-2 min-[500px]:hidden"><span>{{ $t('nav.language') }}</span></li>
+          <li class="min-[500px]:hidden">
+            <a @click="changeLocale('zh-CN')" :class="{ 'active': currentLocale === 'zh-CN' }">
+              <span class="text-xl">🇨🇳</span>
+              <span>简体中文</span>
+            </a>
+          </li>
+          <li class="min-[500px]:hidden">
+            <a @click="changeLocale('en-US')" :class="{ 'active': currentLocale === 'en-US' }">
+              <span class="text-xl">🇺🇸</span>
+              <span>English</span>
+            </a>
+          </li>
+
+          <!-- Theme -->
+          <li class="menu-title mt-2 min-[500px]:hidden"><span>{{ $t('nav.theme') }}</span></li>
+          <li class="min-[500px]:hidden">
+            <a @click="toggleTheme">
+              <!-- Sun icon (shown when dark, click to go light) -->
+              <svg v-if="isDark" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+              </svg>
+              <!-- Moon icon (shown when light, click to go dark) -->
+              <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+              </svg>
+              <span>{{ isDark ? $t('nav.lightMode') : $t('nav.darkMode') }}</span>
+            </a>
+          </li>
+
+          <!-- Auth (logged out) -->
+          <template v-if="!isAuthenticated">
+            <li class="menu-title mt-2 min-[500px]:hidden"><span>{{ $t('nav.account') }}</span></li>
+            <li class="min-[500px]:hidden"><router-link to="/login">{{ $t('nav.login') }}</router-link></li>
+            <li class="min-[500px]:hidden"><router-link to="/register" class="text-primary">{{ $t('nav.register') }}</router-link></li>
+          </template>
         </ul>
       </div>
-      <router-link to="/" class="btn btn-ghost text-xl font-bold">
+      <router-link to="/" class="btn btn-ghost text-xl font-bold min-w-0 truncate">
         {{ siteConfigStore.siteName || 'OpenDomain' }}
       </router-link>
     </div>
@@ -47,39 +87,41 @@
     </div>
 
     <div class="navbar-end gap-2">
-      <!-- Language Switcher -->
-      <LanguageSwitcher />
-      
-      <label class="swap swap-rotate btn btn-ghost btn-circle">
-        <input type="checkbox" class="theme-controller" value="dark" />
-        <!-- Sun icon -->
-        <svg
-          class="swap-off fill-current w-6 h-6"
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 24 24"
-        >
-          <path
-            d="M5.64,17l-.71.71a1,1,0,0,0,0,1.41,1,1,0,0,0,1.41,0l.71-.71A1,1,0,0,0,5.64,17ZM5,12a1,1,0,0,0-1-1H3a1,1,0,0,0,0,2H4A1,1,0,0,0,5,12Zm7-7a1,1,0,0,0,1-1V3a1,1,0,0,0-2,0V4A1,1,0,0,0,12,5ZM5.64,7.05a1,1,0,0,0,.7.29,1,1,0,0,0,.71-.29,1,1,0,0,0,0-1.41l-.71-.71A1,1,0,0,0,4.93,6.34Zm12,.29a1,1,0,0,0,.7-.29l.71-.71a1,1,0,1,0-1.41-1.41L17,5.64a1,1,0,0,0,0,1.41A1,1,0,0,0,17.66,7.34ZM21,11H20a1,1,0,0,0,0,2h1a1,1,0,0,0,0-2Zm-9,8a1,1,0,0,0-1,1v1a1,1,0,0,0,2,0V20A1,1,0,0,0,12,19ZM18.36,17A1,1,0,0,0,17,18.36l.71.71a1,1,0,0,0,1.41,0,1,1,0,0,0,0-1.41ZM12,6.5A5.5,5.5,0,1,0,17.5,12,5.51,5.51,0,0,0,12,6.5Zm0,9A3.5,3.5,0,1,1,15.5,12,3.5,3.5,0,0,1,12,15.5Z"
-          />
-        </svg>
-        <!-- Moon icon -->
-        <svg
-          class="swap-on fill-current w-6 h-6"
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 24 24"
-        >
-          <path
-            d="M21.64,13a1,1,0,0,0-1.05-.14,8.05,8.05,0,0,1-3.37.73A8.15,8.15,0,0,1,9.08,5.49a8.59,8.59,0,0,1,.25-2A1,1,0,0,0,8,2.36,10.14,10.14,0,1,0,22,14.05,1,1,0,0,0,21.64,13Zm-9.5,6.69A8.14,8.14,0,0,1,7.08,5.22v.27A10.15,10.15,0,0,0,17.22,15.63a9.79,9.79,0,0,0,2.1-.22A8.11,8.11,0,0,1,12.14,19.73Z"
-          />
-        </svg>
-      </label>
+      <!-- Desktop (500px+): language switcher + theme toggle + auth buttons -->
+      <div class="hidden min-[500px]:flex items-center gap-2">
+        <LanguageSwitcher />
 
-      <template v-if="!isAuthenticated">
-        <router-link to="/login" class="btn btn-ghost">{{ $t('nav.login') }}</router-link>
-        <router-link to="/register" class="btn btn-primary">{{ $t('nav.register') }}</router-link>
-      </template>
+        <label class="swap swap-rotate btn btn-ghost btn-circle">
+          <input type="checkbox" class="theme-controller" value="dark" @change="syncTheme" />
+          <!-- Sun icon -->
+          <svg
+            class="swap-off fill-current w-6 h-6"
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+          >
+            <path
+              d="M5.64,17l-.71.71a1,1,0,0,0,0,1.41,1,1,0,0,0,1.41,0l.71-.71A1,1,0,0,0,5.64,17ZM5,12a1,1,0,0,0-1-1H3a1,1,0,0,0,0,2H4A1,1,0,0,0,5,12Zm7-7a1,1,0,0,0,1-1V3a1,1,0,0,0-2,0V4A1,1,0,0,0,12,5ZM5.64,7.05a1,1,0,0,0,.7.29,1,1,0,0,0,.71-.29,1,1,0,0,0,0-1.41l-.71-.71A1,1,0,0,0,4.93,6.34Zm12,.29a1,1,0,0,0,.7-.29l.71-.71a1,1,0,1,0-1.41-1.41L17,5.64a1,1,0,0,0,0,1.41A1,1,0,0,0,17.66,7.34ZM21,11H20a1,1,0,0,0,0,2h1a1,1,0,0,0,0-2Zm-9,8a1,1,0,0,0-1,1v1a1,1,0,0,0,2,0V20A1,1,0,0,0,12,19ZM18.36,17A1,1,0,0,0,17,18.36l.71.71a1,1,0,0,0,1.41,0,1,1,0,0,0,0-1.41ZM12,6.5A5.5,5.5,0,1,0,17.5,12,5.51,5.51,0,0,0,12,6.5Zm0,9A3.5,3.5,0,1,1,15.5,12,3.5,3.5,0,0,1,12,15.5Z"
+            />
+          </svg>
+          <!-- Moon icon -->
+          <svg
+            class="swap-on fill-current w-6 h-6"
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+          >
+            <path
+              d="M21.64,13a1,1,0,0,0-1.05-.14,8.05,8.05,0,0,1-3.37.73A8.15,8.15,0,0,1,9.08,5.49a8.59,8.59,0,0,1,.25-2A1,1,0,0,0,8,2.36,10.14,10.14,0,1,0,22,14.05,1,1,0,0,0,21.64,13Zm-9.5,6.69A8.14,8.14,0,0,1,7.08,5.22v.27A10.15,10.15,0,0,0,17.22,15.63a9.79,9.79,0,0,0,2.1-.22A8.11,8.11,0,0,1,12.14,19.73Z"
+            />
+          </svg>
+        </label>
 
-      <template v-else>
+        <template v-if="!isAuthenticated">
+          <router-link to="/login" class="btn btn-ghost">{{ $t('nav.login') }}</router-link>
+          <router-link to="/register" class="btn btn-primary">{{ $t('nav.register') }}</router-link>
+        </template>
+      </div>
+
+      <template v-if="isAuthenticated">
         <div class="dropdown dropdown-end">
           <div tabindex="0" role="button" class="btn btn-ghost btn-circle avatar">
             <div class="w-10 rounded-full">
@@ -147,8 +189,9 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '../stores/auth'
 import { useSiteConfigStore } from '../stores/siteConfig'
 import LanguageSwitcher from './LanguageSwitcher.vue'
@@ -156,9 +199,36 @@ import LanguageSwitcher from './LanguageSwitcher.vue'
 const router = useRouter()
 const authStore = useAuthStore()
 const siteConfigStore = useSiteConfigStore()
+const { locale } = useI18n()
 
 const isAuthenticated = computed(() => authStore.isAuthenticated)
 const user = computed(() => authStore.user)
+
+// Language switch (shared with LanguageSwitcher.vue)
+const currentLocale = computed(() => locale.value)
+const changeLocale = (newLocale) => {
+  locale.value = newLocale
+  localStorage.setItem('locale', newLocale)
+}
+
+// Theme toggle (synced with the desktop swap checkbox)
+const isDark = ref(false)
+const syncTheme = () => {
+  const html = document.documentElement
+  const dark = html.getAttribute('data-theme') === 'dark' ||
+    document.querySelector('input.theme-controller[value="dark"]:checked') !== null
+  isDark.value = dark
+}
+const toggleTheme = () => {
+  const next = !isDark.value
+  document.documentElement.setAttribute('data-theme', next ? 'dark' : 'light')
+  document.querySelectorAll('input.theme-controller[value="dark"]').forEach((cb) => {
+    cb.checked = next
+  })
+  isDark.value = next
+}
+
+onMounted(syncTheme)
 
 const handleLogout = () => {
   authStore.logout()

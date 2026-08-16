@@ -37,7 +37,13 @@ export default {
     login: 'Login',
     register: 'Register',
     logout: 'Logout',
-    admin: 'Admin'
+    admin: 'Admin',
+    language: 'Language',
+    theme: 'Theme',
+    darkMode: 'Dark',
+    lightMode: 'Light',
+    account: 'Account',
+    navigation: 'Navigation'
   },
   footer: {
     services: 'Services',
