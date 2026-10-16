@@ -6,7 +6,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"sync"
 	"testing"
+	"time"
 )
 
 func TestCreateZoneEnablesAPIRectify(t *testing.T) {
@@ -69,6 +71,8 @@ func TestEnsureDelegatedZoneCreatesChildBeforeParentDelegation(t *testing.T) {
 			}
 			w.WriteHeader(http.StatusNoContent)
 		case 4:
+			_, _ = w.Write([]byte(`{"name":"loc.cc.","api_rectify":false}`))
+		case 5:
 			w.WriteHeader(http.StatusNoContent)
 		default:
 			t.Fatalf("unexpected extra request: %s %s", r.Method, r.URL.Path)
@@ -85,6 +89,7 @@ func TestEnsureDelegatedZoneCreatesChildBeforeParentDelegation(t *testing.T) {
 		"GET /api/v1/servers/localhost/zones/child.loc.cc.",
 		"POST /api/v1/servers/localhost/zones",
 		"PATCH /api/v1/servers/localhost/zones/loc.cc.",
+		"GET /api/v1/servers/localhost/zones/loc.cc.",
 		"PUT /api/v1/servers/localhost/zones/loc.cc./rectify",
 	}
 	if !reflect.DeepEqual(calls, wantCalls) {
@@ -92,17 +97,28 @@ func TestEnsureDelegatedZoneCreatesChildBeforeParentDelegation(t *testing.T) {
 	}
 }
 
-func TestRemoveDelegationDeletesDSBeforeNS(t *testing.T) {
-	var recordTypes []string
+func TestRemoveDelegationDeletesDSBeforeNSInOnePatch(t *testing.T) {
+	var patches [][]string
+	var rectifies int
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodPatch {
+		switch r.Method {
+		case http.MethodPatch:
 			var patch struct {
 				RRsets []RRset `json:"rrsets"`
 			}
 			if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
 				t.Fatalf("decode patch: %v", err)
 			}
-			recordTypes = append(recordTypes, patch.RRsets[0].Type)
+			var types []string
+			for _, rr := range patch.RRsets {
+				if rr.ChangeType != "DELETE" || rr.Name != "child.loc.cc." {
+					t.Fatalf("unexpected rrset %+v", rr)
+				}
+				types = append(types, rr.Type)
+			}
+			patches = append(patches, types)
+		case http.MethodPut:
+			rectifies++
 		}
 		w.WriteHeader(http.StatusNoContent)
 	}))
@@ -112,8 +128,95 @@ func TestRemoveDelegationDeletesDSBeforeNS(t *testing.T) {
 	if err := client.RemoveDelegation("loc.cc", "child.loc.cc"); err != nil {
 		t.Fatalf("RemoveDelegation: %v", err)
 	}
-	if want := []string{"DS", "NS"}; !reflect.DeepEqual(recordTypes, want) {
-		t.Fatalf("deleted record types = %v, want %v", recordTypes, want)
+	if want := [][]string{{"DS", "NS"}}; !reflect.DeepEqual(patches, want) {
+		t.Fatalf("patches = %v, want %v", patches, want)
+	}
+	if rectifies != 1 {
+		t.Fatalf("zone without API-RECTIFY must be rectified once, got %d", rectifies)
+	}
+}
+
+func TestRemoveDelegationSkipsRectifyWhenZoneHasAPIRectify(t *testing.T) {
+	var calls []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls = append(calls, r.Method+" "+r.URL.Path)
+		if r.Method == http.MethodGet {
+			if r.URL.Query().Get("rrsets") != "false" {
+				t.Fatalf("zone info lookup must not transfer rrsets: %q", r.URL.RawQuery)
+			}
+			_, _ = w.Write([]byte(`{"name":"loc.cc.","api_rectify":true}`))
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "test-key")
+	if err := client.RemoveDelegation("loc.cc", "child.loc.cc"); err != nil {
+		t.Fatalf("RemoveDelegation: %v", err)
+	}
+	wantCalls := []string{
+		"PATCH /api/v1/servers/localhost/zones/loc.cc.",
+		"GET /api/v1/servers/localhost/zones/loc.cc.",
+	}
+	if !reflect.DeepEqual(calls, wantCalls) {
+		t.Fatalf("calls = %v, want %v", calls, wantCalls)
+	}
+}
+
+func TestWritesToSameZoneAreSerializedAcrossClients(t *testing.T) {
+	var mu sync.Mutex
+	inFlight := map[string]int{}
+	maxInFlight := map[string]int{}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			_, _ = w.Write([]byte(`{"api_rectify":true}`))
+			return
+		}
+		zone := zoneFromURL(r.URL.Path)
+		mu.Lock()
+		inFlight[zone]++
+		if inFlight[zone] > maxInFlight[zone] {
+			maxInFlight[zone] = inFlight[zone]
+		}
+		mu.Unlock()
+		time.Sleep(10 * time.Millisecond)
+		mu.Lock()
+		inFlight[zone]--
+		mu.Unlock()
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer server.Close()
+
+	var wg sync.WaitGroup
+	for i := 0; i < 8; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			client := NewClient(server.URL, "test-key")
+			if err := client.RemoveDelegation("serial-test.cc", fmt.Sprintf("c%d.serial-test.cc", i)); err != nil {
+				t.Errorf("RemoveDelegation: %v", err)
+			}
+		}(i)
+	}
+	wg.Wait()
+	if maxInFlight["serial-test.cc."] != 1 {
+		t.Fatalf("expected writes to one zone to be serialized, max in flight = %d", maxInFlight["serial-test.cc."])
+	}
+}
+
+func TestZoneFromURL(t *testing.T) {
+	cases := map[string]string{
+		"http://pdns:8081/api/v1/servers/localhost/zones/Loc.CC.":                  "loc.cc.",
+		"http://pdns:8081/api/v1/servers/localhost/zones/loc.cc./rectify":          "loc.cc.",
+		"http://pdns:8081/api/v1/servers/localhost/zones/loc.cc.?rrsets=false":     "loc.cc.",
+		"http://pdns:8081/api/v1/servers/localhost/zones/child.loc.cc./cryptokeys": "child.loc.cc.",
+		"http://pdns:8081/api/v1/servers/localhost/zones":                          "",
+	}
+	for in, want := range cases {
+		if got := zoneFromURL(in); got != want {
+			t.Errorf("zoneFromURL(%q) = %q, want %q", in, got, want)
+		}
 	}
 }
 
@@ -213,7 +316,9 @@ func TestPublishDSToParentZoneUsesShortTTLAndRectifiesParent(t *testing.T) {
 				t.Fatalf("inactive key DS must not be published: %+v", rr.Records)
 			}
 			w.WriteHeader(http.StatusNoContent)
-		case 3: // PUT rectify parent
+		case 3: // GET parent zone info
+			_, _ = w.Write([]byte(`{"name":"loc.cc.","api_rectify":false}`))
+		case 4: // PUT rectify parent
 			w.WriteHeader(http.StatusOK)
 		default:
 			t.Fatalf("unexpected extra request: %s %s", r.Method, r.URL.Path)
@@ -228,6 +333,7 @@ func TestPublishDSToParentZoneUsesShortTTLAndRectifiesParent(t *testing.T) {
 	wantCalls := []string{
 		"GET /api/v1/servers/localhost/zones/child.loc.cc./cryptokeys",
 		"PATCH /api/v1/servers/localhost/zones/loc.cc.",
+		"GET /api/v1/servers/localhost/zones/loc.cc.",
 		"PUT /api/v1/servers/localhost/zones/loc.cc./rectify",
 	}
 	if !reflect.DeepEqual(calls, wantCalls) {
@@ -249,6 +355,7 @@ func TestUnpublishDSFromParentZoneRectifiesParent(t *testing.T) {
 	}
 	wantCalls := []string{
 		"PATCH /api/v1/servers/localhost/zones/loc.cc.",
+		"GET /api/v1/servers/localhost/zones/loc.cc.",
 		"PUT /api/v1/servers/localhost/zones/loc.cc./rectify",
 	}
 	if !reflect.DeepEqual(calls, wantCalls) {
@@ -318,6 +425,8 @@ func TestSetDelegationsBatchesAndRectifiesOnce(t *testing.T) {
 			}
 			patches = append(patches, patch.RRsets)
 			w.WriteHeader(http.StatusNoContent)
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/servers/localhost/zones/loc.cc.":
+			_, _ = w.Write([]byte(`{"name":"loc.cc.","api_rectify":false}`))
 		case r.Method == http.MethodPut && r.URL.Path == "/api/v1/servers/localhost/zones/loc.cc./rectify":
 			rectifies++
 			w.WriteHeader(http.StatusOK)

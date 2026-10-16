@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -144,7 +145,7 @@ func (c *Client) SetDelegation(parentZone, childDomain string, nameservers []str
 	if err := c.patchRRsets(ensureTrailingDot(parentZone), rrsets); err != nil {
 		return fmt.Errorf("failed to publish delegation for %s in %s: %w", childDomain, parentZone, err)
 	}
-	if err := c.RectifyZone(parentZone); err != nil {
+	if err := c.rectifyAfterPatch(parentZone); err != nil {
 		return fmt.Errorf("failed to rectify parent zone %s: %w", parentZone, err)
 	}
 	return nil
@@ -160,15 +161,18 @@ func (c *Client) EnsureDelegatedZone(childDomain, parentZone string, nameservers
 }
 
 // RemoveDelegation removes both the DS chain and the NS delegation from the
-// signed parent zone, then rectifies its denial-of-existence chain.
+// signed parent zone in one PATCH (DS first), then rectifies its
+// denial-of-existence chain.
 func (c *Client) RemoveDelegation(parentZone, childDomain string) error {
-	if err := c.DeleteRRset(parentZone, childDomain, "DS"); err != nil {
-		return fmt.Errorf("failed to remove DS for %s from %s: %w", childDomain, parentZone, err)
+	name := ensureTrailingDot(childDomain)
+	rrsets := []RRset{
+		{Name: name, Type: "DS", ChangeType: "DELETE"},
+		{Name: name, Type: "NS", ChangeType: "DELETE"},
 	}
-	if err := c.DeleteRRset(parentZone, childDomain, "NS"); err != nil {
-		return fmt.Errorf("failed to remove NS delegation for %s from %s: %w", childDomain, parentZone, err)
+	if err := c.patchRRsets(ensureTrailingDot(parentZone), rrsets); err != nil {
+		return fmt.Errorf("failed to remove delegation for %s from %s: %w", childDomain, parentZone, err)
 	}
-	if err := c.RectifyZone(parentZone); err != nil {
+	if err := c.rectifyAfterPatch(parentZone); err != nil {
 		return fmt.Errorf("failed to rectify parent zone %s: %w", parentZone, err)
 	}
 	return nil
@@ -350,6 +354,9 @@ func (c *Client) doRequest(method, url string, body []byte) ([]byte, error) {
 	req.Header.Set("X-API-Key", c.APIKey)
 	req.Header.Set("Content-Type", "application/json")
 
+	unlock := lockZoneForWrite(method, url)
+	defer unlock()
+
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute request: %w", err)
@@ -518,6 +525,50 @@ func (c *Client) RectifyZone(domain string) error {
 	return err
 }
 
+// rectifyAfterPatch rectifies a zone after an RRset PATCH unless the zone has
+// API-RECTIFY, in which case PowerDNS already rectified it inside the PATCH
+// transaction. On a large signed zone each rectify rewrites thousands of rows,
+// so a redundant one doubles the lock time.
+func (c *Client) rectifyAfterPatch(domain string) error {
+	if info, err := c.GetZoneInfo(domain); err == nil && info.APIRectify {
+		return nil
+	}
+	return c.RectifyZone(domain)
+}
+
+// zoneWriteLocks serializes write requests to the same zone across every
+// Client in the process. Concurrent PATCH/rectify transactions on a large
+// signed zone deadlock in the PowerDNS MySQL backend or outlive its query
+// timeout, which surfaces as HTTP 500.
+var zoneWriteLocks sync.Map // lower-cased zone name -> *sync.Mutex
+
+func lockZoneForWrite(method, rawURL string) func() {
+	if method == http.MethodGet {
+		return func() {}
+	}
+	zone := zoneFromURL(rawURL)
+	if zone == "" {
+		return func() {}
+	}
+	m, _ := zoneWriteLocks.LoadOrStore(zone, &sync.Mutex{})
+	mu := m.(*sync.Mutex)
+	mu.Lock()
+	return mu.Unlock
+}
+
+func zoneFromURL(rawURL string) string {
+	const marker = "/zones/"
+	i := strings.Index(rawURL, marker)
+	if i < 0 {
+		return ""
+	}
+	zone := rawURL[i+len(marker):]
+	if j := strings.IndexAny(zone, "/?"); j >= 0 {
+		zone = zone[:j]
+	}
+	return strings.ToLower(zone)
+}
+
 // PublishDSToParentZone reads the DS records from the child zone's crypto keys
 // and writes them as a DS RRset into the parent zone at the delegation point,
 // then rectifies the parent so its NSEC chain covers the new delegation data.
@@ -538,7 +589,7 @@ func (c *Client) PublishDSToParentZone(childDomain, parentZone string) error {
 	if err := c.SetRecords(parentZone, childDomain, "DS", entries, dsRecordTTL); err != nil {
 		return fmt.Errorf("failed to publish DS for %s in %s: %w", childDomain, parentZone, err)
 	}
-	if err := c.RectifyZone(parentZone); err != nil {
+	if err := c.rectifyAfterPatch(parentZone); err != nil {
 		return fmt.Errorf("failed to rectify parent zone %s: %w", parentZone, err)
 	}
 	return nil
@@ -550,7 +601,7 @@ func (c *Client) UnpublishDSFromParentZone(childDomain, parentZone string) error
 	if err := c.DeleteRRset(parentZone, childDomain, "DS"); err != nil {
 		return fmt.Errorf("failed to remove DS for %s from %s: %w", childDomain, parentZone, err)
 	}
-	if err := c.RectifyZone(parentZone); err != nil {
+	if err := c.rectifyAfterPatch(parentZone); err != nil {
 		return fmt.Errorf("failed to rectify parent zone %s: %w", parentZone, err)
 	}
 	return nil
@@ -652,7 +703,7 @@ func (c *Client) SetDelegations(parentZone string, delegations []Delegation) err
 			}
 		}
 	}
-	if err := c.RectifyZone(parentZone); err != nil {
+	if err := c.rectifyAfterPatch(parentZone); err != nil {
 		return fmt.Errorf("failed to rectify parent zone %s: %w", parentZone, err)
 	}
 	if len(failures) > 0 {
@@ -788,7 +839,7 @@ func (c *Client) RemoveDelegations(parentZone string, children []string) error {
 			return fmt.Errorf("failed to remove delegations from %s: %w", parentZone, err)
 		}
 	}
-	if err := c.RectifyZone(parentZone); err != nil {
+	if err := c.rectifyAfterPatch(parentZone); err != nil {
 		return fmt.Errorf("failed to rectify parent zone %s: %w", parentZone, err)
 	}
 	return nil
