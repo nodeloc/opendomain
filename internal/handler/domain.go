@@ -16,7 +16,9 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"opendomain/internal/config"
 	"opendomain/internal/middleware"
@@ -877,36 +879,91 @@ func (h *DomainHandler) DeleteDomain(c *gin.Context) {
 
 	domainID := c.Param("id")
 
-	var domain models.Domain
-	if err := h.db.Preload("RootDomain").First(&domain, domainID).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Domain not found"})
-		return
-	}
-
-	// 验证所有权
-	if domain.UserID != userID {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
-		return
-	}
-
-	// 终止关联的 CyberPanel 主机账号
-	if h.cpHandler != nil {
-		h.cpHandler.TerminateAccountByDomain(domain.ID)
-	}
-
-	// 删除所有 DNS 记录（从数据库和 PowerDNS）
-	if err := h.deleteAllDNSRecordsForDomain(&domain); err != nil {
-		fmt.Printf("Warning: Failed to delete DNS records for domain %s: %v\n", domain.FullDomain, err)
-		// 继续删除域名，即使 DNS 清理失败
-	}
-
-	// 软删除域名
-	if err := h.db.Delete(&domain).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete domain"})
+	_, err := h.deleteDomainExclusive(domainID, func(domain *models.Domain) error {
+		if domain.UserID != userID {
+			return errDomainAccessDenied
+		}
+		return nil
+	}, true)
+	if err != nil {
+		writeDomainDeleteError(c, err)
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Domain deleted successfully"})
+}
+
+var (
+	errDomainAccessDenied       = errors.New("access denied")
+	errDomainDeletionInProgress = errors.New("domain deletion already in progress")
+	errDomainAlreadyDeleted     = errors.New("domain already deleted")
+)
+
+const postgresLockNotAvailableError = "55P03"
+
+// deleteDomainExclusive holds a row lock on the domain from before the external
+// cleanup until the soft delete commits. Without it, a slow cleanup (PowerDNS
+// can take 10s+ to fail) lets duplicate delete requests pile up, and one that
+// finishes after the domain was re-registered (restoring the same soft-deleted
+// row) deletes the new registration and its DNS data.
+func (h *DomainHandler) deleteDomainExclusive(domainID interface{}, authorize func(*models.Domain) error, terminateHosting bool) (*models.Domain, error) {
+	var domain models.Domain
+	err := h.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE", Options: "NOWAIT"}).
+			First(&domain, domainID).Error; err != nil {
+			return err
+		}
+		if authorize != nil {
+			if err := authorize(&domain); err != nil {
+				return err
+			}
+		}
+		if domain.RootDomainID > 0 {
+			var rootDomain models.RootDomain
+			if err := tx.First(&rootDomain, domain.RootDomainID).Error; err == nil {
+				domain.RootDomain = &rootDomain
+			}
+		}
+
+		if terminateHosting && h.cpHandler != nil {
+			h.cpHandler.TerminateAccountByDomain(domain.ID)
+		}
+
+		if err := h.deleteAllDNSRecordsForDomain(tx, &domain); err != nil {
+			fmt.Printf("Warning: Failed to delete DNS records for domain %s: %v\n", domain.FullDomain, err)
+			// 继续删除域名，即使 DNS 清理失败
+		}
+
+		result := tx.Delete(&domain)
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected == 0 {
+			return errDomainAlreadyDeleted
+		}
+		return nil
+	})
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == postgresLockNotAvailableError {
+			return nil, errDomainDeletionInProgress
+		}
+		return nil, err
+	}
+	return &domain, nil
+}
+
+func writeDomainDeleteError(c *gin.Context, err error) {
+	switch {
+	case errors.Is(err, gorm.ErrRecordNotFound), errors.Is(err, errDomainAlreadyDeleted):
+		c.JSON(http.StatusNotFound, gin.H{"error": "Domain not found"})
+	case errors.Is(err, errDomainAccessDenied):
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
+	case errors.Is(err, errDomainDeletionInProgress):
+		c.JSON(http.StatusConflict, gin.H{"error": "Domain deletion is already in progress"})
+	default:
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete domain"})
+	}
 }
 
 // ModifyNameservers 修改域名 Nameservers
@@ -2315,7 +2372,7 @@ func (h *DomainHandler) AdminUpdateDomainStatus(c *gin.Context) {
 }
 
 // deleteAllDNSRecordsForDomain 删除域名的所有 DNS 记录（从数据库和 PowerDNS）
-func (h *DomainHandler) deleteAllDNSRecordsForDomain(domain *models.Domain) error {
+func (h *DomainHandler) deleteAllDNSRecordsForDomain(db *gorm.DB, domain *models.Domain) error {
 	// Delegation and zone cleanup must run even when the domain has no user
 	// records. Otherwise empty/stale zones and orphaned DS records accumulate.
 	if domain.RootDomain != nil {
@@ -2331,7 +2388,7 @@ func (h *DomainHandler) deleteAllDNSRecordsForDomain(domain *models.Domain) erro
 	}
 
 	// 从数据库删除所有 DNS 记录
-	if err := h.db.Where("domain_id = ?", domain.ID).Delete(&models.DNSRecord{}).Error; err != nil {
+	if err := db.Where("domain_id = ?", domain.ID).Delete(&models.DNSRecord{}).Error; err != nil {
 		return fmt.Errorf("failed to delete DNS records from database: %w", err)
 	}
 
@@ -2342,26 +2399,9 @@ func (h *DomainHandler) deleteAllDNSRecordsForDomain(domain *models.Domain) erro
 func (h *DomainHandler) AdminDeleteDomain(c *gin.Context) {
 	domainID := c.Param("id")
 
-	var domain models.Domain
-	if err := h.db.Preload("RootDomain").First(&domain, domainID).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Domain not found"})
-		return
-	}
-
-	// 终止关联的 CyberPanel 主机账号
-	if h.cpHandler != nil {
-		h.cpHandler.TerminateAccountByDomain(domain.ID)
-	}
-
-	// 删除所有 DNS 记录（从数据库和 PowerDNS）
-	if err := h.deleteAllDNSRecordsForDomain(&domain); err != nil {
-		fmt.Printf("Warning: Failed to delete DNS records for domain %s: %v\n", domain.FullDomain, err)
-		// 继续删除域名，即使 DNS 清理失败
-	}
-
-	// 软删除域名
-	if err := h.db.Delete(&domain).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete domain"})
+	domain, err := h.deleteDomainExclusive(domainID, nil, true)
+	if err != nil {
+		writeDomainDeleteError(c, err)
 		return
 	}
 
@@ -2532,14 +2572,13 @@ func (h *DomainHandler) CleanupExpiredDomains(daysAfterExpiry int) {
 		fmt.Printf("Cleaning up domain: %s (expired at %s)\n",
 			domain.FullDomain, domain.ExpiresAt.Format("2006-01-02"))
 
-		// 删除所有 DNS 记录
-		if err := h.deleteAllDNSRecordsForDomain(&domain); err != nil {
-			fmt.Printf("Warning: Failed to delete DNS records for domain %s: %v\n", domain.FullDomain, err)
-			// 继续删除域名，即使 DNS 清理失败
-		}
-
-		// 软删除域名
-		if err := h.db.Delete(&domain).Error; err != nil {
+		_, err := h.deleteDomainExclusive(domain.ID, func(locked *models.Domain) error {
+			if !locked.ExpiresAt.Before(cutoffTime) || locked.Status == "suspended" {
+				return fmt.Errorf("domain no longer eligible for expiry cleanup")
+			}
+			return nil
+		}, false)
+		if err != nil {
 			fmt.Printf("Error: Failed to delete domain %s: %v\n", domain.FullDomain, err)
 			failCount++
 			continue

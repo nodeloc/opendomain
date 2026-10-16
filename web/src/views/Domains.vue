@@ -1015,12 +1015,15 @@
           @keyup.enter="executeDelete"
         />
         <div class="modal-action">
-          <button class="btn" @click="showDeleteModal = false">{{ $t('common.cancel') }}</button>
+          <button class="btn" :disabled="deleting" @click="showDeleteModal = false">{{ $t('common.cancel') }}</button>
           <button
             class="btn btn-error"
-            :disabled="deleteConfirmInput !== deleteTargetDomain?.full_domain"
+            :disabled="deleting || deleteConfirmInput !== deleteTargetDomain?.full_domain"
             @click="executeDelete"
-          >{{ $t('domains.delete') }}</button>
+          >
+            <span v-if="deleting" class="loading loading-spinner loading-sm"></span>
+            {{ $t('domains.delete') }}
+          </button>
         </div>
       </div>
       <form method="dialog" class="modal-backdrop">
@@ -1068,6 +1071,7 @@ const showHealthDetailsModal = ref(false)
 const showDeleteModal = ref(false)
 const deleteTargetDomain = ref(null)
 const deleteConfirmInput = ref('')
+const deleting = ref(false)
 const showSuspendedInfoModal = ref(false)
 const suspendedInfoDomain = ref(null)
 const selectedDomain = ref(null)
@@ -1612,7 +1616,9 @@ const confirmDelete = (domain) => {
 }
 
 const executeDelete = async () => {
+  if (deleting.value) return
   if (deleteConfirmInput.value !== deleteTargetDomain.value?.full_domain) return
+  deleting.value = true
   try {
     await axios.delete(`/api/domains/${deleteTargetDomain.value.id}`)
     showDeleteModal.value = false
@@ -1620,6 +1626,8 @@ const executeDelete = async () => {
     await fetchDomains()
   } catch (error) {
     toast.error(error.response?.data?.error || t('domains.deleteFailed'))
+  } finally {
+    deleting.value = false
   }
 }
 
