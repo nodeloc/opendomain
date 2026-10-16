@@ -12,7 +12,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "${DB_PORT:-5432}:5432"
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-opendomain}"]
       interval: 10s
@@ -30,7 +30,7 @@ services:
     volumes:
       - redis_data:/data
     ports:
-      - "${REDIS_PORT:-6379}:6379"
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -88,7 +88,7 @@ services:
     ports:
       - "${DNS_PORT:-53}:53/udp"
       - "${DNS_PORT:-53}:53/tcp"
-      - "${PDNS_API_PORT:-8081}:8081"
+      - "127.0.0.1:${PDNS_API_PORT:-8081}:8081"
     healthcheck:
       test: ["CMD", "pdns_control", "ping"]
       interval: 15s
@@ -111,7 +111,7 @@ services:
       powerdns:
         condition: service_healthy
     ports:
-      - "${PDNS_ADMIN_PORT:-9191}:80"
+      - "127.0.0.1:${PDNS_ADMIN_PORT:-9191}:80"
     environment:
       SECRET_KEY: ${PDNS_ADMIN_SECRET:-changeme-pdns-admin-secret}
       SQLALCHEMY_DATABASE_URI: "mysql://${PDNS_DB_USER:-pdns}:${PDNS_DB_PASSWORD:-pdnspass}@pdns-db/${PDNS_DB_NAME:-pdns}"
