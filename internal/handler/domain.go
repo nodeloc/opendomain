@@ -1974,7 +1974,7 @@ type OrphanCleanupStatus struct {
 
 var orphanCleanupStatus = map[uint]*OrphanCleanupStatus{}
 
-// findOrphanZones 返回 PowerDNS 中位于根域名之下、但数据库里已无对应有效域名的 zone。
+// findOrphanZones 返回 PowerDNS 中位于根域名之下、但数据库里已无对应有效域名的 zone 及根域中的 NS 委派。
 func (h *DomainHandler) findOrphanZones(rootDomain *models.RootDomain) ([]string, error) {
 	zones, err := h.pdns.ListZones()
 	if err != nil {
@@ -1991,13 +1991,30 @@ func (h *DomainHandler) findOrphanZones(rootDomain *models.RootDomain) ([]string
 		liveSet[strings.ToLower(d)] = true
 	}
 	suffix := "." + strings.ToLower(rootDomain.Domain)
+	seen := map[string]bool{}
 	var orphans []string
-	for _, z := range zones {
-		name := strings.ToLower(strings.TrimSuffix(z.Name, "."))
-		if !strings.HasSuffix(name, suffix) || liveSet[name] {
-			continue
+	add := func(fqdn string) {
+		name := strings.ToLower(strings.TrimSuffix(fqdn, "."))
+		if !strings.HasSuffix(name, suffix) || liveSet[name] || seen[name] {
+			return
 		}
+		seen[name] = true
 		orphans = append(orphans, name)
+	}
+	for _, z := range zones {
+		add(z.Name)
+	}
+	// Delegations of domains using external nameservers have no child zone,
+	// so they only show up as NS RRsets in the root zone. Left behind, they
+	// keep resolving to whoever now controls those nameservers.
+	root, err := h.pdns.GetZone(rootDomain.Domain)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load root zone %s: %w", rootDomain.Domain, err)
+	}
+	for _, rrset := range root.RRsets {
+		if rrset.Type == "NS" {
+			add(rrset.Name)
+		}
 	}
 	sort.Strings(orphans)
 	return orphans, nil
