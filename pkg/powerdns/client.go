@@ -2,6 +2,7 @@ package powerdns
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -373,6 +374,28 @@ func (c *Client) doRequest(method, url string, body []byte) ([]byte, error) {
 	}
 
 	return respBody, nil
+}
+
+// Ping checks that the PowerDNS API is reachable and accepts the API key.
+func (c *Client) Ping(ctx context.Context) error {
+	url := fmt.Sprintf("%s/api/v1/servers/%s", c.BaseURL, c.ServerID)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("X-API-Key", c.APIKey)
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to execute request: %w", err)
+	}
+	defer resp.Body.Close()
+	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 64<<10))
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("API request failed with status %d", resp.StatusCode)
+	}
+	return nil
 }
 
 // CryptoKey represents a DNSSEC cryptographic key returned by PowerDNS

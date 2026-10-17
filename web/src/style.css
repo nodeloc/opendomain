@@ -421,6 +421,109 @@
   text-underline-offset: 3px;
 }
 
+/* ---------- Website reference additions ---------- */
+@layer components {
+  .y-page-wide {
+    @apply mx-auto flex w-full max-w-[1280px] flex-col gap-8 px-5 py-8 sm:px-6 sm:py-10;
+  }
+  /* Full-width band separated by a hairline, as used between landing sections. */
+  .y-band {
+    @apply border-t border-y-line;
+  }
+  .y-band-inner {
+    @apply y-container py-20 sm:py-28;
+  }
+  /* Section headline: heavy uppercase, smaller than y-headline. */
+  .y-title {
+    @apply font-extrabold uppercase text-y-text;
+    font-size: clamp(2rem, 4.5vw, 3rem);
+    line-height: 1.02;
+    letter-spacing: -0.035em;
+  }
+  .y-title em {
+    @apply not-italic text-y-mint-text;
+  }
+  /* Ink pill: the reference's light CTA in the nav ("Get started"). Inverts with the theme. */
+  .y-btn-ink {
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-y-text px-5 text-sm font-bold text-y-bg transition-shadow duration-150;
+    min-height: 2.5rem;
+  }
+  .y-btn-ink:hover {
+    box-shadow: 0 0 0 4px rgb(var(--y-mint) / 0.25);
+  }
+  .y-btn-ink-block {
+    @apply y-btn-ink w-full rounded-md;
+    min-height: 3.25rem;
+  }
+  /* Small mono badge next to the logo on sub-sites ("docs", "status"). */
+  .y-site-badge {
+    @apply inline-flex items-center rounded-sm border px-2 py-0.5 font-mono text-xs text-y-mint-text;
+    border-color: rgb(var(--y-mint) / 0.4);
+    background: rgb(var(--y-mint) / 0.06);
+  }
+  /* Segmented control (e.g. "Yunamo DNS / Custom NS", "30 days / 90 days"). */
+  .y-seg {
+    @apply inline-flex gap-0.5 rounded-md border border-y-line bg-y-surface p-[3px];
+  }
+  .y-seg > button,
+  .y-seg > a {
+    @apply min-h-[2.25rem] rounded-sm px-3.5 text-[13px] font-medium text-y-muted transition-colors duration-150 hover:text-y-text;
+  }
+  .y-seg > .is-active,
+  .y-seg > [aria-pressed="true"] {
+    @apply bg-y-line text-y-text;
+  }
+  /* Card that lifts its border/background on hover (bento tiles, choice cards). */
+  .y-card {
+    @apply rounded-xl border border-y-line bg-y-surface transition-colors duration-200;
+  }
+  a.y-card:hover,
+  button.y-card:hover,
+  .y-card.is-hoverable:hover {
+    @apply border-y-line-strong bg-y-surface-2;
+  }
+  /* Selectable option card (radio-like). */
+  .y-choice {
+    @apply flex flex-col gap-1 rounded-md border border-y-line bg-y-surface p-3.5 text-left transition-colors duration-150 hover:border-y-line-strong;
+  }
+  .y-choice.is-active,
+  .y-choice[aria-pressed="true"],
+  .y-choice[aria-checked="true"] {
+    border-color: rgb(var(--y-mint) / 0.6);
+    background: rgb(var(--y-mint) / 0.06);
+  }
+  .y-kbd {
+    @apply inline-flex items-center rounded-[6px] border border-y-line-strong px-1.5 font-mono text-[11px] leading-5 text-y-faint;
+  }
+  /* Numbered step bullet (docs steps, "what happens next"). */
+  .y-step-num {
+    @apply inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-y-mint font-mono text-[13px] font-semibold text-y-on-mint;
+  }
+  .y-step-num-muted {
+    @apply inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-y-surface-2 font-mono text-[13px] font-semibold text-y-muted;
+  }
+  /* Accordion rows (FAQ). */
+  .y-faq details {
+    @apply border-b border-y-line py-5;
+  }
+  .y-faq summary {
+    @apply flex cursor-pointer list-none items-start justify-between gap-4 text-[17px] font-medium leading-[26px] text-y-text;
+  }
+  .y-faq summary::-webkit-details-marker {
+    display: none;
+  }
+  .y-faq summary .y-faq-plus {
+    @apply text-[22px] leading-[26px] text-y-mint-text transition-transform duration-200;
+  }
+  .y-faq details[open] .y-faq-plus {
+    transform: rotate(45deg);
+  }
+  /* Glowing status dot. */
+  .y-dot-live {
+    @apply inline-block h-2 w-2 shrink-0 rounded-full bg-y-mint;
+    box-shadow: 0 0 10px rgb(var(--y-mint) / 0.7);
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.001ms !important;

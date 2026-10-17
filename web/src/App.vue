@@ -10,6 +10,9 @@ import { computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import SiteLayout from './layouts/SiteLayout.vue'
 import ConsoleLayout from './layouts/ConsoleLayout.vue'
+import AppLayout from './layouts/AppLayout.vue'
+import DocsLayout from './layouts/DocsLayout.vue'
+import BareLayout from './layouts/BareLayout.vue'
 import Toast from './components/Toast.vue'
 import { useSiteConfigStore } from './stores/siteConfig'
 
@@ -17,7 +20,14 @@ const route = useRoute()
 const siteConfigStore = useSiteConfigStore()
 siteConfigStore.fetch()
 
-const layout = computed(() => (route.meta.layout === 'console' ? ConsoleLayout : SiteLayout))
+const layouts = {
+  console: ConsoleLayout,
+  app: AppLayout,
+  docs: DocsLayout,
+  bare: BareLayout,
+}
+
+const layout = computed(() => layouts[route.meta.layout] || SiteLayout)
 
 watch(
   () => [siteConfigStore.siteName, siteConfigStore.siteDescription],

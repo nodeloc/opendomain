@@ -61,5 +61,18 @@
   "validation.email_invalid": "邮箱格式无效",
   "validation.password_too_short": "密码长度不能少于6个字符",
   "validation.username_invalid": "用户名格式无效",
-  "validation.domain_invalid": "域名格式无效"
+  "validation.domain_invalid": "域名格式无效",
+  "abuse.invalid_subdomain": "请输入完整域名，例如 foo.example.com",
+  "abuse.invalid_category": "请选择有效的举报类型",
+  "abuse.invalid_details": "详细说明需为 10 到 5000 个字符",
+  "abuse.invalid_url": "URL 过长（最多 2048 个字符）",
+  "abuse.rate_limited": "来自你网络的举报过多，请稍后再试。",
+  "abuse.report_received": "感谢，我们已收到你的举报",
+  "abuse.invalid_status": "状态无效",
+  "abuse.fetch_failed": "获取举报列表失败",
+  "abuse.not_found": "举报不存在",
+  "abuse.note_too_long": "管理员备注最多 5000 个字符",
+  "abuse.update_failed": "更新举报失败",
+  "abuse.delete_failed": "删除举报失败",
+  "abuse.deleted": "举报已删除"
 }

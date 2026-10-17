@@ -1,77 +1,26 @@
 <template>
   <div>
-    <div class="y-page">
-      <PageHeader :eyebrow="$t('shell.workspace')" :title="$t('uiDomains.title')" :description="headerDescription">
-        <template #actions>
-          <router-link to="/" class="btn btn-primary gap-1.5">
-            <Plus :size="16" :stroke-width="1.5" />
-            {{ $t('uiDomains.claim') }}
-          </router-link>
-        </template>
-      </PageHeader>
-
+    <div class="y-page-wide">
       <YLoader v-if="loading" :label="$t('uiDomains.loading')" />
 
-      <template v-else>
-        <!-- Usage -->
-        <section class="y-panel overflow-hidden">
-          <div class="grid grid-cols-2 gap-px bg-y-line lg:grid-cols-4">
-            <div class="bg-y-surface px-5 py-5">
-              <p class="y-label">{{ $t('uiDomains.statInUse') }}</p>
-              <p class="mt-3 font-mono text-3xl font-medium tracking-tight text-y-text">
-                {{ domains.length }}<span v-if="domainQuota !== null" class="text-lg text-y-faint"> / {{ domainQuota }}</span>
-              </p>
-            </div>
-            <div class="bg-y-surface px-5 py-5">
-              <p class="y-label">{{ $t('uiDomains.statLeft') }}</p>
-              <p class="mt-3 font-mono text-3xl font-medium tracking-tight text-y-text">{{ slotsLeft === null ? '—' : slotsLeft }}</p>
-            </div>
-            <div class="bg-y-surface px-5 py-5">
-              <p class="y-label">{{ $t('uiDomains.statExpiring') }}</p>
-              <p class="mt-3 font-mono text-3xl font-medium tracking-tight" :class="expiringCount > 0 ? 'text-y-warn' : 'text-y-text'">{{ expiringCount }}</p>
-            </div>
-            <div class="bg-y-surface px-5 py-5">
-              <p class="y-label">{{ $t('uiDomains.statAttention') }}</p>
-              <p class="mt-3 font-mono text-3xl font-medium tracking-tight" :class="attentionCount > 0 ? 'text-y-warn' : 'text-y-text'">{{ attentionCount }}</p>
-            </div>
-          </div>
-          <div v-if="quotaPercent !== null" class="flex items-center gap-3 border-t border-y-line px-5 py-3">
-            <div class="h-1 flex-1 overflow-hidden rounded-full bg-y-surface-2">
-              <div class="h-full rounded-full bg-y-mint transition-[width] duration-300" :style="{ width: quotaPercent + '%' }"></div>
-            </div>
-            <span class="shrink-0 font-mono text-xs text-y-faint">{{ $t('uiDomains.quotaUsed', { percent: quotaPercent }) }}</span>
-          </div>
-        </section>
+      <!-- Empty -->
+      <section v-else-if="domains.length === 0" class="y-panel">
+        <EmptyState :title="$t('app2.domains.emptyDetailTitle')" :description="$t('app2.domains.emptyDetailDesc')">
+          <router-link to="/" class="btn btn-primary gap-1.5">
+            <Plus :size="16" :stroke-width="1.5" />
+            {{ $t('app2.domains.newSubdomain') }}
+          </router-link>
+        </EmptyState>
+      </section>
 
-        <!-- Empty -->
-        <section v-if="domains.length === 0" class="y-panel">
-          <EmptyState :title="$t('uiDomains.emptyTitle')" :description="$t('uiDomains.emptyDesc')">
-            <router-link to="/" class="btn btn-primary gap-1.5">
-              <Plus :size="16" :stroke-width="1.5" />
-              {{ $t('uiDomains.claim') }}
-            </router-link>
-          </EmptyState>
-        </section>
+      <main v-else class="flex flex-col gap-8 lg:flex-row lg:items-start">
+        <!-- Left: domain list, usage, new -->
+        <aside class="flex w-full flex-col gap-4 lg:w-80 lg:shrink-0">
+          <h1 class="text-[26px] font-semibold leading-8 tracking-[-0.03em] text-y-text">{{ $t('app2.domains.title') }}</h1>
 
-        <!-- Domain list -->
-        <section v-else class="y-panel">
-          <div class="y-panel-header">
-            <div role="tablist" class="tabs tabs-boxed tabs-sm" :aria-label="$t('uiDomains.filterLabel')">
-              <button
-                v-for="opt in filterOptions"
-                :key="opt.key"
-                type="button"
-                role="tab"
-                class="tab gap-1.5"
-                :class="{ 'tab-active': statusFilter === opt.key }"
-                :aria-selected="statusFilter === opt.key"
-                @click="statusFilter = opt.key"
-              >
-                {{ opt.label }}
-                <span class="font-mono text-[11px] text-y-faint">{{ opt.count }}</span>
-              </button>
-            </div>
-            <label class="input input-bordered input-sm flex w-full items-center gap-2 sm:w-64">
+          <!-- Search + status filter -->
+          <div class="flex flex-col gap-2">
+            <label class="input input-bordered input-sm flex w-full items-center gap-2">
               <Search :size="14" :stroke-width="1.5" class="shrink-0 text-y-faint" />
               <input
                 v-model="searchQuery"
@@ -84,255 +33,260 @@
                 spellcheck="false"
               />
             </label>
+            <div role="tablist" class="tabs tabs-boxed tabs-sm w-full" :aria-label="$t('uiDomains.filterLabel')">
+              <button
+                v-for="opt in filterOptions"
+                :key="opt.key"
+                type="button"
+                role="tab"
+                class="tab flex-1 gap-1"
+                :class="{ 'tab-active': statusFilter === opt.key }"
+                :aria-selected="statusFilter === opt.key"
+                @click="statusFilter = opt.key"
+              >
+                {{ opt.label }}
+                <span class="font-mono text-[11px] text-y-faint">{{ opt.count }}</span>
+              </button>
+            </div>
           </div>
 
-          <EmptyState v-if="rows.length === 0" :title="$t('uiDomains.noMatchTitle')" :description="$t('uiDomains.noMatchDesc')">
-            <button type="button" class="btn btn-ghost btn-sm" @click="clearFilters">{{ $t('uiDomains.clearFilters') }}</button>
-          </EmptyState>
-
-          <template v-else>
-            <!-- Table, md and up. Separate borders + cell-level hover let the last row follow the panel's rounded corners;
-                 the panel itself cannot clip because row menus have to overflow it. -->
-            <table
-              class="y-table hidden border-separate border-spacing-0 md:table [&_tbody_tr:hover>td]:bg-y-surface-2/60 [&_tbody_tr:hover]:bg-transparent [&_tbody_tr:last-child>td:first-child]:rounded-bl-lg [&_tbody_tr:last-child>td:last-child]:rounded-br-lg"
+          <!-- Domain list -->
+          <div class="y-panel flex flex-col gap-0.5 p-1.5" role="list" :aria-label="$t('app2.domains.listLabel')">
+            <div v-if="rows.length === 0" class="px-4 py-8 text-center">
+              <p class="text-sm text-y-muted">{{ $t('uiDomains.noMatchTitle') }}</p>
+              <button type="button" class="btn btn-ghost btn-sm mt-2" @click="clearFilters">{{ $t('uiDomains.clearFilters') }}</button>
+            </div>
+            <button
+              v-for="row in rows"
+              :key="row.domain.id"
+              type="button"
+              role="listitem"
+              class="flex min-h-11 w-full items-center gap-2.5 rounded-md px-3 py-2 text-left transition-colors hover:bg-y-surface-2"
+              :class="{ 'bg-y-surface-2': activeDomain && row.domain.id === activeDomain.id }"
+              :aria-pressed="activeDomain && row.domain.id === activeDomain.id ? 'true' : 'false'"
+              @click="selectDomain(row.domain)"
             >
-              <thead>
-                <tr>
-                  <th>{{ $t('uiDomains.colDomain') }}</th>
-                  <th>{{ $t('uiDomains.colStatus') }}</th>
-                  <th>{{ $t('uiDomains.colExpires') }}</th>
-                  <th>{{ $t('uiDomains.colDns') }}</th>
-                  <th class="hidden xl:table-cell">{{ $t('uiDomains.colHealth') }}</th>
-                  <th class="w-px text-right">{{ $t('uiDomains.colActions') }}</th>
-                </tr>
-              </thead>
-              <tbody>
-                <template v-for="row in rows" :key="row.domain.id">
-                  <tr>
-                    <td :class="{ 'border-b-0': row.notices.length }">
-                      <p class="y-domain text-[14px]" :class="{ '!text-y-muted': isRestricted(row.domain) }">{{ row.domain.full_domain }}</p>
-                      <p class="mt-0.5 text-xs text-y-faint">{{ $t('uiDomains.registeredOn', { date: formatDate(row.domain.registered_at) }) }}</p>
-                    </td>
-                    <td class="whitespace-nowrap" :class="{ 'border-b-0': row.notices.length }">
+              <span
+                aria-hidden="true"
+                class="h-[7px] w-[7px] shrink-0 rounded-full"
+                :class="dotActive(row.domain) ? 'y-dot-live' : 'bg-y-faint'"
+              ></span>
+              <span class="min-w-0 flex-1 truncate font-mono text-[13px] leading-5" :class="isRestricted(row.domain) ? 'text-y-muted' : 'text-y-text'">
+                {{ row.domain.full_domain }}
+              </span>
+              <span class="whitespace-nowrap text-xs" :class="row.domain.status === 'active' ? 'text-y-faint' : statusTextClass(row.domain.status)">
+                {{ listStatus(row.domain) }}
+              </span>
+            </button>
+          </div>
+
+          <!-- Usage -->
+          <div class="y-panel flex flex-col gap-2.5 p-4">
+            <div class="flex items-baseline justify-between text-[13px] text-y-muted">
+              <span>{{ $t('app2.domains.usage') }}</span>
+              <span class="font-mono text-y-text">
+                {{ domains.length }}<span v-if="domainQuota !== null" class="text-y-faint"> / {{ domainQuota }}</span>
+              </span>
+            </div>
+            <div
+              v-if="quotaPercent !== null"
+              class="h-1.5 overflow-hidden rounded-full bg-y-surface-2"
+              role="img"
+              :aria-label="$t('app2.domains.usageAria', { used: domains.length, quota: domainQuota })"
+            >
+              <div class="h-full rounded-full bg-y-mint transition-[width] duration-300" :style="{ width: quotaPercent + '%' }"></div>
+            </div>
+            <p v-if="slotsLeft !== null && slotsLeft === 0" class="text-xs leading-5 text-y-warn">{{ $t('app2.domains.quotaFull') }}</p>
+            <p v-if="expiringCount > 0" class="text-xs text-y-faint">{{ $t('app2.domains.expiringCount', { n: expiringCount }) }}</p>
+            <p v-if="attentionCount > 0" class="text-xs text-y-faint">{{ $t('app2.domains.attentionCount', attentionCount) }}</p>
+          </div>
+
+          <router-link to="/" class="btn btn-primary w-full gap-1.5">
+            <Plus :size="16" :stroke-width="1.5" />
+            {{ $t('app2.domains.newSubdomain') }}
+          </router-link>
+
+          <button v-if="fossbillingEnabled" type="button" class="btn btn-outline btn-sm w-full gap-1.5" @click="openSyncModal">
+            <ArrowLeftRight :size="14" :stroke-width="1.5" />
+            {{ $t('uiDomains.syncTitle') }}
+          </button>
+        </aside>
+
+        <!-- Right: selected domain -->
+        <section v-if="activeDomain" class="flex min-w-0 flex-1 flex-col gap-5">
+          <!-- Header -->
+          <div class="flex flex-wrap items-end gap-4 sm:gap-6">
+            <div class="flex min-w-0 flex-[1_1_20rem] flex-col gap-1.5">
+              <div class="flex items-center gap-2.5">
+                <span class="y-domain break-anywhere text-2xl leading-8 tracking-[-0.02em]">{{ activeDomain.full_domain }}</span>
+                <a
+                  :href="'https://' + activeDomain.full_domain"
+                  target="_blank"
+                  rel="noopener"
+                  class="inline-flex shrink-0 text-y-faint transition-colors hover:text-y-text"
+                  :aria-label="$t('app2.domains.openSite', { domain: activeDomain.full_domain })"
+                >
+                  <SquareArrowOutUpRight :size="18" :stroke-width="1.5" />
+                </a>
+              </div>
+              <p class="text-[13px] text-y-faint">
+                {{ $t('app2.domains.claimed', { date: formatDate(activeDomain.registered_at) }) }}
+                ·
+                {{ activeDomain.use_default_nameservers ? $t('app2.domains.dnsYunamo', { site: siteName }) : $t('app2.domains.dnsCustom') }}
+                ·
+                {{ $t('app2.domains.expires', { date: formatDate(activeDomain.expires_at) }) }}
+              </p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button type="button" class="btn btn-outline btn-sm gap-1.5" @click="openRenew(activeDomain)">
+                <RefreshCw :size="14" :stroke-width="1.5" />
+                {{ $t('app2.domains.renew') }}
+              </button>
+              <div class="dropdown dropdown-end">
+                <div tabindex="0" role="button" class="btn btn-ghost btn-sm btn-square" :title="$t('uiDomains.moreActions')" :aria-label="$t('app2.domains.actions')">
+                  <Ellipsis :size="16" :stroke-width="1.5" />
+                </div>
+                <ul tabindex="0" class="dropdown-content menu z-20 mt-1 w-56 rounded-md p-1.5">
+                  <template v-for="item in menuItems(activeDomain)" :key="item.key">
+                    <li v-if="item.divider" role="separator" class="pointer-events-none my-1 border-t border-y-line"></li>
+                    <li>
                       <button
-                        v-if="row.domain.status === 'suspended'"
                         type="button"
-                        class="inline-flex items-center gap-1.5 rounded-sm hover:underline"
-                        :title="$t('uiDomains.viewSuspension')"
-                        @click="openSuspendedInfo(row.domain)"
+                        class="flex items-center gap-2.5 rounded-sm px-3 py-2 text-sm hover:bg-y-surface-2"
+                        :class="item.danger ? 'text-y-danger-text' : 'text-y-text'"
+                        @click="runMenuItem(item)"
                       >
-                        <StatusDot :tone="getStatusTone(row.domain.status)" :label="statusLabel(row.domain.status)" />
-                        <Info :size="14" :stroke-width="1.5" class="text-y-faint" />
+                        <component :is="item.icon" :size="16" :stroke-width="1.5" :class="item.danger ? '' : 'text-y-faint'" />
+                        {{ item.label }}
                       </button>
-                      <StatusDot v-else :tone="getStatusTone(row.domain.status)" :label="statusLabel(row.domain.status)" />
-                    </td>
-                    <td class="whitespace-nowrap" :class="{ 'border-b-0': row.notices.length }">
-                      <p class="font-mono text-[13px] text-y-text">{{ formatDate(row.domain.expires_at) }}</p>
-                      <span v-if="isExpiringSoon(row.domain)" class="y-chip-warn mt-1 !py-0 font-mono text-[11px]">
-                        {{ $t('uiDomains.daysLeft', { n: getDaysUntilExpiry(row.domain.expires_at) }) }}
-                      </span>
-                    </td>
-                    <td class="whitespace-nowrap" :class="{ 'border-b-0': row.notices.length }">
-                      <StatusDot :tone="row.domain.dns_synced ? 'ok' : 'warn'" :label="row.domain.dns_synced ? $t('uiDomains.synced') : $t('uiDomains.notSynced')" />
-                      <p class="mt-0.5 text-xs text-y-faint">{{ isUsingDefaultNS(row.domain) ? $t('uiDomains.nsDefault') : $t('uiDomains.nsCustom') }}</p>
-                    </td>
-                    <td class="hidden whitespace-nowrap xl:table-cell" :class="{ 'border-b-0': row.notices.length }">
-                      <div v-if="row.domain.scan_summary" class="flex items-center gap-1">
-                        <button type="button" :class="getHealthBadgeClass(row.domain.scan_summary.overall_health)" @click="viewHealthDetails(row.domain)">
-                          {{ healthLabel(row.domain.scan_summary.overall_health) }}
-                        </button>
-                        <button
-                          type="button"
-                          class="btn btn-ghost btn-xs btn-square text-y-faint"
-                          :title="$t('domains.scanDetails')"
-                          :aria-label="$t('domains.scanDetails')"
-                          @click="viewScanDetails(row.domain)"
-                        >
-                          <ChartColumn :size="14" :stroke-width="1.5" />
-                        </button>
-                      </div>
-                      <span v-else class="text-xs text-y-faint">{{ $t('domains.noScanData') }}</span>
-                    </td>
-                    <td class="whitespace-nowrap" :class="{ 'border-b-0': row.notices.length }">
-                      <div class="flex items-center justify-end gap-1">
-                        <span :title="isUsingDefaultNS(row.domain) ? $t('domains.manageDNS') : $t('domains.dnsTooltip')">
-                          <button
-                            type="button"
-                            class="btn btn-ghost btn-sm btn-square disabled:border-transparent disabled:bg-transparent"
-                            :disabled="!isUsingDefaultNS(row.domain)"
-                            :aria-label="$t('uiDomains.dnsRecords')"
-                            @click="manageDNS(row.domain)"
-                          >
-                            <ListTree :size="16" :stroke-width="1.5" />
-                          </button>
-                        </span>
-                        <button
-                          type="button"
-                          class="btn btn-ghost btn-sm btn-square"
-                          :title="$t('domains.renewDomainTitle')"
-                          :aria-label="$t('domains.renewDomainTitle')"
-                          @click="openRenew(row.domain)"
-                        >
-                          <RefreshCw :size="16" :stroke-width="1.5" />
-                        </button>
-                        <div class="dropdown dropdown-end">
-                          <div tabindex="0" role="button" class="btn btn-ghost btn-sm btn-square" :title="$t('uiDomains.moreActions')" :aria-label="$t('uiDomains.moreActions')">
-                            <Ellipsis :size="16" :stroke-width="1.5" />
-                          </div>
-                          <ul tabindex="0" class="dropdown-content menu z-20 mt-1 w-56 rounded-md p-1.5">
-                            <template v-for="item in menuItems(row.domain)" :key="item.key">
-                              <li v-if="item.divider" role="separator" class="pointer-events-none my-1 border-t border-y-line"></li>
-                              <li>
-                                <button
-                                  type="button"
-                                  class="flex items-center gap-2.5 rounded-sm px-3 py-2 text-sm hover:bg-y-surface-2"
-                                  :class="item.danger ? 'text-y-danger-text' : 'text-y-text'"
-                                  @click="runMenuItem(item)"
-                                >
-                                  <component :is="item.icon" :size="16" :stroke-width="1.5" :class="item.danger ? '' : 'text-y-faint'" />
-                                  {{ item.label }}
-                                </button>
-                              </li>
-                            </template>
-                          </ul>
-                        </div>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr v-if="row.notices.length">
-                    <td colspan="6" class="!pt-0">
-                      <div class="space-y-1.5">
-                        <p
-                          v-for="notice in row.notices"
-                          :key="notice.key"
-                          class="flex items-start gap-2 text-xs leading-5"
-                          :class="notice.tone === 'danger' ? 'text-y-danger-text' : 'text-y-warn'"
-                        >
-                          <TriangleAlert :size="14" :stroke-width="1.5" class="mt-0.5 shrink-0" />
-                          <span>{{ notice.text }}</span>
-                        </p>
-                      </div>
-                    </td>
-                  </tr>
-                </template>
-              </tbody>
-            </table>
+                    </li>
+                  </template>
+                </ul>
+              </div>
+            </div>
+          </div>
 
-            <!-- Stacked rows, mobile -->
-            <ul class="divide-y divide-y-line md:hidden">
-              <li v-for="row in rows" :key="row.domain.id" class="space-y-4 px-4 py-4">
-                <div class="flex items-start justify-between gap-3">
-                  <div class="min-w-0">
-                    <p class="y-domain text-[15px]" :class="{ '!text-y-muted': isRestricted(row.domain) }">{{ row.domain.full_domain }}</p>
-                    <p class="mt-0.5 text-xs text-y-faint">{{ $t('uiDomains.registeredOn', { date: formatDate(row.domain.registered_at) }) }}</p>
-                  </div>
+          <!-- Status + notices -->
+          <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <button
+              v-if="activeDomain.status === 'suspended'"
+              type="button"
+              class="inline-flex items-center gap-1.5 rounded-sm hover:underline"
+              :title="$t('uiDomains.viewSuspension')"
+              @click="openSuspendedInfo(activeDomain)"
+            >
+              <StatusDot :tone="getStatusTone(activeDomain.status)" :label="statusLabel(activeDomain.status)" />
+              <Info :size="14" :stroke-width="1.5" class="text-y-faint" />
+            </button>
+            <StatusDot v-else :tone="getStatusTone(activeDomain.status)" :label="statusLabel(activeDomain.status)" />
+            <StatusDot
+              :tone="activeDomain.dns_synced ? 'ok' : 'warn'"
+              :label="activeDomain.dns_synced ? $t('uiDomains.synced') : $t('uiDomains.notSynced')"
+            />
+            <span v-if="isExpiringSoon(activeDomain)" class="y-chip-warn !py-0 font-mono text-[11px]">
+              {{ $t('uiDomains.daysLeft', { n: getDaysUntilExpiry(activeDomain.expires_at) }) }}
+            </span>
+            <template v-if="activeDomain.scan_summary">
+              <button type="button" :class="getHealthBadgeClass(activeDomain.scan_summary.overall_health)" @click="viewHealthDetails(activeDomain)">
+                {{ healthLabel(activeDomain.scan_summary.overall_health) }}
+              </button>
+              <button
+                type="button"
+                class="btn btn-ghost btn-xs btn-square text-y-faint"
+                :title="$t('domains.scanDetails')"
+                :aria-label="$t('domains.scanDetails')"
+                @click="viewScanDetails(activeDomain)"
+              >
+                <ChartColumn :size="14" :stroke-width="1.5" />
+              </button>
+            </template>
+          </div>
+
+          <div v-if="activeNotices.length" class="space-y-1.5">
+            <p
+              v-for="notice in activeNotices"
+              :key="notice.key"
+              class="flex items-start gap-2 text-xs leading-5"
+              :class="notice.tone === 'danger' ? 'text-y-danger-text' : 'text-y-warn'"
+            >
+              <TriangleAlert :size="14" :stroke-width="1.5" class="mt-0.5 shrink-0" />
+              <span>{{ notice.text }}</span>
+            </p>
+          </div>
+
+          <!-- DNS mode segmented control -->
+          <div role="group" class="y-seg self-start" :aria-label="$t('app2.domains.dnsMode')">
+            <button type="button" :aria-pressed="!isCustomMode ? 'true' : 'false'" :disabled="nsSwitching" @click="setMode('yunamo')">
+              {{ $t('app2.domains.segYunamo', { site: siteName }) }}
+            </button>
+            <button type="button" :aria-pressed="isCustomMode ? 'true' : 'false'" :disabled="nsSwitching" @click="setMode('custom')">
+              {{ $t('app2.domains.segCustom') }}
+            </button>
+          </div>
+
+          <!-- Custom nameservers card -->
+          <section v-if="isCustomMode" class="y-panel flex flex-col gap-4 p-5 sm:p-6">
+            <h2 class="text-lg font-semibold leading-[26px] text-y-text">{{ $t('app2.ns.customTitle') }}</h2>
+            <p class="text-sm text-y-muted">
+              {{ activeDomain.use_default_nameservers
+                ? $t('app2.ns.customDescDelegate', { site: siteName })
+                : $t('app2.ns.customDescActive') }}
+            </p>
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <label v-for="(ns, index) in inlineNS" :key="index" class="y-field text-[13px] text-y-muted">
+                {{ $t('app2.ns.nameserver', { n: index + 1 }) }}
+                <span class="flex gap-2">
+                  <input
+                    v-model="inlineNS[index]"
+                    type="text"
+                    :placeholder="$t('uiDomains.nsPlaceholder', { n: index + 1 })"
+                    :aria-label="$t('app2.ns.nameserver', { n: index + 1 })"
+                    class="input input-bordered min-w-0 flex-1 font-mono text-sm"
+                    autocomplete="off"
+                    autocapitalize="off"
+                    spellcheck="false"
+                  />
                   <button
-                    v-if="row.domain.status === 'suspended'"
+                    v-if="inlineNS.length > 1"
                     type="button"
-                    class="inline-flex shrink-0 items-center gap-1.5"
-                    :title="$t('uiDomains.viewSuspension')"
-                    @click="openSuspendedInfo(row.domain)"
+                    class="btn btn-ghost btn-square shrink-0 text-y-danger-text"
+                    :title="$t('uiDomains.nsRemove')"
+                    :aria-label="$t('uiDomains.nsRemove')"
+                    @click="inlineNS.splice(index, 1)"
                   >
-                    <StatusDot :tone="getStatusTone(row.domain.status)" :label="statusLabel(row.domain.status)" />
-                    <Info :size="14" :stroke-width="1.5" class="text-y-faint" />
+                    <X :size="16" :stroke-width="1.5" />
                   </button>
-                  <StatusDot v-else class="shrink-0" :tone="getStatusTone(row.domain.status)" :label="statusLabel(row.domain.status)" />
-                </div>
+                </span>
+              </label>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+              <button type="button" class="btn btn-primary" :disabled="nsSwitching" @click="saveInlineNS">
+                <span v-if="nsSwitching" class="loading loading-spinner loading-sm"></span>
+                {{ $t('app2.ns.save') }}
+              </button>
+              <button type="button" class="btn btn-ghost btn-sm gap-1.5" @click="inlineNS.push('')">
+                <Plus :size="16" :stroke-width="1.5" />
+                {{ $t('uiDomains.nsAdd') }}
+              </button>
+            </div>
+            <p v-if="!activeDomain.use_default_nameservers" class="text-xs text-y-faint">
+              {{ $t('app2.ns.defaultLabel', { site: siteName }) }}:
+              <span class="font-mono">ns1.nodelook.com</span>, <span class="font-mono">ns2.nodelook.com</span>
+            </p>
+          </section>
 
-                <dl class="grid grid-cols-2 gap-x-4 gap-y-3">
-                  <div>
-                    <dt class="y-label">{{ $t('uiDomains.colExpires') }}</dt>
-                    <dd class="mt-1 flex flex-wrap items-center gap-1.5">
-                      <span class="font-mono text-[13px] text-y-text">{{ formatDate(row.domain.expires_at) }}</span>
-                      <span v-if="isExpiringSoon(row.domain)" class="y-chip-warn !py-0 font-mono text-[11px]">
-                        {{ $t('uiDomains.daysLeft', { n: getDaysUntilExpiry(row.domain.expires_at) }) }}
-                      </span>
-                    </dd>
-                  </div>
-                  <div>
-                    <dt class="y-label">{{ $t('uiDomains.colDns') }}</dt>
-                    <dd class="mt-1">
-                      <StatusDot :tone="row.domain.dns_synced ? 'ok' : 'warn'" :label="row.domain.dns_synced ? $t('uiDomains.synced') : $t('uiDomains.notSynced')" />
-                      <p class="text-xs text-y-faint">{{ isUsingDefaultNS(row.domain) ? $t('uiDomains.nsDefault') : $t('uiDomains.nsCustom') }}</p>
-                    </dd>
-                  </div>
-                  <div class="col-span-2">
-                    <dt class="y-label">{{ $t('uiDomains.colHealth') }}</dt>
-                    <dd class="mt-1">
-                      <div v-if="row.domain.scan_summary" class="flex items-center gap-1">
-                        <button type="button" :class="getHealthBadgeClass(row.domain.scan_summary.overall_health)" @click="viewHealthDetails(row.domain)">
-                          {{ healthLabel(row.domain.scan_summary.overall_health) }}
-                        </button>
-                        <button
-                          type="button"
-                          class="btn btn-ghost btn-xs btn-square text-y-faint"
-                          :title="$t('domains.scanDetails')"
-                          :aria-label="$t('domains.scanDetails')"
-                          @click="viewScanDetails(row.domain)"
-                        >
-                          <ChartColumn :size="14" :stroke-width="1.5" />
-                        </button>
-                      </div>
-                      <span v-else class="text-xs text-y-faint">{{ $t('domains.noScanData') }}</span>
-                    </dd>
-                  </div>
-                </dl>
-
-                <div v-if="row.notices.length" class="space-y-1.5">
-                  <p
-                    v-for="notice in row.notices"
-                    :key="notice.key"
-                    class="flex items-start gap-2 text-xs leading-5"
-                    :class="notice.tone === 'danger' ? 'text-y-danger-text' : 'text-y-warn'"
-                  >
-                    <TriangleAlert :size="14" :stroke-width="1.5" class="mt-0.5 shrink-0" />
-                    <span>{{ notice.text }}</span>
-                  </p>
-                </div>
-
-                <div class="flex items-center gap-2">
-                  <span class="flex-1" :title="isUsingDefaultNS(row.domain) ? $t('domains.manageDNS') : $t('domains.dnsTooltip')">
-                    <button type="button" class="btn btn-outline btn-sm w-full gap-1.5 disabled:border-y-line disabled:bg-transparent" :disabled="!isUsingDefaultNS(row.domain)" @click="manageDNS(row.domain)">
-                      <ListTree :size="16" :stroke-width="1.5" />
-                      {{ $t('uiDomains.dnsRecords') }}
-                    </button>
-                  </span>
-                  <button
-                    type="button"
-                    class="btn btn-ghost btn-sm btn-square"
-                    :title="$t('domains.renewDomainTitle')"
-                    :aria-label="$t('domains.renewDomainTitle')"
-                    @click="openRenew(row.domain)"
-                  >
-                    <RefreshCw :size="16" :stroke-width="1.5" />
-                  </button>
-                  <div class="dropdown dropdown-end">
-                    <div tabindex="0" role="button" class="btn btn-ghost btn-sm btn-square" :title="$t('uiDomains.moreActions')" :aria-label="$t('uiDomains.moreActions')">
-                      <Ellipsis :size="16" :stroke-width="1.5" />
-                    </div>
-                    <ul tabindex="0" class="dropdown-content menu z-20 mt-1 w-56 rounded-md p-1.5">
-                      <template v-for="item in menuItems(row.domain)" :key="item.key">
-                        <li v-if="item.divider" role="separator" class="pointer-events-none my-1 border-t border-y-line"></li>
-                        <li>
-                          <button
-                            type="button"
-                            class="flex items-center gap-2.5 rounded-sm px-3 py-2 text-sm hover:bg-y-surface-2"
-                            :class="item.danger ? 'text-y-danger-text' : 'text-y-text'"
-                            @click="runMenuItem(item)"
-                          >
-                            <component :is="item.icon" :size="16" :stroke-width="1.5" :class="item.danger ? '' : 'text-y-faint'" />
-                            {{ item.label }}
-                          </button>
-                        </li>
-                      </template>
-                    </ul>
-                  </div>
-                </div>
-              </li>
-            </ul>
+          <!-- Yunamo DNS: records + DNSSEC -->
+          <template v-else>
+            <DnsRecords :domain-id="activeDomain.id" @count="(n) => (recordCounts[activeDomain.id] = n)" />
+            <DnssecCard :domain-id="activeDomain.id" />
+            <p class="text-[13px] text-y-faint">
+              {{ $t('app2.domains.liveNote') }}
+              {{ $t('app2.domains.guides') }}
+              <a :href="DOCS_PATH" class="text-y-mint-text hover:underline">{{ $t('shell.docs') }}</a>
+            </p>
           </template>
         </section>
-      </template>
+      </main>
     </div>
 
     <!-- CyberPanel Hosting Modal -->
@@ -1025,24 +979,27 @@
 </template>
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
-  Plus, Search, Info, TriangleAlert, ListTree, RefreshCw, Ellipsis, Server, Activity, ChartColumn,
+  Plus, Search, Info, TriangleAlert, RefreshCw, Ellipsis, Server, Activity, ChartColumn,
   ArrowLeftRight, Trash2, Copy, Eye, EyeOff, ExternalLink, X, Check, CircleCheck, Globe, Network,
-  Lock, ShieldCheck, Bug, ChevronLeft, ChevronRight,
+  Lock, ShieldCheck, Bug, ChevronLeft, ChevronRight, SquareArrowOutUpRight,
 } from 'lucide-vue-next'
-import PageHeader from '../components/ui/PageHeader.vue'
 import StatusDot from '../components/ui/StatusDot.vue'
 import EmptyState from '../components/ui/EmptyState.vue'
 import YLoader from '../components/brand/YLoader.vue'
+import DnsRecords from '../components/domains/DnsRecords.vue'
+import DnssecCard from '../components/domains/DnssecCard.vue'
 import axios from '../utils/axios'
 import { useToast } from '../composables/useToast'
 import { useCurrency } from '../composables/useCurrency'
 import { formatDate as formatDateUtil, formatDateTime, daysUntilExpiry, addYears } from '../utils/time'
 import { useSiteConfigStore } from '../stores/siteConfig'
 import { useAuthStore } from '../stores/auth'
+import { DOCS_PATH } from '../config/links'
 
+const route = useRoute()
 const router = useRouter()
 const { t, te } = useI18n()
 const toast = useToast()
@@ -1076,9 +1033,15 @@ const showSuspendedInfoModal = ref(false)
 const suspendedInfoDomain = ref(null)
 const selectedDomain = ref(null)
 
-// NS modification
+// NS modification (modal)
 const nameservers = ref(['', ''])
 const useCustomNS = ref(false)
+
+// Inline DNS mode (reference segmented control)
+const recordCounts = ref({})
+const segOverride = ref(null) // null = follow the domain's saved state, 'custom' = show NS editor
+const inlineNS = ref(['', ''])
+const nsSwitching = ref(false)
 
 // Renew
 const renewYears = ref(1)
@@ -1316,6 +1279,104 @@ const fetchDomains = async () => {
   }
 }
 
+// Selection is kept in the URL (?d=<id>) so reloads and bookmarks restore it.
+const activeDomain = computed(() => {
+  const list = domains.value
+  if (!list.length) return null
+  const q = Number(route.query.d)
+  return list.find((d) => d.id === q) || list[0]
+})
+
+const selectDomain = (domain) => {
+  if (String(domain.id) !== String(route.query.d || '')) {
+    router.replace({ query: { ...route.query, d: domain.id } })
+  }
+}
+
+const parseNameservers = (domain) => {
+  if (domain?.nameservers) {
+    try {
+      const ns = JSON.parse(domain.nameservers)
+      if (Array.isArray(ns) && ns.length > 0) return ns.slice()
+    } catch (e) {
+      // fall through to blanks
+    }
+  }
+  return ['', '']
+}
+
+// Reset the inline DNS-mode editor whenever the selection (or its saved state) changes.
+watch(
+  activeDomain,
+  (d, prev) => {
+    if (!d) return
+    if (String(d.id) !== String(route.query.d || '')) {
+      router.replace({ query: { ...route.query, d: d.id } })
+    }
+    if (!prev || prev.id !== d.id || prev.use_default_nameservers !== d.use_default_nameservers) {
+      segOverride.value = null
+      inlineNS.value = parseNameservers(d)
+    }
+  },
+  { immediate: true }
+)
+
+const isCustomMode = computed(() => {
+  const d = activeDomain.value
+  if (!d) return false
+  if (segOverride.value) return segOverride.value === 'custom'
+  return !d.use_default_nameservers
+})
+
+const setMode = (mode) => {
+  const d = activeDomain.value
+  if (!d) return
+  if (mode === 'custom') {
+    segOverride.value = 'custom'
+    inlineNS.value = parseNameservers(d)
+  } else if (d.use_default_nameservers) {
+    segOverride.value = null
+  } else if (confirm(t('app2.domains.confirmDefaultNS', { domain: d.full_domain }))) {
+    switchToDefaultNS(d)
+  }
+}
+
+const switchToDefaultNS = async (domain) => {
+  nsSwitching.value = true
+  try {
+    await axios.put(`/api/domains/${domain.id}/nameservers`, {
+      nameservers: ['ns1.nodelook.com', 'ns2.nodelook.com']
+    })
+    toast.success('Nameservers updated successfully')
+    segOverride.value = null
+    await fetchDomains()
+  } catch (error) {
+    toast.error(error.response?.data?.error || 'Failed to update nameservers')
+  } finally {
+    nsSwitching.value = false
+  }
+}
+
+const saveInlineNS = async () => {
+  const d = activeDomain.value
+  if (!d) return
+  const nsToSave = inlineNS.value.filter((ns) => ns.trim() !== '')
+  if (nsToSave.length === 0) {
+    toast.warning('Please add at least one nameserver')
+    return
+  }
+  nsSwitching.value = true
+  try {
+    await axios.put(`/api/domains/${d.id}/nameservers`, { nameservers: nsToSave })
+    toast.success('Nameservers updated successfully')
+    await fetchDomains()
+  } catch (error) {
+    toast.error(error.response?.data?.error || 'Failed to update nameservers')
+  } finally {
+    nsSwitching.value = false
+  }
+}
+
 const getStatusTone = (status) => {
   switch (status) {
     case 'active':
@@ -1333,6 +1394,32 @@ const getStatusTone = (status) => {
 }
 
 const statusLabel = (status) => (te(`uiDomains.status.${status}`) ? t(`uiDomains.status.${status}`) : status)
+
+const statusTextClass = (status) =>
+  ({
+    active: 'text-y-faint',
+    expired: 'text-y-danger-text',
+    abuse: 'text-y-danger-text',
+    suspended: 'text-y-warn',
+    pending: 'text-y-info',
+  })[status] || 'text-y-faint'
+
+// The glowing dot marks names that are live: custom NS, or synced/known to have records.
+const dotActive = (domain) => {
+  if (domain.status !== 'active') return false
+  if (!domain.use_default_nameservers) return true
+  const n = recordCounts.value[domain.id]
+  if (n !== undefined) return n > 0
+  return !!domain.dns_synced
+}
+
+const listStatus = (domain) => {
+  if (domain.status !== 'active') return statusLabel(domain.status)
+  if (!domain.use_default_nameservers) return t('app2.domains.segCustom')
+  const n = recordCounts.value[domain.id]
+  if (n === 0) return t('uiDomains.noRecordsShort')
+  return statusLabel('active')
+}
 
 const formatDate = (dateString) => {
   return formatDateUtil(dateString)
@@ -1354,15 +1441,7 @@ const isUsingDefaultNS = (domain) => {
   return domain.use_default_nameservers
 }
 
-const manageDNS = (domain) => {
-  if (!isUsingDefaultNS(domain)) {
-    toast.warning('DNS management is only available for domains using default nameservers')
-    return
-  }
-  router.push(`/domains/${domain.id}/dns`)
-}
-
-// Nameserver Management
+// Nameserver Management (modal)
 const openModifyNS = (domain) => {
   selectedDomain.value = domain
 
@@ -1461,26 +1540,26 @@ const renewDomain = async () => {
       years: renewIsLifetime.value ? 0 : renewYears.value,
       is_lifetime: renewIsLifetime.value
     }
-    
+
     // 添加优惠券参数（如果有）
     if (renewCouponCode.value && renewCouponCode.value.trim() !== '') {
       payload.coupon_code = renewCouponCode.value.trim()
     }
-    
+
     const response = await axios.post(`/api/domains/${selectedDomain.value.id}/renew`, payload)
-    
+
     // 如果返回了订单ID，说明创建了订单（付费域名）
     if (response.data.order_id) {
       const orderId = response.data.order_id
       const finalPrice = response.data.final_price || 0
-      
+
       // 如果后端已经处理为免费订单（requires_payment: false），直接跳转成功页
       // 后端在检测到 finalPrice < 0.01 时会自动完成续费
       if (!response.data.requires_payment || finalPrice < 0.01) {
         window.location.href = `/payment/success?order_id=${orderId}`
         return
       }
-      
+
       // 需要支付，发起支付流程
       const paymentResponse = await axios.post(`/api/payments/${orderId}/initiate`)
       const redirectURL = paymentResponse.data.redirect_url
@@ -1518,10 +1597,10 @@ const closeRenewModal = () => {
 // 辅助函数：将错误消息中的 RFC3339 时间转换为本地时间
 const convertTimeInErrorMessage = (message) => {
   if (!message) return message
-  
+
   // 匹配 RFC3339 格式的时间字符串，如 "2026-02-17T00:00:00Z" 或 "2026-02-17T00:00:00+08:00"
   const rfc3339Pattern = /(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2}))/g
-  
+
   return message.replace(rfc3339Pattern, (match) => {
     try {
       const date = new Date(match)
@@ -1534,11 +1613,11 @@ const convertTimeInErrorMessage = (message) => {
 
 const applyRenewCoupon = async () => {
   if (!renewCouponCode.value || !selectedDomain.value) return
-  
+
   renewCouponApplying.value = true
   renewCouponError.value = ''
   renewCouponApplied.value = false
-  
+
   try {
     const response = await axios.post('/api/orders/calculate', {
       root_domain_id: selectedDomain.value.root_domain_id,
@@ -1546,9 +1625,9 @@ const applyRenewCoupon = async () => {
       is_lifetime: renewIsLifetime.value,
       coupon_code: renewCouponCode.value
     })
-    
+
     renewPriceData.value = response.data
-    
+
     if (response.data.coupon_applied) {
       renewCouponApplied.value = true
       toast.success(t('coupon.applySuccess'))
@@ -1719,7 +1798,7 @@ const viewScanDetails = async (domain) => {
 
 const fetchScanRecords = async () => {
   if (!selectedDomain.value) return
-  
+
   scanLoading.value = true
   try {
     const response = await axios.get(`/api/domain-scans/${selectedDomain.value.id}`, {
@@ -1837,20 +1916,20 @@ const visibleScanPages = computed(() => {
   } else {
     pages.push(1)
     if (current > 3) pages.push('...')
-    
+
     const start = Math.max(2, current - 1)
     const end = Math.min(total - 1, current + 1)
-    
+
     for (let i = start; i <= end; i++) {
       if (!pages.includes(i)) {
         pages.push(i)
       }
     }
-    
+
     if (current < total - 2) pages.push('...')
     pages.push(total)
   }
-  
+
   return pages
 })
 
@@ -1867,11 +1946,6 @@ const quotaPercent = computed(() => {
   if (!domainQuota.value) return null
   return Math.min(100, Math.round((domains.value.length / domainQuota.value) * 100))
 })
-const headerDescription = computed(() =>
-  domainQuota.value === null
-    ? t('uiDomains.desc')
-    : t('uiDomains.descQuota', { used: domains.value.length, quota: domainQuota.value })
-)
 
 const isRestricted = (domain) => domain.status === 'suspended' || domain.status === 'abuse'
 const isExpiringSoon = (domain) => domain.status === 'active' && getDaysUntilExpiry(domain.expires_at) <= 30
@@ -1911,6 +1985,8 @@ const rowNotices = (domain) => {
   return notices
 }
 
+const activeNotices = computed(() => (activeDomain.value ? rowNotices(activeDomain.value) : []))
+
 const rows = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
   return domains.value
@@ -1924,6 +2000,9 @@ const rows = computed(() => {
 
 const menuItems = (domain) => {
   const items = [{ key: 'ns', label: t('domains.modifyNameservers'), icon: Server, action: () => openModifyNS(domain) }]
+  if (cpAccountByDomain.value[domain.id]) {
+    items.push({ key: 'cp', label: t('domains.cpHostingTitle'), icon: Globe, action: () => openCpHosting(domain) })
+  }
   if (domain.scan_summary) {
     items.push(
       { key: 'health', label: t('domains.healthDetails'), icon: Activity, action: () => viewHealthDetails(domain) },

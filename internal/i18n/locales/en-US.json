@@ -61,5 +61,18 @@
   "validation.email_invalid": "Invalid email format",
   "validation.password_too_short": "Password must be at least 6 characters",
   "validation.username_invalid": "Invalid username format",
-  "validation.domain_invalid": "Invalid domain format"
+  "validation.domain_invalid": "Invalid domain format",
+  "abuse.invalid_subdomain": "Enter the full domain name, for example foo.example.com",
+  "abuse.invalid_category": "Choose a valid report category",
+  "abuse.invalid_details": "Details must be between 10 and 5000 characters",
+  "abuse.invalid_url": "The URL is too long (2048 characters max)",
+  "abuse.rate_limited": "Too many reports from your network. Please try again later.",
+  "abuse.report_received": "Thanks, your report has been received",
+  "abuse.invalid_status": "Invalid status",
+  "abuse.fetch_failed": "Failed to fetch abuse reports",
+  "abuse.not_found": "Abuse report not found",
+  "abuse.note_too_long": "Admin note must be at most 5000 characters",
+  "abuse.update_failed": "Failed to update abuse report",
+  "abuse.delete_failed": "Failed to delete abuse report",
+  "abuse.deleted": "Abuse report deleted"
 }

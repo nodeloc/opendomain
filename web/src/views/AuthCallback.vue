@@ -1,23 +1,23 @@
 <template>
   <AuthCard
     v-if="error"
-    :eyebrow="$t('uiPublic.auth.eyebrow')"
+    :standalone="false"
     :title="$t('uiPublic.auth.errorTitle')"
   >
-    <div class="y-danger-soft flex items-start gap-3 rounded-lg border px-4 py-3">
+    <div class="y-danger-soft flex items-start gap-3 rounded-md border px-4 py-3">
       <CircleX :size="18" :stroke-width="1.5" class="mt-0.5 shrink-0 text-y-danger-text" />
       <p class="text-sm leading-6 text-y-danger-text">{{ $t('auth.callbackError') }}</p>
     </div>
-    <router-link to="/login" class="btn btn-primary mt-5 w-full">{{ $t('auth.backToLogin') }}</router-link>
+    <router-link to="/login" class="btn btn-primary mt-4 w-full">{{ $t('auth.backToLogin') }}</router-link>
   </AuthCard>
 
   <AuthCard
     v-else
-    :eyebrow="$t('uiPublic.auth.eyebrow')"
-    :title="$t('auth.loggingIn')"
+    :standalone="false"
+    :title="$t('auth2.callbackTitle')"
     :description="$t('uiPublic.auth.loggingInDesc')"
   >
-    <YLoader :size="44" class="!py-6" />
+    <YLoader :size="44" compact />
   </AuthCard>
 </template>
 

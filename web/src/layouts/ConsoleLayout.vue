@@ -88,7 +88,7 @@ import { useI18n } from 'vue-i18n'
 import {
   Menu, ArrowUpRight, LogOut, LayoutDashboard, Globe, Receipt, Ticket, Gift, User,
   Gauge, Network, ListTree, Clock, Users, ShoppingCart, BadgePercent, Megaphone, FileText,
-  Activity, Server, Settings,
+  Activity, Server, Settings, Flag,
 } from 'lucide-vue-next'
 import { useAuthStore } from '../stores/auth'
 import { useSiteConfigStore } from '../stores/siteConfig'
@@ -135,6 +135,7 @@ const adminItems = computed(() => [
   { to: '/admin/coupons', label: t('admin.coupons'), icon: BadgePercent },
   { to: '/admin/announcements', label: t('admin.announcements'), icon: Megaphone },
   { to: '/admin/pages', label: t('admin.pages'), icon: FileText },
+  { to: '/admin/abuse-reports', label: t('shell.abuseReports'), icon: Flag },
   { to: '/admin/scan-status', label: t('admin.scanStatus'), icon: Activity },
   { to: '/admin/cyberpanel', label: t('admin.cyberPanel'), icon: Server },
   { to: '/admin/settings', label: t('admin.settings'), icon: Settings },

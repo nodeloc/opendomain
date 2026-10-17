@@ -58,6 +58,8 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 		fossBillingSyncHandler := handler.NewFOSSBillingSyncHandler(db, cfg)
 		cyberPanelHandler := handler.NewCyberPanelHandler(db, cfg)
 		domainHandler.SetCyberPanelHandler(cyberPanelHandler)
+		abuseReportHandler := handler.NewAbuseReportHandler(db, rdb, cfg)
+		statusHandler := handler.NewStatusHandler(db, rdb, cfg)
 
 		// 公开路由
 		public := api.Group("/public")
@@ -83,6 +85,10 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 			public.GET("/pending-domains", fossBillingSyncHandler.GetPublicPendingDomains)
 			// WHOIS 查询
 			public.GET("/whois/:domain", domainHandler.WhoisDomain)
+			// 系统状态
+			public.GET("/status", statusHandler.GetPublicStatus)
+			// 滥用举报
+			public.POST("/abuse-reports", abuseReportHandler.CreateAbuseReport)
 		}
 
 		// 支付回调路由（公开，通过签名验证）
@@ -259,6 +265,11 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 			admin.POST("/pages", pageHandler.CreatePage)
 			admin.PUT("/pages/:id", pageHandler.UpdatePage)
 			admin.DELETE("/pages/:id", pageHandler.DeletePage)
+
+			// 滥用举报管理
+			admin.GET("/abuse-reports", abuseReportHandler.ListAbuseReports)
+			admin.PUT("/abuse-reports/:id", abuseReportHandler.UpdateAbuseReport)
+			admin.DELETE("/abuse-reports/:id", abuseReportHandler.DeleteAbuseReport)
 
 			// CyberPanel 服务器管理
 			cpAdmin := admin.Group("/cyberpanel")
