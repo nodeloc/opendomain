@@ -1,6 +1,7 @@
 {
   "name": "Yunamo",
   "short_name": "Yunamo",
+  "description": "Your dynamo starts with a name. Free subdomains for builders.",
   "icons": [
     {
       "src": "/icon-192.png",

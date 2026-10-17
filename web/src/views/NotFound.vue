@@ -9,7 +9,7 @@
     />
     <div v-if="!isDark" class="y-dot-grid absolute inset-0 -z-10" aria-hidden="true"></div>
     <p class="font-mono text-sm tracking-[0.1em] text-y-mint-text">ERROR 404</p>
-    <h1 class="y-headline mt-5 text-[clamp(56px,12vw,160px)]">
+    <h1 class="y-headline mt-5 text-[clamp(56px,12vw,160px)] [&:lang(zh)]:text-[clamp(44px,8.5vw,112px)]">
       {{ $t('notFound.titleLead') }} <em>{{ $t('notFound.titleAccent') }}</em>
     </h1>
     <p class="mt-6 max-w-md text-lg leading-7 text-y-muted">

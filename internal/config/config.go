@@ -241,7 +241,7 @@ func setDefaults() {
 	viper.SetDefault("SCANNER_TIMEOUT", 30)
 
 	viper.SetDefault("SITE_NAME", "Yunamo")
-	viper.SetDefault("SITE_DESCRIPTION", "Free subdomains for builders")
+	viper.SetDefault("SITE_DESCRIPTION", "Your dynamo starts with a name")
 	viper.SetDefault("FRONTEND_URL", "http://localhost:3001")
 	viper.SetDefault("PAYMENT_CALLBACK_URL", fmt.Sprintf("http://localhost:%s/api/payments/callback", viper.GetString("PORT")))
 	viper.SetDefault("PAYMENT_TEST_MODE", false)

@@ -524,6 +524,35 @@
     box-shadow: 0 0 10px rgb(var(--y-mint) / 0.7);
   }
 }
+/* ---------- Chinese typography ----------
+   Han glyphs fill the whole em box and have no ascenders, case or kerning, so the Latin
+   display settings (line-height under 1, negative tracking) make Chinese lines collide. */
+:lang(zh) .y-headline {
+  font-weight: 800;
+  line-height: 1.16;
+  letter-spacing: 0.02em;
+}
+:lang(zh) :is(.y-title, .text-display, .text-h1, .text-h2) {
+  line-height: 1.28;
+  letter-spacing: 0.01em;
+}
+:lang(zh) :is(h1, h2, h3)[class*="leading-[1.0"],
+:lang(zh) :is(h1, h2, h3)[class*="leading-none"] {
+  line-height: 1.28;
+}
+:lang(zh) [class*="tracking-[-"] {
+  letter-spacing: 0;
+}
+:lang(zh) :is(.y-eyebrow, .y-label) {
+  letter-spacing: 0.04em;
+}
+:lang(zh) :is(.y-lead, .y-faq details > p) {
+  line-height: 1.8;
+}
+:lang(zh) :is(.y-headline, .y-title) {
+  line-break: strict;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.001ms !important;

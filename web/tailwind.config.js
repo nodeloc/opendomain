@@ -31,8 +31,10 @@ export default {
         },
       },
       fontFamily: {
-        sans: ['Geist', 'system-ui', '-apple-system', '"Segoe UI"', '"PingFang SC"', '"Microsoft YaHei"', 'sans-serif'],
-        mono: ['"Geist Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', 'monospace'],
+        // Geist and Geist Mono have no CJK glyphs; list the Chinese faces before the generic
+        // families so Han text never falls through to a serif or bitmap font (SimSun on Windows).
+        sans: ['Geist', '"PingFang SC"', '"HarmonyOS Sans SC"', '"Hiragino Sans GB"', '"Microsoft YaHei UI"', '"Microsoft YaHei"', '"Source Han Sans SC"', '"Noto Sans CJK SC"', '"Noto Sans SC"', 'system-ui', '-apple-system', '"Segoe UI"', 'sans-serif'],
+        mono: ['"Geist Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', '"PingFang SC"', '"Microsoft YaHei UI"', '"Microsoft YaHei"', '"Noto Sans CJK SC"', '"Noto Sans SC"', 'monospace'],
       },
       fontSize: {
         display: ['clamp(3rem, 7vw, 5.5rem)', { lineHeight: '0.98', letterSpacing: '-0.045em', fontWeight: '600' }],

@@ -164,7 +164,7 @@ services:
 
       # 站点配置
       SITE_NAME: ${SITE_NAME:-Yunamo}
-      SITE_DESCRIPTION: ${SITE_DESCRIPTION:-Free subdomains for builders}
+      SITE_DESCRIPTION: ${SITE_DESCRIPTION:-Your dynamo starts with a name}
 
       # 数据库配置（连接到 postgres 服务）
       DB_HOST: postgres

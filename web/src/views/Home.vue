@@ -16,9 +16,10 @@
 
       <div class="y-container relative flex flex-wrap items-center gap-x-16 gap-y-12 py-20 sm:py-24">
         <div class="flex min-w-0 flex-1 flex-col gap-6" style="flex-basis: 420px;">
-          <h1 class="y-headline text-[clamp(2.75rem,6.4vw,5.25rem)]" style="text-shadow: 0 2px 30px rgb(0 0 0 / 0.35);">
+          <p class="y-eyebrow" style="text-shadow: 0 1px 12px rgb(0 0 0 / 0.5);">{{ $t('home2.brandEyebrow') }}</p>
+          <h1 class="y-headline -mt-2 text-[clamp(2.5rem,4.6vw,4rem)] [&:lang(zh)]:text-[clamp(2.25rem,4.6vw,3.75rem)]" style="text-shadow: 0 2px 30px rgb(0 0 0 / 0.35);">
             {{ $t('home2.titleLead') }}<br />
-            {{ $t('home2.titleMid') }} <em>{{ $t('home2.titleAccent') }}</em>
+            {{ $t('home2.titleMid') }}<em>{{ $t('home2.titleAccent') }}</em>
           </h1>
           <p class="max-w-[500px] text-lead text-y-text/85">
             {{ $t('home2.lead', { example: `yourname.${rootLabel}` }) }}
@@ -286,7 +287,7 @@
     <section class="y-container pb-24">
       <div class="y-card relative isolate overflow-hidden px-6 py-16 text-center sm:py-20">
         <div class="y-glow pointer-events-none absolute -bottom-80 left-1/2 -z-10 h-[520px] w-[800px] -translate-x-1/2" aria-hidden="true"></div>
-        <h2 class="y-headline mx-auto max-w-[720px] text-[clamp(2rem,5vw,3.5rem)]">{{ $t('home2.ctaTitle') }}</h2>
+        <h2 class="y-headline mx-auto max-w-[720px] text-[clamp(2rem,5vw,3.5rem)] [&:lang(zh)]:text-[clamp(1.75rem,4vw,2.75rem)]">{{ $t('home2.ctaTitle') }}</h2>
         <div class="mt-6 flex flex-wrap items-center justify-center gap-3">
           <a href="#home-sub" class="btn btn-primary px-6" @click.prevent="focusSearch">{{ $t('home2.ctaPrimary') }}</a>
           <router-link :to="docsPath" class="btn btn-outline px-6">{{ $t('home2.ctaDocs') }}</router-link>

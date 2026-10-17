@@ -1,10 +1,10 @@
 export default {
   'en-US': {
     landing: {
-      eyebrow: 'Free subdomains for builders',
-      headlineLead: 'Your name,',
-      headlineMid: 'in the',
-      headlineAccent: 'cloud.',
+      eyebrow: 'Yunamo · Your dynamo',
+      headlineLead: 'Your dynamo',
+      headlineMid: 'starts with a ',
+      headlineAccent: 'name.',
       lead: 'Claim a free name like myproject.yunamo.com and point it at any host. No credit card, no lock-in.',
       placeholder: 'myproject',
       check: 'Check availability',
@@ -64,10 +64,10 @@ export default {
   },
   'zh-CN': {
     landing: {
-      eyebrow: '为开发者提供的免费子域名',
-      headlineLead: '你的名字，',
-      headlineMid: '就在',
-      headlineAccent: '云端。',
+      eyebrow: 'Yunamo · 你的动力源',
+      headlineLead: '你的动力源，',
+      headlineMid: '从一个',
+      headlineAccent: '名字开始。',
       lead: '免费领取 myproject.yunamo.com 这样的名字，指向任何主机。无需信用卡，不绑定服务商。',
       placeholder: 'myproject',
       check: '查询可用性',

@@ -9,7 +9,7 @@ export default {
       workspace: 'Workspace',
       adminArea: 'Admin',
       overview: 'Overview',
-      tagline: 'Free subdomains for builders. Claim a name, point it anywhere.',
+      tagline: 'Yunamo, your dynamo. Free subdomains that put every idea online.',
       dnsRecords: 'DNS records',
       rights: 'All rights reserved.',
       mainNav: 'Main',
@@ -28,7 +28,7 @@ export default {
       abuseReports: 'Abuse reports',    },
     footer: {
       copyright: '© Yunamo. All rights reserved.',
-      description: 'Free subdomains for builders',
+      description: 'Your dynamo starts with a name',
     },
     notFound: {
       titleLead: 'Lost in',
@@ -47,7 +47,7 @@ export default {
       workspace: '工作区',
       adminArea: '管理',
       overview: '概览',
-      tagline: '为开发者提供的免费子域名。领一个名字，指向任何地方。',
+      tagline: 'Yunamo，你的动力源。为开发者提供免费子域名，让每个想法都能上线。',
       dnsRecords: 'DNS 记录',
       rights: '保留所有权利。',
       mainNav: '主导航',
@@ -66,7 +66,7 @@ export default {
       abuseReports: '滥用举报',    },
     footer: {
       copyright: '© Yunamo. 保留所有权利。',
-      description: '为开发者提供的免费子域名',
+      description: '你的动力源，从一个名字开始',
     },
     notFound: {
       titleLead: '迷失在',
