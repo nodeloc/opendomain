@@ -1,155 +1,149 @@
 <template>
-  <div class="container mx-auto px-4 py-8">
-    <div class="flex justify-between items-center mb-6">
-      <div>
-        <h1 class="text-3xl font-bold">{{ $t('adminPendingDomains.title') }}</h1>
-        <p class="text-sm opacity-70 mt-2">{{ $t('adminPendingDomains.description') }}</p>
+  <div class="y-page">
+    <PageHeader
+      :eyebrow="$t('shell.adminArea')"
+      :title="$t('uiAdmin1.pending.title')"
+      :description="$t('adminPendingDomains.description')"
+    >
+      <template #actions>
+        <span class="y-chip font-mono">{{ $t('adminPendingDomains.totalCount', { count: pagination.total }) }}</span>
+      </template>
+    </PageHeader>
+
+    <section class="y-panel grid grid-cols-1 divide-y divide-y-line sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+      <div v-for="stat in statCells" :key="stat.key" class="space-y-2 p-5">
+        <p class="y-label flex items-center gap-2">
+          <span class="y-dot" :class="stat.dot" aria-hidden="true"></span>
+          {{ stat.label }}
+        </p>
+        <p class="font-mono text-3xl font-medium tracking-tight text-y-text">{{ stat.value }}</p>
       </div>
-      <div class="text-sm opacity-70">{{ $t('adminPendingDomains.totalCount', { count: pagination.total }) }}</div>
-    </div>
+    </section>
 
-    <!-- Stats -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-      <div class="stat bg-base-100 rounded-lg shadow">
-        <div class="stat-title">{{ $t('adminPendingDomains.pending') }}</div>
-        <div class="stat-value text-primary">{{ pendingCount }}</div>
+    <section class="y-panel overflow-hidden">
+      <div class="y-panel-header">
+        <label class="relative block w-full sm:max-w-sm">
+          <span class="sr-only">{{ $t('common.search') }}</span>
+          <Search :size="16" :stroke-width="1.5" class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-y-faint" />
+          <input
+            v-model="searchQuery"
+            type="text"
+            :placeholder="$t('adminPendingDomains.searchPlaceholder')"
+            class="input input-bordered h-10 min-h-0 w-full pl-9 font-mono text-sm"
+          />
+        </label>
       </div>
-      <div class="stat bg-base-100 rounded-lg shadow">
-        <div class="stat-title">{{ $t('adminPendingDomains.healthy') }}</div>
-        <div class="stat-value text-success">{{ healthyCount }}</div>
+
+      <YLoader v-if="loading" :label="$t('common.loading')" />
+
+      <EmptyState v-else-if="domains.length === 0" :title="$t('adminPendingDomains.noData')" />
+
+      <div v-else class="overflow-x-auto">
+        <table class="y-table">
+          <thead>
+            <tr>
+              <th>{{ $t('adminPendingDomains.domain') }}</th>
+              <th>{{ $t('adminPendingDomains.rootDomain') }}</th>
+              <th>{{ $t('adminPendingDomains.status') }}</th>
+              <th>{{ $t('adminPendingDomains.registeredAt') }}</th>
+              <th>{{ $t('adminPendingDomains.expiresAt') }}</th>
+              <th>{{ $t('adminPendingDomains.firstFailedAt') }}</th>
+              <th class="text-right">{{ $t('adminPendingDomains.actions') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="domain in domains" :key="domain.id">
+              <td><span class="y-domain">{{ domain.full_domain }}</span></td>
+              <td>
+                <span v-if="domain.root_domain?.domain" class="font-mono text-sm text-y-muted">{{ domain.root_domain.domain }}</span>
+                <span v-else class="text-y-faint">—</span>
+              </td>
+              <td>
+                <StatusDot :tone="pendingStatusTone(domain.status)" :label="getStatusText(domain.status)" />
+              </td>
+              <td class="whitespace-nowrap text-sm text-y-muted">{{ formatDate(domain.registered_at) }}</td>
+              <td class="whitespace-nowrap text-sm text-y-muted">{{ formatDate(domain.expires_at) }}</td>
+              <td class="whitespace-nowrap">
+                <template v-if="domain.first_failed_at">
+                  <span class="block text-sm text-y-danger-text">{{ formatDate(domain.first_failed_at) }}</span>
+                  <span class="block text-xs text-y-faint">{{ $t('adminPendingDomains.daysAgo', { days: getDaysSince(domain.first_failed_at) }) }}</span>
+                </template>
+                <span v-else class="text-y-faint">—</span>
+              </td>
+              <td class="text-right">
+                <button
+                  type="button"
+                  class="btn btn-ghost btn-sm btn-square text-y-danger-text"
+                  :title="$t('adminPendingDomains.delete')"
+                  :aria-label="$t('adminPendingDomains.delete')"
+                  @click="deleteDomain(domain)"
+                >
+                  <Trash2 :size="16" :stroke-width="1.5" />
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
-      <div class="stat bg-base-100 rounded-lg shadow">
-        <div class="stat-title">{{ $t('adminPendingDomains.unhealthy') }}</div>
-        <div class="stat-value text-error">{{ unhealthyCount }}</div>
-      </div>
-    </div>
 
-    <!-- Search Bar -->
-    <div class="mb-6">
-      <input
-        v-model="searchQuery"
-        type="text"
-        :placeholder="$t('adminPendingDomains.searchPlaceholder')"
-        class="input input-bordered w-full"
-      />
-    </div>
-
-    <!-- Loading -->
-    <div v-if="loading" class="flex justify-center py-12">
-      <span class="loading loading-spinner loading-lg"></span>
-    </div>
-
-    <!-- Domains Table -->
-    <div v-else class="overflow-x-auto bg-base-100 rounded-lg shadow">
-      <table class="table">
-        <thead>
-          <tr>
-            <th>{{ $t('adminPendingDomains.domain') }}</th>
-            <th>{{ $t('adminPendingDomains.rootDomain') }}</th>
-            <th>{{ $t('adminPendingDomains.status') }}</th>
-            <th>{{ $t('adminPendingDomains.registeredAt') }}</th>
-            <th>{{ $t('adminPendingDomains.expiresAt') }}</th>
-            <th>{{ $t('adminPendingDomains.firstFailedAt') }}</th>
-            <th>{{ $t('adminPendingDomains.actions') }}</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="domain in domains" :key="domain.id">
-            <td class="font-mono">{{ domain.full_domain }}</td>
-            <td>{{ domain.root_domain?.domain || 'N/A' }}</td>
-            <td>
-              <span
-                class="px-2 py-0.5 rounded text-xs font-medium inline-flex items-center"
-                :class="{
-                  'bg-blue-100 text-blue-800': domain.status === 'pending',
-                  'bg-green-100 text-green-800': domain.status === 'healthy',
-                  'bg-red-100 text-red-800': domain.status === 'unhealthy'
-                }"
-              >
-                {{ getStatusText(domain.status) }}
-              </span>
-            </td>
-            <td>{{ formatDate(domain.registered_at) }}</td>
-            <td>{{ formatDate(domain.expires_at) }}</td>
-            <td>
-              <span v-if="domain.first_failed_at" class="text-error">
-                {{ formatDate(domain.first_failed_at) }}
-                <br />
-                <span class="text-xs">({{ $t('adminPendingDomains.daysAgo', { days: getDaysSince(domain.first_failed_at) }) }})</span>
-              </span>
-              <span v-else class="opacity-50">-</span>
-            </td>
-            <td>
-              <button
-                @click="deleteDomain(domain)"
-                class="btn btn-ghost btn-sm text-error"
-                :title="$t('adminPendingDomains.delete')"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-              </button>
-            </td>
-          </tr>
-          <tr v-if="domains.length === 0">
-            <td colspan="7" class="text-center py-8 opacity-50">
-              {{ $t('adminPendingDomains.noData') }}
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <!-- Pagination -->
-    <div v-if="!loading && pagination.total_pages > 1" class="flex justify-center mt-6">
-      <div class="join">
-        <button
-          class="join-item btn"
-          :disabled="pagination.page === 1"
-          @click="changePage(pagination.page - 1)"
-        >
-          «
-        </button>
-        <template v-for="(page, index) in visiblePages" :key="index">
+      <div
+        v-if="!loading && pagination.total_pages > 1"
+        class="flex flex-col items-center justify-between gap-3 border-t border-y-line px-5 py-3 sm:flex-row"
+      >
+        <p class="font-mono text-xs text-y-faint">{{ $t('uiAdmin1.pageOf', { page: pagination.page, total: pagination.total_pages }) }}</p>
+        <div class="join">
           <button
-            v-if="typeof page === 'number'"
-            class="join-item btn"
-            :class="{ 'btn-active': page === pagination.page }"
-            @click="changePage(page)"
+            type="button"
+            class="join-item btn btn-ghost btn-sm btn-square"
+            :disabled="pagination.page === 1"
+            :aria-label="$t('common.previous')"
+            @click="changePage(pagination.page - 1)"
           >
-            {{ page }}
+            <ChevronLeft :size="16" :stroke-width="1.5" />
           </button>
-          <button v-else class="join-item btn btn-disabled">
-            ...
+          <template v-for="(page, index) in visiblePages" :key="index">
+            <button
+              v-if="typeof page === 'number'"
+              type="button"
+              class="join-item btn btn-ghost btn-sm min-w-[2.125rem] px-2 font-mono font-medium"
+              :class="page === pagination.page ? 'bg-y-surface-2 text-y-mint-text' : 'text-y-muted'"
+              :aria-current="page === pagination.page ? 'page' : undefined"
+              @click="changePage(page)"
+            >
+              {{ page }}
+            </button>
+            <span v-else class="join-item flex h-[2.125rem] items-center px-2 font-mono text-xs text-y-faint">…</span>
+          </template>
+          <button
+            type="button"
+            class="join-item btn btn-ghost btn-sm btn-square"
+            :disabled="pagination.page === pagination.total_pages"
+            :aria-label="$t('common.next')"
+            @click="changePage(pagination.page + 1)"
+          >
+            <ChevronRight :size="16" :stroke-width="1.5" />
           </button>
-        </template>
-        <button
-          class="join-item btn"
-          :disabled="pagination.page === pagination.total_pages"
-          @click="changePage(pagination.page + 1)"
-        >
-          »
-        </button>
+        </div>
       </div>
-    </div>
+    </section>
 
     <!-- Delete Confirmation Modal -->
     <dialog ref="deleteModal" class="modal">
       <div class="modal-box">
-        <h3 class="font-bold text-lg">{{ $t('adminPendingDomains.confirmDelete') }}</h3>
-        <p class="py-4">
+        <h3 class="text-lg font-semibold text-y-text">{{ $t('adminPendingDomains.confirmDelete') }}</h3>
+        <p class="mt-3 text-sm leading-6 text-y-muted">
           {{ $t('adminPendingDomains.confirmDeleteMessage', { domain: domainToDelete?.full_domain }) }}
         </p>
         <div class="modal-action">
-          <button @click="closeDeleteModal" class="btn">{{ $t('common.cancel') }}</button>
-          <button @click="confirmDelete" class="btn btn-error" :disabled="deleting">
+          <button type="button" class="btn btn-ghost" @click="closeDeleteModal">{{ $t('common.cancel') }}</button>
+          <button type="button" class="btn btn-error" :disabled="deleting" @click="confirmDelete">
             <span v-if="deleting" class="loading loading-spinner loading-sm"></span>
             {{ $t('common.delete') }}
           </button>
         </div>
       </div>
       <form method="dialog" class="modal-backdrop">
-        <button @click="closeDeleteModal">close</button>
+        <button @click="closeDeleteModal">{{ $t('common.close') }}</button>
       </form>
     </dialog>
   </div>
@@ -160,6 +154,11 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import axios from '../utils/axios'
 import { useToast } from '../composables/useToast'
+import { Search, Trash2, ChevronLeft, ChevronRight } from 'lucide-vue-next'
+import PageHeader from '../components/ui/PageHeader.vue'
+import StatusDot from '../components/ui/StatusDot.vue'
+import EmptyState from '../components/ui/EmptyState.vue'
+import YLoader from '../components/brand/YLoader.vue'
 
 const { t } = useI18n()
 const toast = useToast()
@@ -254,6 +253,14 @@ const visiblePages = computed(() => {
 
   return pages.filter(p => p !== '...' || pages.indexOf(p) === pages.lastIndexOf(p))
 })
+
+const statCells = computed(() => [
+  { key: 'pending', dot: 'bg-y-info', label: t('adminPendingDomains.pending'), value: pendingCount.value },
+  { key: 'healthy', dot: 'bg-y-mint', label: t('adminPendingDomains.healthy'), value: healthyCount.value },
+  { key: 'unhealthy', dot: 'bg-y-danger', label: t('adminPendingDomains.unhealthy'), value: unhealthyCount.value },
+])
+
+const pendingStatusTone = (status) => ({ pending: 'info', healthy: 'ok', unhealthy: 'danger' }[status] || 'muted')
 
 const getStatusText = (status) => {
   return t(`adminPendingDomains.status_${status}`)

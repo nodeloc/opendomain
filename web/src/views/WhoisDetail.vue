@@ -1,149 +1,139 @@
 <template>
-  <div class="container mx-auto px-4 py-10 max-w-2xl">
-    <!-- Loading -->
-    <div v-if="loading" class="flex justify-center items-center min-h-[300px]">
-      <span class="loading loading-spinner loading-lg"></span>
-    </div>
+  <div class="y-container py-14 sm:py-16">
+    <div class="mx-auto max-w-3xl">
+      <!-- Loading -->
+      <YLoader v-if="loading" class="min-h-[300px]" :label="$t('common.loading')" />
 
-    <!-- Not Found -->
-    <div v-else-if="notFound" class="text-center py-16">
-      <div class="text-6xl mb-4">🔍</div>
-      <h2 class="text-2xl font-bold mb-2">{{ $t('whois.notFound') }}</h2>
-      <i18n-t keypath="whois.notFoundDesc" tag="p" class="opacity-60 mb-6">
-        <template #domain>
-          <span class="font-mono font-semibold">{{ domain }}</span>
-        </template>
-      </i18n-t>
-      <router-link to="/" class="btn btn-primary">{{ $t('whois.searchAnother') }}</router-link>
-    </div>
-
-    <!-- WHOIS Info -->
-    <div v-else-if="whois">
-      <!-- Header -->
-      <div class="mb-6">
-        <div class="flex items-center gap-2 text-sm opacity-60 mb-1">
-          <router-link to="/" class="hover:underline">{{ $t('nav.home') }}</router-link>
-          <span>/</span>
-          <span>{{ $t('whois.breadcrumb') }}</span>
-        </div>
-        <h1 class="text-3xl font-bold font-mono break-all">{{ whois.full_domain }}</h1>
+      <!-- Not Found -->
+      <div v-else-if="notFound" class="y-panel flex flex-col items-center px-6 py-14 text-center">
+        <span class="y-icon-tile"><SearchX :size="20" :stroke-width="1.5" /></span>
+        <h1 class="y-h3 mt-5">{{ $t('whois.notFound') }}</h1>
+        <i18n-t keypath="whois.notFoundDesc" tag="p" class="mt-2 max-w-md text-sm leading-6 text-y-muted">
+          <template #domain>
+            <span class="y-domain">{{ domain }}</span>
+          </template>
+        </i18n-t>
+        <router-link to="/" class="btn btn-primary mt-6">{{ $t('whois.searchAnother') }}</router-link>
       </div>
 
-      <!-- Deletion Warning Banner -->
-      <div v-if="whois.days_until_deletion !== null && whois.days_until_deletion !== undefined"
-        class="alert mb-6 border-2"
-        :class="whois.days_until_deletion <= 3 ? 'alert-error border-error/30' : 'alert-warning border-warning/30'"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-        </svg>
-        <div>
-          <p class="font-bold">{{ $t('whois.pendingDeletion') }}</p>
-          <i18n-t keypath="whois.pendingDeletionDesc" tag="p" class="text-sm">
-            <template #days>
-              <strong>{{ whois.days_until_deletion }} {{ whois.days_until_deletion !== 1 ? $t('whois.days') : $t('whois.day') }}</strong>
-            </template>
-          </i18n-t>
-        </div>
-      </div>
+      <!-- WHOIS Info -->
+      <div v-else-if="whois">
+        <!-- Header -->
+        <nav class="flex items-center gap-2 font-mono text-eyebrow uppercase" aria-label="Breadcrumb">
+          <router-link to="/" class="text-y-faint transition-colors hover:text-y-text">{{ $t('nav.home') }}</router-link>
+          <span class="text-y-faint" aria-hidden="true">/</span>
+          <span class="text-y-mint-text">{{ $t('whois.breadcrumb') }}</span>
+        </nav>
+        <h1 class="mt-4 break-all font-mono text-[clamp(1.75rem,5vw,2.75rem)] font-medium leading-tight tracking-[-0.03em] text-y-text">
+          {{ whois.full_domain }}
+        </h1>
+        <p class="y-lead mt-3">{{ $t('uiPublic.whois.registrationDesc') }}</p>
 
-      <!-- Suspension Warning Banner (not yet suspended) -->
-      <div v-else-if="whois.days_until_suspension !== null && whois.days_until_suspension !== undefined"
-        class="alert alert-warning border-2 border-warning/30 mb-6"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-        </svg>
-        <div>
-          <p class="font-bold">{{ $t('whois.healthCheckFailed') }}</p>
-          <i18n-t keypath="whois.healthCheckFailedDesc" tag="p" class="text-sm">
-            <template #days>
-              <strong>{{ whois.days_until_suspension }} {{ whois.days_until_suspension !== 1 ? $t('whois.days') : $t('whois.day') }}</strong>
-            </template>
-          </i18n-t>
-        </div>
-      </div>
-
-      <!-- WHOIS Table -->
-      <div class="card bg-base-200 shadow mb-6">
-        <div class="card-body p-0">
-          <div class="px-4 pt-4 pb-2">
-            <h2 class="font-bold text-base opacity-70 uppercase tracking-wide text-xs">{{ $t('whois.registrationInfo') }}</h2>
+        <!-- Deletion Warning Banner -->
+        <div
+          v-if="whois.days_until_deletion !== null && whois.days_until_deletion !== undefined"
+          class="alert mt-8 flex items-start text-left"
+          :class="whois.days_until_deletion <= 3 ? 'alert-error' : 'alert-warning'"
+        >
+          <TriangleAlert :size="18" :stroke-width="1.5" class="mt-0.5 shrink-0" />
+          <div>
+            <p class="font-semibold">{{ $t('whois.pendingDeletion') }}</p>
+            <i18n-t keypath="whois.pendingDeletionDesc" tag="p" class="mt-0.5 text-sm">
+              <template #days>
+                <strong class="font-mono">{{ whois.days_until_deletion }} {{ whois.days_until_deletion !== 1 ? $t('whois.days') : $t('whois.day') }}</strong>
+              </template>
+            </i18n-t>
           </div>
-          <table class="table">
-            <tbody>
-              <tr>
-                <td class="w-40 opacity-60 font-medium text-sm">{{ $t('whois.domain') }}</td>
-                <td class="font-mono font-semibold break-all">{{ whois.full_domain }}</td>
-              </tr>
-              <tr>
-                <td class="opacity-60 font-medium text-sm">{{ $t('whois.status') }}</td>
-                <td>
-                  <span class="inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold" :class="{
-                    'bg-green-100 text-green-700': whois.status === 'active',
-                    'bg-amber-100 text-amber-700': whois.status === 'suspended',
-                    'bg-red-100 text-red-700': whois.status === 'expired',
-                    'bg-gray-100 text-gray-500': !['active','suspended','expired'].includes(whois.status),
-                  }">{{ whois.status }}</span>
-                </td>
-              </tr>
-              <tr>
-                <td class="opacity-60 font-medium text-sm">{{ $t('whois.registered') }}</td>
-                <td>{{ formatDate(whois.registered_at) }}</td>
-              </tr>
-              <tr>
-                <td class="opacity-60 font-medium text-sm">{{ $t('whois.expires') }}</td>
-                <td :class="isExpiringSoon ? 'text-amber-600 font-semibold' : ''">
-                  {{ formatDate(whois.expires_at) }}
-                  <span v-if="isExpiringSoon" class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold bg-amber-100 text-amber-700 ml-2">{{ $t('whois.expiringSoon') }}</span>
-                </td>
-              </tr>
-              <tr v-if="whois.suspended_at">
-                <td class="opacity-60 font-medium text-sm">{{ $t('whois.suspended') }}</td>
-                <td class="text-amber-600">{{ formatDate(whois.suspended_at) }}</td>
-              </tr>
-              <tr v-if="whois.suspend_reason">
-                <td class="opacity-60 font-medium text-sm">{{ $t('whois.suspendReason') }}</td>
-                <td class="text-amber-600 text-sm">{{ whois.suspend_reason }}</td>
-              </tr>
-              <tr v-if="whois.first_failed_at">
-                <td class="opacity-60 font-medium text-sm">{{ $t('whois.firstFailed') }}</td>
-                <td class="text-sm">{{ formatDate(whois.first_failed_at) }}</td>
-              </tr>
-              <tr v-if="whois.nameservers && whois.nameservers.length">
-                <td class="opacity-60 font-medium text-sm">{{ $t('whois.nameservers') }}</td>
-                <td>
-                  <div v-for="ns in whois.nameservers" :key="ns" class="font-mono text-sm">{{ ns }}</div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
         </div>
-      </div>
 
-      <!-- Scan Info -->
-      <div v-if="whois.scan" class="card bg-base-200 shadow mb-6">
-        <div class="card-body p-0">
-          <div class="px-4 pt-4 pb-2 flex items-center justify-between">
-            <h2 class="font-bold text-base opacity-70 uppercase tracking-wide text-xs">{{ $t('whois.healthMonitoring') }}</h2>
-            <span class="text-xs opacity-50">
+        <!-- Suspension Warning Banner (not yet suspended) -->
+        <div
+          v-else-if="whois.days_until_suspension !== null && whois.days_until_suspension !== undefined"
+          class="alert alert-warning mt-8 flex items-start text-left"
+        >
+          <TriangleAlert :size="18" :stroke-width="1.5" class="mt-0.5 shrink-0" />
+          <div>
+            <p class="font-semibold">{{ $t('whois.healthCheckFailed') }}</p>
+            <i18n-t keypath="whois.healthCheckFailedDesc" tag="p" class="mt-0.5 text-sm">
+              <template #days>
+                <strong class="font-mono">{{ whois.days_until_suspension }} {{ whois.days_until_suspension !== 1 ? $t('whois.days') : $t('whois.day') }}</strong>
+              </template>
+            </i18n-t>
+          </div>
+        </div>
+
+        <!-- Registration info -->
+        <section class="y-panel mt-8">
+          <div class="y-panel-header">
+            <h2 class="text-sm font-semibold text-y-text">{{ $t('whois.registrationInfo') }}</h2>
+          </div>
+          <dl class="divide-y divide-y-line">
+            <div class="whois-row">
+              <dt class="y-label">{{ $t('whois.domain') }}</dt>
+              <dd class="y-domain text-sm">{{ whois.full_domain }}</dd>
+            </div>
+            <div class="whois-row">
+              <dt class="y-label">{{ $t('whois.status') }}</dt>
+              <dd><StatusDot :tone="whoisStatusTone(whois.status)" :label="whois.status" /></dd>
+            </div>
+            <div class="whois-row">
+              <dt class="y-label">{{ $t('whois.registered') }}</dt>
+              <dd class="text-sm text-y-text">{{ formatDate(whois.registered_at) }}</dd>
+            </div>
+            <div class="whois-row">
+              <dt class="y-label">{{ $t('whois.expires') }}</dt>
+              <dd class="flex flex-wrap items-center gap-2 text-sm" :class="isExpiringSoon ? 'font-medium text-y-warn' : 'text-y-text'">
+                {{ formatDate(whois.expires_at) }}
+                <span v-if="isExpiringSoon" class="y-chip-warn">{{ $t('whois.expiringSoon') }}</span>
+              </dd>
+            </div>
+            <div v-if="whois.suspended_at" class="whois-row">
+              <dt class="y-label">{{ $t('whois.suspended') }}</dt>
+              <dd class="text-sm text-y-warn">{{ formatDate(whois.suspended_at) }}</dd>
+            </div>
+            <div v-if="whois.suspend_reason" class="whois-row">
+              <dt class="y-label">{{ $t('whois.suspendReason') }}</dt>
+              <dd class="text-sm text-y-warn">{{ whois.suspend_reason }}</dd>
+            </div>
+            <div v-if="whois.first_failed_at" class="whois-row">
+              <dt class="y-label">{{ $t('whois.firstFailed') }}</dt>
+              <dd class="text-sm text-y-text">{{ formatDate(whois.first_failed_at) }}</dd>
+            </div>
+            <div v-if="whois.nameservers && whois.nameservers.length" class="whois-row">
+              <dt class="y-label">{{ $t('whois.nameservers') }}</dt>
+              <dd class="space-y-1">
+                <div v-for="ns in whois.nameservers" :key="ns" class="break-all font-mono text-sm text-y-text">{{ ns }}</div>
+              </dd>
+            </div>
+          </dl>
+        </section>
+
+        <!-- Scan Info -->
+        <section v-if="whois.scan" class="y-panel mt-6">
+          <div class="y-panel-header">
+            <h2 class="text-sm font-semibold text-y-text">{{ $t('whois.healthMonitoring') }}</h2>
+            <span class="text-xs text-y-faint">
               {{ $t('whois.lastScanned') }}: {{ whois.scan.last_scanned_at ? formatDate(whois.scan.last_scanned_at) : $t('whois.never') }}
             </span>
           </div>
 
           <!-- Overall Health + Uptime -->
-          <div class="px-4 pb-3 flex items-center gap-4">
-            <span class="inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold" :class="healthBadgeClass(whois.scan.overall_health)">
-              {{ whois.scan.overall_health || 'unknown' }}
-            </span>
+          <div class="flex flex-col gap-4 border-b border-y-line px-5 py-4 sm:flex-row sm:items-center sm:gap-6">
+            <StatusDot :tone="healthTone(whois.scan.overall_health)" :label="whois.scan.overall_health || 'unknown'" class="shrink-0 font-medium" />
             <div class="flex-1">
-              <div class="flex justify-between text-xs opacity-60 mb-1">
-                <span>{{ $t('whois.uptime') }}</span>
-                <span>{{ whois.scan.uptime_percentage?.toFixed(1) }}%</span>
+              <div class="mb-1.5 flex justify-between text-xs">
+                <span class="y-label">{{ $t('whois.uptime') }}</span>
+                <span class="font-mono text-y-muted">{{ whois.scan.uptime_percentage?.toFixed(1) }}%</span>
               </div>
-              <div class="w-full bg-gray-200 rounded-full h-2">
+              <div
+                class="h-1.5 w-full overflow-hidden rounded-full bg-y-surface-2"
+                role="progressbar"
+                :aria-valuenow="whois.scan.uptime_percentage ?? 0"
+                aria-valuemin="0"
+                aria-valuemax="100"
+              >
                 <div
-                  class="h-2 rounded-full transition-all"
+                  class="h-full rounded-full transition-all"
                   :class="uptimeBarClass(whois.scan.uptime_percentage)"
                   :style="{ width: `${whois.scan.uptime_percentage ?? 0}%` }"
                 ></div>
@@ -151,45 +141,41 @@
             </div>
           </div>
 
-          <table class="table">
-            <tbody>
-              <tr>
-                <td class="w-40 opacity-60 font-medium text-sm">{{ $t('whois.http') }}</td>
-                <td><span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold" :class="statusBadgeClass(whois.scan.http_status, ['online'], ['offline'])">{{ whois.scan.http_status || 'unknown' }}</span></td>
-              </tr>
-              <tr>
-                <td class="opacity-60 font-medium text-sm">{{ $t('whois.dns') }}</td>
-                <td><span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold" :class="statusBadgeClass(whois.scan.dns_status, ['resolved', 'success'], ['failed'])">{{ whois.scan.dns_status || 'unknown' }}</span></td>
-              </tr>
-              <tr>
-                <td class="opacity-60 font-medium text-sm">{{ $t('whois.ssl') }}</td>
-                <td><span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold" :class="statusBadgeClass(whois.scan.ssl_status, ['valid'], ['invalid'])">{{ whois.scan.ssl_status || 'unknown' }}</span></td>
-              </tr>
-              <tr>
-                <td class="opacity-60 font-medium text-sm">{{ $t('whois.safeBrowsing') }}</td>
-                <td><span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold" :class="statusBadgeClass(whois.scan.safe_browsing_status, ['safe'], ['unsafe', 'threat_detected'])">{{ whois.scan.safe_browsing_status || 'unknown' }}</span></td>
-              </tr>
-              <tr>
-                <td class="opacity-60 font-medium text-sm">{{ $t('whois.virusTotal') }}</td>
-                <td><span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold" :class="statusBadgeClass(whois.scan.virustotal_status, ['clean'], ['malicious', 'suspicious'])">{{ whois.scan.virustotal_status || 'unknown' }}</span></td>
-              </tr>
-              <tr>
-                <td class="opacity-60 font-medium text-sm">{{ $t('whois.totalScans') }}</td>
-                <td class="text-sm">{{ $t('whois.totalScansValue', { total: whois.scan.total_scans, successful: whois.scan.successful_scans }) }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
+          <dl class="divide-y divide-y-line">
+            <div class="whois-row">
+              <dt class="y-label">{{ $t('whois.http') }}</dt>
+              <dd><StatusDot :tone="statusTone(whois.scan.http_status, ['online'], ['offline'])" :label="whois.scan.http_status || 'unknown'" /></dd>
+            </div>
+            <div class="whois-row">
+              <dt class="y-label">{{ $t('whois.dns') }}</dt>
+              <dd><StatusDot :tone="statusTone(whois.scan.dns_status, ['resolved', 'success'], ['failed'])" :label="whois.scan.dns_status || 'unknown'" /></dd>
+            </div>
+            <div class="whois-row">
+              <dt class="y-label">{{ $t('whois.ssl') }}</dt>
+              <dd><StatusDot :tone="statusTone(whois.scan.ssl_status, ['valid'], ['invalid'])" :label="whois.scan.ssl_status || 'unknown'" /></dd>
+            </div>
+            <div class="whois-row">
+              <dt class="y-label">{{ $t('whois.safeBrowsing') }}</dt>
+              <dd><StatusDot :tone="statusTone(whois.scan.safe_browsing_status, ['safe'], ['unsafe', 'threat_detected'])" :label="whois.scan.safe_browsing_status || 'unknown'" /></dd>
+            </div>
+            <div class="whois-row">
+              <dt class="y-label">{{ $t('whois.virusTotal') }}</dt>
+              <dd><StatusDot :tone="statusTone(whois.scan.virustotal_status, ['clean'], ['malicious', 'suspicious'])" :label="whois.scan.virustotal_status || 'unknown'" /></dd>
+            </div>
+            <div class="whois-row">
+              <dt class="y-label">{{ $t('whois.totalScans') }}</dt>
+              <dd class="font-mono text-sm text-y-text">{{ $t('whois.totalScansValue', { total: whois.scan.total_scans, successful: whois.scan.successful_scans }) }}</dd>
+            </div>
+          </dl>
+        </section>
 
-      <!-- Footer -->
-      <div class="text-center mt-4">
-        <router-link to="/" class="btn btn-outline btn-sm">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-          {{ $t('whois.searchAnother') }}
-        </router-link>
+        <!-- Footer -->
+        <div class="mt-8 flex justify-center">
+          <router-link to="/" class="btn btn-outline btn-sm gap-1.5">
+            <Search :size="16" :stroke-width="1.5" />
+            {{ $t('whois.searchAnother') }}
+          </router-link>
+        </div>
       </div>
     </div>
   </div>
@@ -198,7 +184,10 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { Search, SearchX, TriangleAlert } from 'lucide-vue-next'
 import axios from '../utils/axios'
+import YLoader from '../components/brand/YLoader.vue'
+import StatusDot from '../components/ui/StatusDot.vue'
 
 const route = useRoute()
 const domain = ref(route.params.domain)
@@ -217,23 +206,30 @@ const formatDate = (dateStr) => {
   return new Date(dateStr).toLocaleString()
 }
 
-const healthBadgeClass = (health) => {
-  if (health === 'healthy') return 'bg-green-100 text-green-700'
-  if (health === 'degraded') return 'bg-amber-100 text-amber-700'
-  if (health === 'down') return 'bg-red-100 text-red-700'
-  return 'bg-gray-100 text-gray-500'
+const whoisStatusTone = (status) => {
+  if (status === 'active') return 'ok'
+  if (status === 'suspended') return 'warn'
+  if (status === 'expired') return 'danger'
+  return 'muted'
 }
 
-const statusBadgeClass = (value, okValues, badValues) => {
-  if (okValues.includes(value)) return 'bg-green-100 text-green-700'
-  if (badValues.includes(value)) return 'bg-red-100 text-red-700'
-  return 'bg-gray-100 text-gray-500'
+const healthTone = (health) => {
+  if (health === 'healthy') return 'ok'
+  if (health === 'degraded') return 'warn'
+  if (health === 'down') return 'danger'
+  return 'muted'
+}
+
+const statusTone = (value, okValues, badValues) => {
+  if (okValues.includes(value)) return 'ok'
+  if (badValues.includes(value)) return 'danger'
+  return 'muted'
 }
 
 const uptimeBarClass = (pct) => {
-  if (pct >= 90) return 'bg-green-500'
-  if (pct >= 50) return 'bg-amber-500'
-  return 'bg-red-500'
+  if (pct >= 90) return 'bg-y-mint'
+  if (pct >= 50) return 'bg-y-warn'
+  return 'bg-y-danger'
 }
 
 const fetchWhois = async () => {
@@ -255,3 +251,9 @@ onMounted(() => {
   fetchWhois()
 })
 </script>
+
+<style scoped>
+.whois-row {
+  @apply grid gap-1 px-5 py-3.5 sm:grid-cols-[11rem_1fr] sm:items-center sm:gap-4;
+}
+</style>

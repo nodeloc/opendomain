@@ -1,249 +1,259 @@
 <template>
-  <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8 max-w-7xl space-y-6">
-    <!-- Header -->
-    <div class="flex justify-between items-center">
-      <div>
-        <h1 class="text-3xl font-bold">{{ $t('dnsManagement.title') }}</h1>
-        <p class="text-lg opacity-70 mt-2">{{ domain?.full_domain }}</p>
-      </div>
-      <div class="flex gap-2">
-        <button @click="syncFromPowerDNS" class="btn btn-outline gap-2" :disabled="syncing">
-          <span v-if="syncing" class="loading loading-spinner loading-sm"></span>
-          <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-          </svg>
-          {{ $t('dnsManagement.syncFromPowerDNS') }}
-        </button>
-        <button @click="showAddModal = true" class="btn btn-primary gap-2">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-          </svg>
-          {{ $t('dnsManagement.addRecord') }}
-        </button>
-      </div>
+  <div class="y-page">
+    <div class="space-y-4">
+      <router-link to="/domains" class="inline-flex items-center gap-1.5 text-sm text-y-muted transition-colors hover:text-y-text">
+        <ArrowLeft :size="16" :stroke-width="1.5" />
+        {{ $t('uiUser.dns.back') }}
+      </router-link>
+      <PageHeader :eyebrow="$t('uiUser.dns.eyebrow')" :description="$t('uiUser.dns.description')">
+        <template #title>
+          <span class="y-domain font-semibold tracking-[-0.02em]">{{ domain?.full_domain || '—' }}</span>
+        </template>
+        <template #actions>
+          <button type="button" class="btn btn-outline gap-1.5" :disabled="syncing" @click="syncFromPowerDNS">
+            <span v-if="syncing" class="loading loading-spinner loading-sm"></span>
+            <RefreshCw v-else :size="16" :stroke-width="1.5" />
+            {{ $t('uiUser.dns.sync') }}
+          </button>
+          <button type="button" class="btn btn-primary gap-1.5" @click="showAddModal = true">
+            <Plus :size="16" :stroke-width="1.5" />
+            {{ $t('uiUser.dns.addRecord') }}
+          </button>
+        </template>
+      </PageHeader>
     </div>
 
-    <!-- DNSSEC Panel -->
-    <div class="card bg-base-100 shadow-xl border border-base-300">
-      <div class="card-body">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-full flex items-center justify-center" :class="dnssec.enabled ? 'bg-success/20' : 'bg-base-300'">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" :class="dnssec.enabled ? 'text-success' : 'opacity-40'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-              </svg>
-            </div>
-            <div>
-              <h2 class="font-bold text-lg">DNSSEC</h2>
-              <p class="text-sm opacity-60">{{ $t('dnsManagement.dnssecDesc') }}</p>
-            </div>
-          </div>
-          <div class="flex items-center gap-3">
-            <span class="badge" :class="dnssec.enabled ? 'badge-success' : 'badge-ghost'">
-              {{ dnssec.enabled ? $t('dnsManagement.dnssecEnabled') : $t('dnsManagement.dnssecDisabled') }}
-            </span>
-            <button
-              v-if="usesDefaultNS"
-              @click="toggleDNSSEC"
-              class="btn btn-sm"
-              :class="dnssec.enabled ? 'btn-error' : 'btn-success'"
-              :disabled="dnssec.loading"
-            >
-              <span v-if="dnssec.loading" class="loading loading-spinner loading-xs"></span>
-              <span v-else>{{ dnssec.enabled ? $t('dnsManagement.disableDNSSEC') : $t('dnsManagement.enableDNSSEC') }}</span>
-            </button>
-          </div>
+    <!-- Records -->
+    <section class="y-panel">
+      <div class="y-panel-header">
+        <h2 class="y-h3">{{ $t('uiUser.dns.records') }}</h2>
+        <span v-if="!loading && records.length" class="y-chip font-mono">{{ $t('uiUser.dns.recordCount', records.length) }}</span>
+      </div>
+
+      <YLoader v-if="loading" :label="$t('uiUser.common.loading')" />
+
+      <EmptyState v-else-if="records.length === 0" :title="$t('uiUser.dns.emptyTitle')" :description="$t('uiUser.dns.emptyDesc')">
+        <button type="button" class="btn btn-outline gap-1.5" @click="showAddModal = true">
+          <Plus :size="16" :stroke-width="1.5" />
+          {{ $t('uiUser.dns.addRecord') }}
+        </button>
+      </EmptyState>
+
+      <template v-else>
+        <!-- Desktop table -->
+        <div class="hidden overflow-x-auto md:block">
+          <table class="y-table">
+            <thead>
+              <tr>
+                <th>{{ $t('dnsManagement.name') }}</th>
+                <th>{{ $t('dnsManagement.type') }}</th>
+                <th>{{ $t('dnsManagement.content') }}</th>
+                <th>{{ $t('dnsManagement.ttl') }}</th>
+                <th>{{ $t('dnsManagement.priority') }}</th>
+                <th>{{ $t('dnsManagement.status') }}</th>
+                <th class="text-right"><span class="sr-only">{{ $t('dnsManagement.actions') }}</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="record in records" :key="record.id">
+                <td class="font-mono text-[13px]">{{ record.name }}</td>
+                <td><span class="y-tag">{{ record.type }}</span></td>
+                <td class="max-w-[22rem] font-mono text-[13px] text-y-muted">
+                  <span class="block truncate" :title="record.content">{{ truncate(record.content, 40) }}</span>
+                </td>
+                <td class="whitespace-nowrap font-mono text-[13px] text-y-muted">{{ record.ttl }}s</td>
+                <td class="font-mono text-[13px] text-y-muted">{{ record.priority || '—' }}</td>
+                <td>
+                  <div class="flex flex-wrap items-center gap-2 whitespace-nowrap">
+                    <StatusDot
+                      :tone="record.synced_to_powerdns ? 'ok' : 'warn'"
+                      :label="record.synced_to_powerdns ? $t('dnsManagement.synced') : $t('dnsManagement.pending')"
+                    />
+                    <span v-if="!record.is_active" class="y-chip">{{ $t('dnsManagement.inactive') }}</span>
+                    <button
+                      v-if="record.sync_error"
+                      type="button"
+                      class="btn btn-ghost btn-xs btn-square text-y-danger-text"
+                      :title="$t('uiUser.dns.viewError')"
+                      :aria-label="$t('uiUser.dns.viewError')"
+                      @click="showErrorDetails(record.sync_error)"
+                    >
+                      <AlertTriangle :size="16" :stroke-width="1.5" />
+                    </button>
+                  </div>
+                </td>
+                <td>
+                  <div class="flex justify-end gap-1">
+                    <button type="button" class="btn btn-ghost btn-sm btn-square" :title="$t('uiUser.dns.edit')" :aria-label="$t('uiUser.dns.edit')" @click="editRecord(record)">
+                      <Pencil :size="16" :stroke-width="1.5" />
+                    </button>
+                    <button type="button" class="btn btn-ghost btn-sm btn-square text-y-danger-text" :title="$t('uiUser.dns.delete')" :aria-label="$t('uiUser.dns.delete')" @click="confirmDelete(record)">
+                      <Trash2 :size="16" :stroke-width="1.5" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
 
+        <!-- Mobile list -->
+        <ul class="divide-y divide-y-line md:hidden">
+          <li v-for="record in records" :key="record.id" class="space-y-2 px-5 py-4">
+            <div class="flex items-start justify-between gap-3">
+              <div class="flex min-w-0 items-center gap-2">
+                <span class="y-tag">{{ record.type }}</span>
+                <span class="truncate font-mono text-[13px] text-y-text">{{ record.name }}</span>
+              </div>
+              <div class="-mr-2 -mt-1 flex shrink-0 gap-1">
+                <button type="button" class="btn btn-ghost btn-sm btn-square" :aria-label="$t('uiUser.dns.edit')" @click="editRecord(record)">
+                  <Pencil :size="16" :stroke-width="1.5" />
+                </button>
+                <button type="button" class="btn btn-ghost btn-sm btn-square text-y-danger-text" :aria-label="$t('uiUser.dns.delete')" @click="confirmDelete(record)">
+                  <Trash2 :size="16" :stroke-width="1.5" />
+                </button>
+              </div>
+            </div>
+            <p class="break-all font-mono text-[13px] text-y-muted">{{ record.content }}</p>
+            <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-y-faint">
+              <span class="font-mono">TTL {{ record.ttl }}s</span>
+              <span v-if="record.priority" class="font-mono">{{ $t('dnsManagement.priority') }} {{ record.priority }}</span>
+              <StatusDot
+                :tone="record.synced_to_powerdns ? 'ok' : 'warn'"
+                :label="record.synced_to_powerdns ? $t('dnsManagement.synced') : $t('dnsManagement.pending')"
+              />
+              <span v-if="!record.is_active" class="y-chip">{{ $t('dnsManagement.inactive') }}</span>
+              <button v-if="record.sync_error" type="button" class="inline-flex items-center gap-1 text-y-danger-text" @click="showErrorDetails(record.sync_error)">
+                <AlertTriangle :size="14" :stroke-width="1.5" />
+                {{ $t('uiUser.dns.viewError') }}
+              </button>
+            </div>
+          </li>
+        </ul>
+      </template>
+    </section>
+
+    <!-- DNSSEC -->
+    <section class="y-panel">
+      <div class="y-panel-header">
+        <div class="flex min-w-0 items-center gap-3">
+          <span class="y-icon-tile" :class="{ '!text-y-faint': !dnssec.enabled }">
+            <ShieldCheck v-if="dnssec.enabled" :size="20" :stroke-width="1.5" />
+            <Shield v-else :size="20" :stroke-width="1.5" />
+          </span>
+          <div class="min-w-0">
+            <h2 class="y-h3">DNSSEC</h2>
+            <p class="mt-0.5 text-sm text-y-muted">{{ $t('uiUser.dns.dnssecDesc') }}</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <StatusDot
+            :tone="dnssec.enabled ? 'ok' : 'muted'"
+            :label="dnssec.enabled ? $t('dnsManagement.dnssecEnabled') : $t('dnsManagement.dnssecDisabled')"
+          />
+          <button
+            v-if="usesDefaultNS"
+            type="button"
+            class="btn btn-sm"
+            :class="dnssec.enabled ? 'btn-ghost text-y-danger-text' : 'btn-outline'"
+            :disabled="dnssec.loading"
+            @click="toggleDNSSEC"
+          >
+            <span v-if="dnssec.loading" class="loading loading-spinner loading-xs"></span>
+            <span v-else>{{ dnssec.enabled ? $t('uiUser.dns.dnssecDisable') : $t('uiUser.dns.dnssecEnable') }}</span>
+          </button>
+        </div>
+      </div>
+
+      <div v-if="!usesDefaultNS || dnssec.enabled" class="space-y-4 px-5 py-5">
         <!-- Custom nameservers: DNSSEC lives at the provider -->
-        <div v-if="!usesDefaultNS" class="alert alert-info mt-3 text-sm">
+        <div v-if="!usesDefaultNS" class="flex items-start gap-3 text-sm text-y-muted">
+          <Info :size="18" :stroke-width="1.5" class="mt-0.5 shrink-0 text-y-info" />
           <span>{{ $t('dnsManagement.dnssecCustomNS') }}</span>
         </div>
 
-        <!-- Chain of trust status -->
-        <div v-else-if="dnssec.enabled" class="mt-3 flex flex-wrap gap-2 text-xs">
-          <span class="badge badge-sm" :class="dnssec.parentSigned ? 'badge-success' : 'badge-warning'">
-            {{ dnssec.parentSigned ? $t('dnsManagement.dnssecParentSigned', { zone: dnssec.parentZone }) : $t('dnsManagement.dnssecParentUnsigned', { zone: dnssec.parentZone }) }}
-          </span>
-          <span class="badge badge-sm" :class="dnssec.dsPublished ? 'badge-success' : 'badge-warning'">
-            {{ dnssec.dsPublished ? $t('dnsManagement.dnssecDSPublished') : $t('dnsManagement.dnssecDSMissing') }}
-          </span>
-          <span class="badge badge-sm" :class="dnssec.chainValid ? 'badge-success' : 'badge-ghost'">
-            {{ dnssec.chainValid ? $t('dnsManagement.dnssecChainValid') : $t('dnsManagement.dnssecChainIncomplete') }}
-          </span>
-        </div>
-
-        <!-- Keys Section -->
-        <div v-if="dnssec.enabled && dnssec.keys.length > 0" class="mt-4 space-y-4">
-          <div v-for="key in dnssec.keys" :key="key.id" class="bg-base-200 rounded-lg p-4 space-y-3">
-            <div class="flex items-center gap-2">
-              <span class="badge badge-primary badge-sm">{{ key.keytype.toUpperCase() }}</span>
-              <span class="text-sm opacity-60">{{ key.algorithm }} / {{ key.bits }} bits</span>
-            </div>
-
-            <!-- DNSKEY -->
-            <div>
-              <div class="text-xs font-semibold uppercase tracking-wide opacity-50 mb-1">DNSKEY</div>
-              <div class="flex items-center gap-2">
-                <code class="bg-base-300 px-3 py-2 rounded text-xs font-mono break-all flex-1">{{ key.dnskey }}</code>
-                <button @click="copyText(key.dnskey)" class="btn btn-ghost btn-xs btn-square flex-shrink-0" :title="$t('dnsManagement.copy')">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            <!-- DS Records -->
-            <div v-if="key.ds && key.ds.length > 0">
-              <div class="text-xs font-semibold uppercase tracking-wide opacity-50 mb-1">DS {{ $t('dnsManagement.dsRecords') }}</div>
-              <div v-for="(ds, idx) in key.ds" :key="idx" class="flex items-center gap-2 mb-1">
-                <code class="bg-base-300 px-3 py-2 rounded text-xs font-mono break-all flex-1">{{ ds }}</code>
-                <button @click="copyText(ds)" class="btn btn-ghost btn-xs btn-square flex-shrink-0" :title="$t('dnsManagement.copy')">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                  </svg>
-                </button>
-              </div>
-              <!-- Publish DS to parent zone -->
-              <button
-                @click="publishDS"
-                class="btn btn-outline btn-xs mt-2 gap-1"
-                :disabled="dnssec.publishingDS"
-              >
-                <span v-if="dnssec.publishingDS" class="loading loading-spinner loading-xs"></span>
-                <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                </svg>
-                {{ dnssec.dsPublished ? $t('dnsManagement.republishDSToParent') : $t('dnsManagement.publishDSToParent') }}
-              </button>
-            </div>
+        <template v-else>
+          <!-- Chain of trust status -->
+          <div class="flex flex-wrap gap-2">
+            <span :class="dnssec.parentSigned ? 'y-chip-mint' : 'y-chip-warn'">
+              {{ dnssec.parentSigned ? $t('dnsManagement.dnssecParentSigned', { zone: dnssec.parentZone }) : $t('uiUser.dns.parentUnsigned', { zone: dnssec.parentZone }) }}
+            </span>
+            <span :class="dnssec.dsPublished ? 'y-chip-mint' : 'y-chip-warn'">
+              {{ dnssec.dsPublished ? $t('dnsManagement.dnssecDSPublished') : $t('dnsManagement.dnssecDSMissing') }}
+            </span>
+            <span :class="dnssec.chainValid ? 'y-chip-mint' : 'y-chip'">
+              {{ dnssec.chainValid ? $t('dnsManagement.dnssecChainValid') : $t('dnsManagement.dnssecChainIncomplete') }}
+            </span>
           </div>
-        </div>
 
-        <div v-else-if="dnssec.enabled && dnssec.keys.length === 0 && !dnssec.loading" class="mt-3 text-sm opacity-60">
-          {{ $t('dnsManagement.dnssecNoKeys') }}
-        </div>
-      </div>
-    </div>
+          <!-- Keys -->
+          <div v-if="dnssec.keys.length > 0" class="space-y-3">
+            <div v-for="key in dnssec.keys" :key="key.id" class="y-inset space-y-4 p-4">
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="y-tag">{{ key.keytype.toUpperCase() }}</span>
+                <span class="font-mono text-xs text-y-faint">{{ $t('uiUser.dns.algorithmBits', { algorithm: key.algorithm, bits: key.bits }) }}</span>
+              </div>
 
-    <!-- DNS Records Table -->
-    <div v-if="loading" class="flex justify-center py-12">
-      <span class="loading loading-spinner loading-lg"></span>
-    </div>
-
-    <div v-else-if="records.length === 0" class="card bg-base-200 shadow-xl">
-      <div class="card-body items-center text-center py-12">
-        <div class="mb-6">
-          <div class="w-24 h-24 rounded-full bg-base-300 flex items-center justify-center mx-auto">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-base-content opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
-            </svg>
-          </div>
-        </div>
-        <h3 class="card-title text-2xl mb-2">{{ $t('dnsManagement.noRecords') }}</h3>
-        <p class="mb-4 opacity-70">{{ $t('dnsManagement.noRecordsDesc') }}</p>
-        <button @click="showAddModal = true" class="btn btn-primary gap-2">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-          </svg>
-          {{ $t('dnsManagement.addRecord') }}
-        </button>
-      </div>
-    </div>
-
-    <div v-else class="overflow-x-auto">
-      <table class="table table-zebra w-full">
-        <thead>
-          <tr>
-            <th>{{ $t('dnsManagement.name') }}</th>
-            <th>{{ $t('dnsManagement.type') }}</th>
-            <th>{{ $t('dnsManagement.content') }}</th>
-            <th>{{ $t('dnsManagement.ttl') }}</th>
-            <th>{{ $t('dnsManagement.priority') }}</th>
-            <th>{{ $t('dnsManagement.status') }}</th>
-            <th>{{ $t('dnsManagement.actions') }}</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="record in records" :key="record.id">
-            <td class="font-mono">{{ record.name }}</td>
-            <td>
-              <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
-                {{ record.type }}
-              </span>
-            </td>
-            <td class="font-mono text-sm">{{ truncate(record.content, 40) }}</td>
-            <td>{{ record.ttl }}s</td>
-            <td>{{ record.priority || '-' }}</td>
-            <td>
-              <div class="flex items-center gap-2">
-                <span
-                  class="px-2 py-0.5 rounded-full text-xs font-medium inline-flex items-center gap-1"
-                  :class="record.synced_to_powerdns ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'"
-                >
-                  <svg v-if="record.synced_to_powerdns" xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                  </svg>
-                  <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  {{ record.synced_to_powerdns ? $t('dnsManagement.synced') : $t('dnsManagement.pending') }}
-                </span>
-                <span v-if="!record.is_active" class="px-2 py-0.5 rounded-full text-xs font-medium bg-error/10 text-error">
-                  {{ $t('dnsManagement.inactive') }}
-                </span>
-                <div v-if="record.sync_error" class="tooltip tooltip-error" :data-tip="$t('dnsManagement.clickToViewError')">
-                  <button @click="showErrorDetails(record.sync_error)" class="btn btn-ghost btn-xs btn-square">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-error" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                    </svg>
+              <div class="space-y-1.5">
+                <p class="y-label">DNSKEY</p>
+                <div class="flex items-start gap-2">
+                  <code class="min-w-0 flex-1 break-all rounded-sm border border-y-line bg-y-surface px-3 py-2 text-xs text-y-text">{{ key.dnskey }}</code>
+                  <button type="button" class="btn btn-ghost btn-sm btn-square shrink-0" :title="$t('uiUser.common.copy')" :aria-label="$t('uiUser.common.copy')" @click="copyText(key.dnskey)">
+                    <Copy :size="16" :stroke-width="1.5" />
                   </button>
                 </div>
               </div>
-            </td>
-            <td>
-              <div class="flex gap-1">
-                <button @click="editRecord(record)" class="btn btn-ghost btn-sm btn-square" :title="$t('dnsManagement.editTitle')">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
-                </button>
-                <button @click="confirmDelete(record)" class="btn btn-ghost btn-sm btn-square text-error" :title="$t('dnsManagement.deleteConfirm')">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
+
+              <div v-if="key.ds && key.ds.length > 0" class="space-y-1.5">
+                <p class="y-label">{{ $t('uiUser.dns.dsRecords') }}</p>
+                <div v-for="(ds, idx) in key.ds" :key="idx" class="flex items-start gap-2">
+                  <code class="min-w-0 flex-1 break-all rounded-sm border border-y-line bg-y-surface px-3 py-2 text-xs text-y-text">{{ ds }}</code>
+                  <button type="button" class="btn btn-ghost btn-sm btn-square shrink-0" :title="$t('uiUser.common.copy')" :aria-label="$t('uiUser.common.copy')" @click="copyText(ds)">
+                    <Copy :size="16" :stroke-width="1.5" />
+                  </button>
+                </div>
+                <button type="button" class="btn btn-outline btn-sm mt-2 gap-1.5" :disabled="dnssec.publishingDS" @click="publishDS">
+                  <span v-if="dnssec.publishingDS" class="loading loading-spinner loading-xs"></span>
+                  <Upload v-else :size="14" :stroke-width="1.5" />
+                  {{ dnssec.dsPublished ? $t('uiUser.dns.republishDS') : $t('uiUser.dns.publishDS') }}
                 </button>
               </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+            </div>
+          </div>
+
+          <p v-else-if="!dnssec.loading" class="text-sm text-y-muted">{{ $t('dnsManagement.dnssecNoKeys') }}</p>
+        </template>
+      </div>
+    </section>
 
     <!-- Add/Edit Modal -->
     <dialog ref="modalRef" class="modal" :class="{ 'modal-open': showAddModal || showEditModal }">
       <div class="modal-box w-11/12 max-w-2xl">
-        <h3 class="font-bold text-lg">
-          {{ showEditModal ? $t('dnsManagement.editTitle') : $t('dnsManagement.addTitle') }}
+        <h3 class="text-lg font-semibold text-y-text">
+          {{ showEditModal ? $t('uiUser.dns.editTitle') : $t('uiUser.dns.addTitle') }}
         </h3>
+        <p class="mt-1 text-sm text-y-muted">{{ $t('uiUser.dns.formDesc') }}</p>
 
-        <form @submit.prevent="handleSubmit" class="space-y-4 mt-4">
-          <div class="grid grid-cols-2 gap-4">
-            <div class="form-control">
-              <label class="label"><span class="label-text">{{ $t('dnsManagement.name') }}</span></label>
+        <form class="mt-6 space-y-5" @submit.prevent="handleSubmit">
+          <div class="grid gap-5 sm:grid-cols-2">
+            <label class="y-field">
+              <span class="y-field-label">{{ $t('dnsManagement.name') }}</span>
               <input
                 v-model="form.name"
                 type="text"
                 :placeholder="$t('dnsManagement.namePlaceholder')"
-                class="input input-bordered"
+                class="input input-bordered w-full font-mono"
+                autocomplete="off"
+                autocapitalize="off"
+                spellcheck="false"
                 required
               />
-            </div>
+              <span class="y-field-hint">{{ $t('uiUser.dns.nameHint') }}</span>
+            </label>
 
-            <div class="form-control">
-              <label class="label"><span class="label-text">{{ $t('dnsManagement.type') }}</span></label>
-              <select v-model="form.type" class="select select-bordered" required>
+            <label class="y-field">
+              <span class="y-field-label">{{ $t('dnsManagement.type') }}</span>
+              <select v-model="form.type" class="select select-bordered w-full font-mono" required>
                 <option value="A">A</option>
                 <option value="AAAA">AAAA</option>
                 <option value="CNAME">CNAME</option>
@@ -254,64 +264,56 @@
                 <option value="SRV">SRV</option>
                 <option value="CAA">CAA</option>
               </select>
-              <div v-if="form.type === 'ALIAS'" class="mt-2 p-3 bg-info/10 rounded-lg text-sm text-info">
-                <span class="font-semibold">{{ $t('dnsManagement.aliasHintTitle') }}</span>
-                {{ $t('dnsManagement.aliasHint') }}
-              </div>
-              <div v-if="form.type === 'CNAME' && (form.name === '@' || form.name === '')" class="mt-2 p-3 bg-success/10 rounded-lg text-sm text-success">
-                <span class="font-semibold">{{ $t('dnsManagement.cnameFlatteningTitle') }}</span>
-                {{ $t('dnsManagement.cnameFlatteningHint') }}
-              </div>
-            </div>
-          </div>
-
-          <div class="form-control">
-            <label class="label"><span class="label-text">{{ $t('dnsManagement.content') }}</span></label>
-            <textarea
-              v-model="form.content"
-              class="textarea textarea-bordered"
-              rows="3"
-              :placeholder="$t('dnsManagement.contentPlaceholder')"
-              required
-            ></textarea>
-          </div>
-
-          <div class="grid grid-cols-2 gap-4">
-            <div class="form-control">
-              <label class="label"><span class="label-text">{{ $t('dnsManagement.ttlSeconds') }}</span></label>
-              <input
-                v-model.number="form.ttl"
-                type="number"
-                min="60"
-                max="86400"
-                class="input input-bordered"
-                required
-              />
-            </div>
-
-            <div v-if="form.type === 'MX' || form.type === 'SRV'" class="form-control">
-              <label class="label"><span class="label-text">{{ $t('dnsManagement.priority') }}</span></label>
-              <input
-                v-model.number="form.priority"
-                type="number"
-                min="0"
-                class="input input-bordered"
-              />
-            </div>
-          </div>
-
-          <div v-if="showEditModal" class="form-control">
-            <label class="label cursor-pointer">
-              <span class="label-text">{{ $t('dnsManagement.active') }}</span>
-              <input v-model="form.is_active" type="checkbox" class="checkbox" />
             </label>
           </div>
 
+          <div v-if="form.type === 'ALIAS'" class="y-inset flex items-start gap-3 px-4 py-3 text-sm">
+            <Info :size="16" :stroke-width="1.5" class="mt-0.5 shrink-0 text-y-info" />
+            <p class="text-y-muted"><span class="font-medium text-y-text">{{ $t('dnsManagement.aliasHintTitle') }}</span> {{ $t('dnsManagement.aliasHint') }}</p>
+          </div>
+          <div v-if="form.type === 'CNAME' && (form.name === '@' || form.name === '')" class="y-mint-soft flex items-start gap-3 rounded-lg border px-4 py-3 text-sm">
+            <Info :size="16" :stroke-width="1.5" class="mt-0.5 shrink-0 text-y-mint-text" />
+            <p class="text-y-muted"><span class="font-medium text-y-text">{{ $t('dnsManagement.cnameFlatteningTitle') }}</span> {{ $t('dnsManagement.cnameFlatteningHint') }}</p>
+          </div>
+
+          <label class="y-field">
+            <span class="y-field-label">{{ $t('dnsManagement.content') }}</span>
+            <textarea
+              v-model="form.content"
+              class="textarea textarea-bordered w-full font-mono text-sm"
+              rows="3"
+              :placeholder="$t('dnsManagement.contentPlaceholder')"
+              spellcheck="false"
+              required
+            ></textarea>
+          </label>
+
+          <div class="grid gap-5 sm:grid-cols-2">
+            <label class="y-field">
+              <span class="y-field-label">{{ $t('uiUser.dns.ttlLabel') }}</span>
+              <input v-model.number="form.ttl" type="number" min="60" max="86400" class="input input-bordered w-full font-mono" required />
+              <span class="y-field-hint">{{ $t('uiUser.dns.ttlHint') }}</span>
+            </label>
+
+            <label v-if="form.type === 'MX' || form.type === 'SRV'" class="y-field">
+              <span class="y-field-label">{{ $t('dnsManagement.priority') }}</span>
+              <input v-model.number="form.priority" type="number" min="0" class="input input-bordered w-full font-mono" />
+            </label>
+          </div>
+
+          <label v-if="showEditModal" class="y-inset flex cursor-pointer items-center justify-between gap-4 px-4 py-3">
+            <span>
+              <span class="block text-sm font-medium text-y-text">{{ $t('uiUser.dns.active') }}</span>
+              <span class="block text-xs text-y-faint">{{ $t('uiUser.dns.activeHint') }}</span>
+            </span>
+            <input v-model="form.is_active" type="checkbox" class="toggle toggle-sm" />
+          </label>
+
           <div class="modal-action">
-            <button type="button" @click="closeModal" class="btn">{{ $t('common.cancel') }}</button>
+            <button type="button" class="btn btn-ghost" @click="closeModal">{{ $t('common.cancel') }}</button>
             <button type="submit" class="btn btn-primary" :disabled="submitting">
-              <span v-if="submitting" class="loading loading-spinner"></span>
-              <span v-else>{{ showEditModal ? $t('dnsManagement.update') : $t('dnsManagement.create') }}</span>
+              <span v-if="submitting" class="loading loading-spinner loading-sm"></span>
+              <span v-else>{{ showEditModal ? $t('uiUser.dns.save') : $t('uiUser.dns.addRecord') }}</span>
             </button>
           </div>
         </form>
@@ -324,30 +326,23 @@
     <!-- Error Details Modal -->
     <dialog class="modal" :class="{ 'modal-open': showErrorModal }">
       <div class="modal-box">
-        <h3 class="font-bold text-lg text-error flex items-center gap-2">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-          </svg>
-          {{ $t('dnsManagement.syncErrorTitle') }}
+        <h3 class="flex items-center gap-2 text-lg font-semibold text-y-text">
+          <AlertTriangle :size="18" :stroke-width="1.5" class="text-y-danger-text" />
+          {{ $t('uiUser.dns.syncErrorTitle') }}
         </h3>
-        
-        <div class="mt-4">
-          <div class="bg-base-200 p-4 rounded-lg">
-            <pre class="text-sm whitespace-pre-wrap break-words font-mono">{{ currentError }}</pre>
-          </div>
+        <p class="mt-1 text-sm text-y-muted">{{ $t('uiUser.dns.syncErrorDesc') }}</p>
+
+        <div class="y-inset mt-5 max-h-72 overflow-auto p-4">
+          <pre class="whitespace-pre-wrap break-words font-mono text-xs text-y-text">{{ currentError }}</pre>
         </div>
 
         <div class="modal-action">
-          <button @click="copyError" class="btn btn-outline gap-2">
-            <svg v-if="!errorCopied" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-            </svg>
-            <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-            </svg>
-            {{ errorCopied ? $t('dnsManagement.copied') : $t('dnsManagement.copyError') }}
+          <button type="button" class="btn btn-ghost" @click="closeErrorModal">{{ $t('common.close') }}</button>
+          <button type="button" class="btn btn-outline gap-1.5" @click="copyError">
+            <Check v-if="errorCopied" :size="16" :stroke-width="1.5" class="text-y-mint-text" />
+            <Copy v-else :size="16" :stroke-width="1.5" />
+            {{ errorCopied ? $t('uiUser.common.copied') : $t('uiUser.dns.copyError') }}
           </button>
-          <button @click="closeErrorModal" class="btn">{{ $t('common.close') }}</button>
         </div>
       </div>
       <form method="dialog" class="modal-backdrop" @click="closeErrorModal">
@@ -356,13 +351,17 @@
     </dialog>
   </div>
 </template>
-
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import axios from '../utils/axios'
 import { useToast } from '../composables/useToast'
+import { ArrowLeft, RefreshCw, Plus, Pencil, Trash2, AlertTriangle, Shield, ShieldCheck, Info, Copy, Check, Upload } from 'lucide-vue-next'
+import PageHeader from '../components/ui/PageHeader.vue'
+import StatusDot from '../components/ui/StatusDot.vue'
+import EmptyState from '../components/ui/EmptyState.vue'
+import YLoader from '../components/brand/YLoader.vue'
 
 const { t } = useI18n()
 const route = useRoute()

@@ -1,287 +1,355 @@
 <template>
-  <div class="container mx-auto px-4 py-8">
-    <div class="flex justify-between items-center mb-6">
-      <h1 class="text-3xl font-bold">{{ $t('adminUsers.title') }}</h1>
-      <div class="text-sm opacity-70">{{ $t('adminUsers.totalCount', { count: pagination.total }) }}</div>
-    </div>
+  <div class="y-page">
+    <PageHeader
+      :eyebrow="$t('uiAdmin2.eyebrow')"
+      :title="$t('uiAdmin2.users.title')"
+      :description="$t('uiAdmin2.users.description')"
+    >
+      <template #actions>
+        <span class="font-mono text-sm text-y-faint">{{ $t('uiAdmin2.users.totalCount', { count: pagination.total }) }}</span>
+      </template>
+    </PageHeader>
 
     <!-- Stats -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-      <div class="stat bg-base-100 rounded-lg shadow">
-        <div class="stat-title">{{ $t('adminUsers.totalUsers') }}</div>
-        <div class="stat-value text-primary">{{ pagination.total }}</div>
+    <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div class="y-panel p-5">
+        <p class="y-label">{{ $t('uiAdmin2.users.stats.total') }}</p>
+        <p class="mt-2 font-mono text-3xl font-medium tracking-tight text-y-text">{{ pagination.total }}</p>
       </div>
-      <div class="stat bg-base-100 rounded-lg shadow">
-        <div class="stat-title">{{ $t('adminUsers.activeUsers') }}</div>
-        <div class="stat-value text-success">{{ activeUsers }}</div>
+      <div class="y-panel p-5">
+        <p class="y-label">{{ $t('uiAdmin2.users.stats.active') }}</p>
+        <p class="mt-2 font-mono text-3xl font-medium tracking-tight text-y-text">{{ activeUsers }}</p>
+        <p class="y-field-hint mt-1">{{ $t('uiAdmin2.onThisPage') }}</p>
       </div>
-      <div class="stat bg-base-100 rounded-lg shadow">
-        <div class="stat-title">{{ $t('adminUsers.admins') }}</div>
-        <div class="stat-value text-warning">{{ adminUsers }}</div>
+      <div class="y-panel p-5">
+        <p class="y-label">{{ $t('uiAdmin2.users.stats.admins') }}</p>
+        <p class="mt-2 font-mono text-3xl font-medium tracking-tight text-y-text">{{ adminUsers }}</p>
+        <p class="y-field-hint mt-1">{{ $t('uiAdmin2.onThisPage') }}</p>
       </div>
-      <div class="stat bg-base-100 rounded-lg shadow">
-        <div class="stat-title">{{ $t('adminUsers.bannedUsers') }}</div>
-        <div class="stat-value text-error">{{ bannedUsers }}</div>
+      <div class="y-panel p-5">
+        <p class="y-label">{{ $t('uiAdmin2.users.stats.banned') }}</p>
+        <p class="mt-2 font-mono text-3xl font-medium tracking-tight" :class="bannedUsers ? 'text-y-danger-text' : 'text-y-text'">{{ bannedUsers }}</p>
+        <p class="y-field-hint mt-1">{{ $t('uiAdmin2.onThisPage') }}</p>
       </div>
     </div>
 
-    <!-- Search Bar -->
-    <div class="mb-6">
-      <div class="relative">
-        <div class="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-        </div>
-        <input
-          v-model="searchQuery"
-          type="text"
-          :placeholder="$t('adminUsers.searchPlaceholder')"
-          class="input input-bordered w-full pl-12 pr-10"
-          @input="debouncedSearch"
-        />
-        <button
-          v-if="searchQuery"
-          @click="clearSearch"
-          class="absolute inset-y-0 right-0 flex items-center pr-4 text-gray-400 hover:text-gray-600"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-          </svg>
+    <!-- Users -->
+    <section class="y-panel">
+      <div class="y-panel-header">
+        <label class="input input-bordered input-sm flex h-10 w-full items-center gap-2 sm:max-w-sm">
+          <Search :size="16" :stroke-width="1.5" class="shrink-0 text-y-faint" />
+          <input
+            v-model="searchQuery"
+            type="text"
+            :placeholder="$t('adminUsers.searchPlaceholder')"
+            class="min-w-0 grow bg-transparent text-sm"
+            @input="debouncedSearch"
+          />
+          <button
+            v-if="searchQuery"
+            type="button"
+            class="btn btn-ghost btn-xs btn-square"
+            :aria-label="$t('uiAdmin2.clearSearch')"
+            :title="$t('uiAdmin2.clearSearch')"
+            @click="clearSearch"
+          >
+            <X :size="14" :stroke-width="1.5" />
+          </button>
+        </label>
+        <p v-if="searchQuery" class="text-sm text-y-muted">
+          {{ $t('adminUsers.searchResults', { count: users.length, query: searchQuery }) }}
+        </p>
+      </div>
+
+      <YLoader v-if="loading && users.length === 0" :label="$t('uiAdmin2.loading')" />
+
+      <EmptyState
+        v-else-if="users.length === 0"
+        :title="$t('uiAdmin2.users.emptyTitle')"
+        :description="searchQuery ? $t('uiAdmin2.users.emptySearchDescription') : $t('uiAdmin2.users.emptyDescription')"
+      >
+        <button v-if="searchQuery" type="button" class="btn btn-outline btn-sm" @click="clearSearch">
+          {{ $t('uiAdmin2.clearSearch') }}
         </button>
-      </div>
-      <p v-if="searchQuery" class="text-sm text-gray-500 mt-2">
-        {{ $t('adminUsers.searchResults', { count: users.length, query: searchQuery }) }}
-      </p>
-    </div>
+      </EmptyState>
 
-    <!-- Users Table -->
-    <div class="overflow-x-auto bg-base-100 rounded-lg shadow">
-      <table class="table w-full">
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>{{ $t('adminUsers.username') }}</th>
-            <th>{{ $t('adminUsers.email') }}</th>
-            <th>{{ $t('adminUsers.level') }}</th>
-            <th>{{ $t('adminUsers.domainQuota') }}</th>
-            <th>{{ $t('adminUsers.status') }}</th>
-            <th>{{ $t('adminUsers.isAdmin') }}</th>
-            <th>{{ $t('adminUsers.registeredAt') }}</th>
-            <th>{{ $t('adminUsers.actions') }}</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="user in users" :key="user.id">
-            <td>{{ user.id }}</td>
-            <td>
-              <div class="font-bold">{{ user.username }}</div>
-              <div class="text-xs opacity-50">{{ $t('adminUsers.inviteCode') }}: {{ user.invite_code }}</div>
-            </td>
-            <td>{{ user.email }}</td>
-            <td>
-              <span :class="['px-2 py-0.5 rounded text-xs font-medium',
-                user.user_level === 'vip' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800']">
-                {{ user.user_level }}
-              </span>
-            </td>
-            <td>{{ user.domain_quota }}</td>
-            <td>
-              <span :class="['px-2 py-0.5 rounded text-xs font-medium',
-                user.status === 'active' ? 'bg-green-100 text-green-800' :
-                user.status === 'banned' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800']">
-                {{ user.status }}
-              </span>
-            </td>
-            <td>
-              <span v-if="user.is_admin" class="px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline" viewBox="0 0 20 20" fill="currentColor">
-                  <path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-                </svg>
-                Admin
-              </span>
-            </td>
-            <td>{{ formatDate(user.created_at) }}</td>
-            <td>
-              <div class="flex gap-1">
-                <button @click="openEditModal(user)" class="btn btn-sm btn-ghost" :title="$t('adminUsers.editTooltip')">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
-                </button>
-                <button @click="viewUserDetails(user)" class="btn btn-sm btn-ghost" :title="$t('adminUsers.detailsTooltip')">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                    <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" />
-                  </svg>
-                </button>
-                <button @click="confirmDelete(user)" class="btn btn-sm btn-ghost text-error" :title="$t('adminUsers.deleteTooltip')" :disabled="user.is_admin">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </button>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-      <div v-if="users.length === 0" class="text-center py-8 text-gray-500">
-        {{ $t('adminUsers.noData') }}
+      <div v-else class="overflow-x-auto">
+        <table class="y-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>{{ $t('adminUsers.username') }}</th>
+              <th>{{ $t('adminUsers.email') }}</th>
+              <th>{{ $t('adminUsers.level') }}</th>
+              <th>{{ $t('adminUsers.domainQuota') }}</th>
+              <th>{{ $t('adminUsers.status') }}</th>
+              <th>{{ $t('adminUsers.isAdmin') }}</th>
+              <th>{{ $t('adminUsers.registeredAt') }}</th>
+              <th class="text-right">{{ $t('adminUsers.actions') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="user in users" :key="user.id">
+              <td class="font-mono text-xs text-y-faint">{{ user.id }}</td>
+              <td>
+                <div class="flex items-center gap-3">
+                  <UserAvatar :src="user.avatar" :name="user.username" :size="32" />
+                  <div class="min-w-0">
+                    <p class="truncate font-medium text-y-text">{{ user.username }}</p>
+                    <p class="truncate font-mono text-xs text-y-faint">{{ user.invite_code }}</p>
+                  </div>
+                </div>
+              </td>
+              <td class="text-y-muted">{{ user.email }}</td>
+              <td>
+                <span :class="user.user_level === 'vip' ? 'y-chip-mint' : 'y-chip'">{{ user.user_level }}</span>
+              </td>
+              <td class="font-mono">{{ user.domain_quota }}</td>
+              <td class="whitespace-nowrap">
+                <StatusDot :tone="userStatusTone(user.status)" :label="userStatusLabel(user.status)" />
+              </td>
+              <td>
+                <span v-if="user.is_admin" class="y-chip-mint">
+                  <ShieldCheck :size="12" :stroke-width="2" />
+                  {{ $t('uiAdmin2.users.admin') }}
+                </span>
+                <span v-else class="text-y-faint">—</span>
+              </td>
+              <td class="min-w-[7.5rem] text-xs leading-5 text-y-muted">{{ formatDate(user.created_at) }}</td>
+              <td>
+                <div class="flex justify-end gap-1">
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-sm btn-square"
+                    :title="$t('adminUsers.editTooltip')"
+                    :aria-label="$t('adminUsers.editTooltip')"
+                    @click="openEditModal(user)"
+                  >
+                    <Pencil :size="16" :stroke-width="1.5" />
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-sm btn-square"
+                    :title="$t('adminUsers.detailsTooltip')"
+                    :aria-label="$t('adminUsers.detailsTooltip')"
+                    @click="viewUserDetails(user)"
+                  >
+                    <Eye :size="16" :stroke-width="1.5" />
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-sm btn-square text-y-danger-text disabled:bg-transparent disabled:text-y-faint"
+                    :title="$t('adminUsers.deleteTooltip')"
+                    :aria-label="$t('adminUsers.deleteTooltip')"
+                    :disabled="user.is_admin"
+                    @click="confirmDelete(user)"
+                  >
+                    <Trash2 :size="16" :stroke-width="1.5" />
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
-    </div>
+    </section>
 
     <!-- Pagination -->
-    <div v-if="pagination.total_pages > 1" class="flex justify-center mt-6">
+    <div v-if="pagination.total_pages > 1" class="flex flex-col items-center justify-between gap-3 sm:flex-row">
+      <p class="font-mono text-xs text-y-faint">{{ $t('uiAdmin2.pageOf', { page: pagination.page, total: pagination.total_pages }) }}</p>
       <div class="join">
         <button
-          class="join-item btn"
+          type="button"
+          class="join-item btn btn-outline btn-sm disabled:border-y-line disabled:bg-transparent disabled:text-y-faint"
           :disabled="pagination.page === 1"
+          :aria-label="$t('uiAdmin2.previousPage')"
           @click="goToPage(pagination.page - 1)"
         >
-          «
+          <ChevronLeft :size="16" :stroke-width="1.5" />
         </button>
         <template v-for="(page, index) in visiblePages" :key="index">
           <button
             v-if="typeof page === 'number'"
-            class="join-item btn"
-            :class="{ 'btn-active': page === pagination.page }"
+            type="button"
+            class="join-item btn btn-outline btn-sm font-mono"
+            :class="{ 'bg-y-surface-2 !text-y-mint-text': page === pagination.page }"
+            :aria-current="page === pagination.page ? 'page' : undefined"
             @click="goToPage(page)"
           >
             {{ page }}
           </button>
-          <button v-else class="join-item btn btn-disabled">
-            ...
-          </button>
+          <button v-else type="button" class="join-item btn btn-outline btn-sm btn-disabled font-mono" tabindex="-1">…</button>
         </template>
         <button
-          class="join-item btn"
+          type="button"
+          class="join-item btn btn-outline btn-sm disabled:border-y-line disabled:bg-transparent disabled:text-y-faint"
           :disabled="pagination.page === pagination.total_pages"
+          :aria-label="$t('uiAdmin2.nextPage')"
           @click="goToPage(pagination.page + 1)"
         >
-          »
+          <ChevronRight :size="16" :stroke-width="1.5" />
         </button>
       </div>
     </div>
 
     <!-- Edit User Modal -->
     <dialog class="modal" :class="{ 'modal-open': showEditModal }">
-      <div class="modal-box">
-        <h3 class="font-bold text-lg mb-4">{{ $t('adminUsers.editUser') }}</h3>
-        <form @submit.prevent="handleUpdateUser" class="space-y-4">
-          <div class="form-control">
-            <label class="label"><span class="label-text">{{ $t('adminUsers.username') }}</span></label>
-            <input v-model="editForm.username" type="text" class="input input-bordered" required minlength="3" />
-          </div>
+      <div class="modal-box relative">
+        <button
+          type="button"
+          class="btn btn-ghost btn-sm btn-square absolute right-3 top-3"
+          :aria-label="$t('uiAdmin2.close')"
+          @click="closeEditModal"
+        >
+          <X :size="16" :stroke-width="1.5" />
+        </button>
+        <h3 class="text-lg font-semibold text-y-text">{{ $t('uiAdmin2.users.editTitle') }}</h3>
+        <p class="mt-1 text-sm text-y-muted">{{ $t('uiAdmin2.users.editDescription') }}</p>
 
-          <div class="form-control">
-            <label class="label"><span class="label-text">{{ $t('adminUsers.email') }}</span></label>
-            <input v-model="editForm.email" type="email" class="input input-bordered" required />
-          </div>
+        <form class="mt-6 space-y-4" @submit.prevent="handleUpdateUser">
+          <label class="y-field">
+            <span class="y-field-label">{{ $t('uiAdmin2.users.fields.username') }}</span>
+            <input v-model="editForm.username" type="text" class="input input-bordered w-full" required minlength="3" />
+          </label>
 
-          <div class="form-control">
-            <label class="label"><span class="label-text">{{ $t('adminUsers.newPassword') }}</span></label>
-            <input v-model="editForm.password" type="password" class="input input-bordered" :placeholder="$t('adminUsers.passwordPlaceholder')" minlength="6" />
-          </div>
+          <label class="y-field">
+            <span class="y-field-label">{{ $t('uiAdmin2.users.fields.email') }}</span>
+            <input v-model="editForm.email" type="email" class="input input-bordered w-full" required />
+          </label>
 
-          <div class="form-control">
-            <label class="label"><span class="label-text">{{ $t('adminUsers.status') }}</span></label>
-            <select v-model="editForm.status" class="select select-bordered">
-              <option value="active">Active</option>
-              <option value="frozen">Frozen</option>
-              <option value="banned">Banned</option>
+          <label class="y-field">
+            <span class="y-field-label">{{ $t('uiAdmin2.users.fields.newPassword') }}</span>
+            <input
+              v-model="editForm.password"
+              type="password"
+              class="input input-bordered w-full"
+              :placeholder="$t('adminUsers.passwordPlaceholder')"
+              minlength="6"
+              autocomplete="new-password"
+            />
+            <span class="y-field-hint">{{ $t('uiAdmin2.users.fields.passwordHint') }}</span>
+          </label>
+
+          <label class="y-field">
+            <span class="y-field-label">{{ $t('uiAdmin2.users.fields.status') }}</span>
+            <select v-model="editForm.status" class="select select-bordered w-full">
+              <option value="active">{{ $t('uiAdmin2.users.status.active') }}</option>
+              <option value="frozen">{{ $t('uiAdmin2.users.status.frozen') }}</option>
+              <option value="banned">{{ $t('uiAdmin2.users.status.banned') }}</option>
             </select>
-          </div>
+          </label>
 
-          <div class="form-control">
-            <label class="label cursor-pointer">
-              <span class="label-text">{{ $t('adminUsers.isAdmin') }}</span>
-              <input v-model="editForm.is_admin" type="checkbox" class="checkbox" />
-            </label>
-          </div>
+          <label class="flex cursor-pointer items-start gap-3 rounded-md border border-y-line px-4 py-3">
+            <input v-model="editForm.is_admin" type="checkbox" class="checkbox checkbox-sm mt-0.5" />
+            <span class="flex flex-col gap-0.5">
+              <span class="y-field-label">{{ $t('uiAdmin2.users.fields.isAdmin') }}</span>
+              <span class="y-field-hint">{{ $t('uiAdmin2.users.fields.isAdminHint') }}</span>
+            </span>
+          </label>
 
           <div class="modal-action">
-            <button type="button" @click="closeEditModal" class="btn">{{ $t('common.cancel') }}</button>
+            <button type="button" class="btn btn-ghost" @click="closeEditModal">{{ $t('uiAdmin2.cancel') }}</button>
             <button type="submit" class="btn btn-primary" :disabled="submitting">
               <span v-if="submitting" class="loading loading-spinner loading-sm"></span>
-              <span v-else>{{ $t('common.save') }}</span>
+              {{ $t('uiAdmin2.saveChanges') }}
             </button>
           </div>
         </form>
       </div>
       <form method="dialog" class="modal-backdrop" @click="closeEditModal">
-        <button>close</button>
+        <button>{{ $t('uiAdmin2.close') }}</button>
       </form>
     </dialog>
 
     <!-- User Details Modal -->
     <dialog class="modal" :class="{ 'modal-open': showDetailsModal }">
-      <div class="modal-box max-w-2xl">
-        <h3 class="font-bold text-lg mb-4">{{ $t('adminUsers.userDetails') }}</h3>
-        <div v-if="selectedUser" class="space-y-4">
-          <div class="grid grid-cols-2 gap-4">
-            <div>
-              <label class="label"><span class="label-text font-semibold">{{ $t('adminUsers.userId') }}</span></label>
-              <div class="text-lg">{{ selectedUser.id }}</div>
-            </div>
-            <div>
-              <label class="label"><span class="label-text font-semibold">{{ $t('adminUsers.username') }}</span></label>
-              <div class="text-lg">{{ selectedUser.username }}</div>
-            </div>
-            <div>
-              <label class="label"><span class="label-text font-semibold">{{ $t('adminUsers.email') }}</span></label>
-              <div class="text-lg">{{ selectedUser.email }}</div>
-            </div>
-            <div>
-              <label class="label"><span class="label-text font-semibold">{{ $t('adminUsers.inviteCode') }}</span></label>
-              <div class="text-lg font-mono">{{ selectedUser.invite_code }}</div>
-            </div>
-            <div>
-              <label class="label"><span class="label-text font-semibold">{{ $t('adminUsers.userLevel') }}</span></label>
-              <div class="text-lg">{{ selectedUser.user_level }}</div>
-            </div>
-            <div>
-              <label class="label"><span class="label-text font-semibold">{{ $t('adminUsers.domainQuota') }}</span></label>
-              <div class="text-lg">{{ selectedUser.domain_quota }}</div>
-            </div>
-            <div>
-              <label class="label"><span class="label-text font-semibold">{{ $t('adminUsers.status') }}</span></label>
-              <div class="text-lg">{{ selectedUser.status }}</div>
-            </div>
-            <div>
-              <label class="label"><span class="label-text font-semibold">{{ $t('adminUsers.isAdmin') }}</span></label>
-              <div class="text-lg">{{ selectedUser.is_admin ? $t('common.yes') : $t('common.no') }}</div>
-            </div>
-            <div>
-              <label class="label"><span class="label-text font-semibold">{{ $t('adminUsers.registeredAt') }}</span></label>
-              <div class="text-lg">{{ formatDate(selectedUser.created_at) }}</div>
-            </div>
-            <div>
-              <label class="label"><span class="label-text font-semibold">{{ $t('adminUsers.lastLogin') }}</span></label>
-              <div class="text-lg">{{ selectedUser.last_login_at ? formatDate(selectedUser.last_login_at) : $t('adminUsers.never') }}</div>
+      <div class="modal-box relative max-w-2xl">
+        <button
+          type="button"
+          class="btn btn-ghost btn-sm btn-square absolute right-3 top-3"
+          :aria-label="$t('uiAdmin2.close')"
+          @click="showDetailsModal = false"
+        >
+          <X :size="16" :stroke-width="1.5" />
+        </button>
+        <h3 class="text-lg font-semibold text-y-text">{{ $t('uiAdmin2.users.detailsTitle') }}</h3>
+
+        <div v-if="selectedUser" class="mt-6 space-y-5">
+          <div class="flex items-center gap-4">
+            <UserAvatar :src="selectedUser.avatar" :name="selectedUser.username" :size="48" />
+            <div class="min-w-0">
+              <p class="truncate text-base font-semibold text-y-text">{{ selectedUser.username }}</p>
+              <p class="truncate text-sm text-y-muted">{{ selectedUser.email }}</p>
             </div>
           </div>
+
+          <dl class="grid grid-cols-1 gap-x-6 gap-y-4 rounded-md border border-y-line p-4 sm:grid-cols-2">
+            <div>
+              <dt class="y-label">{{ $t('adminUsers.userId') }}</dt>
+              <dd class="mt-1 font-mono text-sm text-y-text">{{ selectedUser.id }}</dd>
+            </div>
+            <div>
+              <dt class="y-label">{{ $t('adminUsers.inviteCode') }}</dt>
+              <dd class="mt-1 font-mono text-sm text-y-text">{{ selectedUser.invite_code }}</dd>
+            </div>
+            <div>
+              <dt class="y-label">{{ $t('adminUsers.userLevel') }}</dt>
+              <dd class="mt-1">
+                <span :class="selectedUser.user_level === 'vip' ? 'y-chip-mint' : 'y-chip'">{{ selectedUser.user_level }}</span>
+              </dd>
+            </div>
+            <div>
+              <dt class="y-label">{{ $t('adminUsers.domainQuota') }}</dt>
+              <dd class="mt-1 font-mono text-sm text-y-text">{{ selectedUser.domain_quota }}</dd>
+            </div>
+            <div>
+              <dt class="y-label">{{ $t('adminUsers.status') }}</dt>
+              <dd class="mt-1">
+                <StatusDot :tone="userStatusTone(selectedUser.status)" :label="userStatusLabel(selectedUser.status)" />
+              </dd>
+            </div>
+            <div>
+              <dt class="y-label">{{ $t('adminUsers.isAdmin') }}</dt>
+              <dd class="mt-1 text-sm text-y-text">{{ selectedUser.is_admin ? $t('uiAdmin2.yes') : $t('uiAdmin2.no') }}</dd>
+            </div>
+            <div>
+              <dt class="y-label">{{ $t('adminUsers.registeredAt') }}</dt>
+              <dd class="mt-1 text-sm text-y-text">{{ formatDate(selectedUser.created_at) }}</dd>
+            </div>
+            <div>
+              <dt class="y-label">{{ $t('adminUsers.lastLogin') }}</dt>
+              <dd class="mt-1 text-sm text-y-text">{{ selectedUser.last_login_at ? formatDate(selectedUser.last_login_at) : $t('adminUsers.never') }}</dd>
+            </div>
+          </dl>
         </div>
+
         <div class="modal-action">
-          <button @click="showDetailsModal = false" class="btn">{{ $t('common.close') }}</button>
+          <button type="button" class="btn btn-ghost" @click="showDetailsModal = false">{{ $t('uiAdmin2.close') }}</button>
         </div>
       </div>
       <form method="dialog" class="modal-backdrop" @click="showDetailsModal = false">
-        <button>close</button>
+        <button>{{ $t('uiAdmin2.close') }}</button>
       </form>
     </dialog>
   </div>
 </template>
-
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import axios from '../utils/axios'
 import { useToast } from '../composables/useToast'
+import { Search, X, Pencil, Eye, Trash2, ShieldCheck, ChevronLeft, ChevronRight } from 'lucide-vue-next'
+import PageHeader from '../components/ui/PageHeader.vue'
+import StatusDot from '../components/ui/StatusDot.vue'
+import EmptyState from '../components/ui/EmptyState.vue'
+import UserAvatar from '../components/ui/UserAvatar.vue'
+import YLoader from '../components/brand/YLoader.vue'
 
 const { t } = useI18n()
 const toast = useToast()
 
 const users = ref([])
+const loading = ref(true)
 const searchQuery = ref('')
 const showDetailsModal = ref(false)
 const showEditModal = ref(false)
@@ -332,6 +400,8 @@ const fetchUsers = async (search = '') => {
     }
   } catch (error) {
     toast.error(t('adminUsers.fetchFailed'))
+  } finally {
+    loading.value = false
   }
 }
 
@@ -461,6 +531,11 @@ const deleteUser = async (user) => {
     toast.error(t('adminUsers.deleteFailed') + ': ' + (error.response?.data?.error || error.message))
   }
 }
+
+const userStatusTone = (status) => ({ active: 'ok', frozen: 'warn', banned: 'danger' }[status] || 'muted')
+
+const userStatusLabel = (status) =>
+  ['active', 'frozen', 'banned'].includes(status) ? t(`uiAdmin2.users.status.${status}`) : status
 
 const formatDate = (date) => {
   return new Date(date).toLocaleString()

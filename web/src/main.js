@@ -11,4 +11,7 @@ app.use(createPinia())
 app.use(router)
 app.use(i18n)
 
-app.mount('#app')
+document.documentElement.setAttribute('lang', i18n.global.locale.value)
+
+// Wait for the first route so the correct layout renders on load.
+router.isReady().then(() => app.mount('#app'))

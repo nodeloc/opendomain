@@ -1,89 +1,17 @@
 <template>
-  <div class="toast toast-top toast-end" style="z-index: 9999;">
+  <div class="pointer-events-none fixed right-4 top-4 z-[9999] flex w-[min(24rem,calc(100vw-2rem))] flex-col gap-2">
     <TransitionGroup name="toast">
       <div
         v-for="notification in notifications"
         :key="notification.id"
-        class="alert shadow-lg max-w-md"
-        :class="getAlertClass(notification.type)"
+        class="pointer-events-auto flex items-start gap-3 rounded-md border bg-y-surface px-4 py-3 text-sm"
+        :class="toneClass(notification.type)"
+        role="status"
       >
-        <div class="flex items-center gap-3">
-          <svg
-            v-if="notification.type === 'success'"
-            xmlns="http://www.w3.org/2000/svg"
-            class="stroke-current shrink-0 h-6 w-6"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
-          </svg>
-          <svg
-            v-else-if="notification.type === 'error'"
-            xmlns="http://www.w3.org/2000/svg"
-            class="stroke-current shrink-0 h-6 w-6"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
-          </svg>
-          <svg
-            v-else-if="notification.type === 'warning'"
-            xmlns="http://www.w3.org/2000/svg"
-            class="stroke-current shrink-0 h-6 w-6"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-            />
-          </svg>
-          <svg
-            v-else
-            xmlns="http://www.w3.org/2000/svg"
-            class="stroke-current shrink-0 h-6 w-6"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
-          </svg>
-          <span class="whitespace-pre-line">{{ notification.message }}</span>
-        </div>
-        <button
-          class="btn btn-sm btn-ghost btn-circle"
-          @click="remove(notification.id)"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            class="h-5 w-5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M6 18L18 6M6 6l12 12"
-            />
-          </svg>
+        <component :is="iconFor(notification.type)" :size="18" :stroke-width="1.5" class="mt-0.5 shrink-0" :class="iconClass(notification.type)" />
+        <span class="flex-1 whitespace-pre-line leading-5 text-y-text">{{ notification.message }}</span>
+        <button type="button" class="-mr-1 shrink-0 rounded-sm p-0.5 text-y-faint hover:text-y-text" :aria-label="$t('common.close')" @click="remove(notification.id)">
+          <X :size="16" :stroke-width="1.5" />
         </button>
       </div>
     </TransitionGroup>
@@ -91,38 +19,40 @@
 </template>
 
 <script setup>
+import { CircleCheck, CircleX, TriangleAlert, Info, X } from 'lucide-vue-next'
 import { useToast } from '../composables/useToast'
 
 const { notifications, remove } = useToast()
 
-const getAlertClass = (type) => {
-  const classes = {
-    success: 'alert-success',
-    error: 'alert-error',
-    warning: 'alert-warning',
-    info: 'alert-info'
-  }
-  return classes[type] || 'alert-info'
-}
+const iconFor = (type) => ({ success: CircleCheck, error: CircleX, warning: TriangleAlert }[type] || Info)
+
+const toneClass = (type) => ({
+  success: 'border-y-mint/40',
+  error: 'border-y-danger/40',
+  warning: 'border-y-warn/40',
+}[type] || 'border-y-line-strong')
+
+const iconClass = (type) => ({
+  success: 'text-y-mint-text',
+  error: 'text-y-danger-text',
+  warning: 'text-y-warn',
+}[type] || 'text-y-info')
 </script>
 
 <style scoped>
 .toast-enter-active,
 .toast-leave-active {
-  transition: all 0.3s ease;
+  transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
-
 .toast-enter-from {
   opacity: 0;
-  transform: translateX(100%);
+  transform: translateY(-8px);
 }
-
 .toast-leave-to {
   opacity: 0;
-  transform: translateX(100%) scale(0.8);
+  transform: translateX(16px);
 }
-
 .toast-move {
-  transition: transform 0.3s ease;
+  transition: transform 0.25s ease;
 }
 </style>

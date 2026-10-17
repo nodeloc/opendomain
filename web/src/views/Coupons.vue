@@ -1,198 +1,91 @@
 <template>
-  <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8 max-w-7xl space-y-8">
-    <!-- Header Section -->
-    <div class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/10 via-secondary/5 to-accent/10 p-8 backdrop-blur-sm">
-      <div class="relative z-10">
-        <div class="flex items-center gap-3 mb-2">
-          <div class="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          <h1 class="text-4xl font-bold">{{ $t('coupon.title') }}</h1>
-        </div>
-        <p class="text-lg opacity-70 max-w-2xl">{{ $t('coupon.applyCode') }}</p>
+  <div class="y-page">
+    <PageHeader :eyebrow="$t('uiUser.coupons.eyebrow')" :title="$t('uiUser.coupons.title')" :description="$t('uiUser.coupons.description')" />
+
+    <!-- Redeem -->
+    <section class="y-panel">
+      <div class="y-panel-header">
+        <h2 class="y-h3">{{ $t('uiUser.coupons.redeemTitle') }}</h2>
       </div>
-      <div class="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl"></div>
-      <div class="absolute bottom-0 left-0 w-48 h-48 bg-secondary/5 rounded-full blur-3xl"></div>
-    </div>
-
-    <!-- Apply Coupon Card -->
-    <div class="card bg-base-100 shadow-2xl border border-base-300 hover:shadow-primary/20 transition-all duration-300">
-      <div class="card-body">
-        <div class="flex items-center gap-3 mb-4">
-          <div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
-            </svg>
-          </div>
-          <h2 class="card-title text-2xl">{{ $t('coupon.applyCode') }}</h2>
-        </div>
-
-        <form @submit.prevent="applyCoupon" class="space-y-4">
-          <div class="form-control">
-            <label class="label">
-              <span class="label-text font-semibold text-base">{{ $t('coupon.enterCode') }}</span>
-              <span class="label-text-alt opacity-60">{{ $t('coupon.caseInsensitive') }}</span>
+      <form class="space-y-4 px-5 py-5" @submit.prevent="applyCoupon">
+        <div class="y-field">
+          <label for="coupon-code" class="y-field-label">{{ $t('uiUser.coupons.codeLabel') }}</label>
+          <div class="flex flex-col gap-2 sm:flex-row">
+            <label class="input input-bordered flex min-w-0 items-center gap-3 sm:flex-1">
+              <Ticket :size="18" :stroke-width="1.5" class="shrink-0 text-y-faint" />
+              <input
+                id="coupon-code"
+                v-model="couponCode"
+                type="text"
+                :placeholder="$t('coupon.placeholder')"
+                class="min-w-0 grow bg-transparent font-mono uppercase tracking-wide outline-none placeholder:normal-case placeholder:tracking-normal focus-visible:outline-none"
+                autocomplete="off"
+                autocapitalize="characters"
+                spellcheck="false"
+                :disabled="applying"
+              />
             </label>
-            <div class="flex gap-3">
-              <div class="relative flex-1">
-                <input
-                  v-model="couponCode"
-                  type="text"
-                  :placeholder="$t('coupon.placeholder')"
-                  class="input input-bordered input-lg w-full pl-12 font-mono uppercase focus:input-primary transition-all"
-                  :disabled="applying"
-                />
-                <div class="absolute left-4 top-1/2 -translate-y-1/2 text-base-content/40">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                  </svg>
-                </div>
-              </div>
-              <button
-                type="submit"
-                class="btn btn-primary btn-lg px-8 gap-2 hover:scale-105 transition-transform"
-                :disabled="!couponCode || applying"
-              >
-                <span v-if="applying" class="loading loading-spinner loading-sm"></span>
-                <span v-else>
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                  </svg>
-                </span>
-                <span>{{ $t('coupon.apply') }}</span>
-              </button>
-            </div>
+            <button type="submit" class="btn btn-primary gap-1.5 px-6" :disabled="!couponCode || applying">
+              <span v-if="applying" class="loading loading-spinner loading-sm"></span>
+              <Check v-else :size="16" :stroke-width="1.5" />
+              {{ $t('uiUser.coupons.redeem') }}
+            </button>
           </div>
+          <span class="y-field-hint">{{ $t('uiUser.coupons.caseHint') }}</span>
+        </div>
 
-          <div class="alert alert-info shadow-lg">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-            </svg>
-            <span>{{ $t('coupon.infoText') }}</span>
-          </div>
-        </form>
+        <div class="y-inset flex items-start gap-3 px-4 py-3 text-sm text-y-muted">
+          <Info :size="16" :stroke-width="1.5" class="mt-0.5 shrink-0 text-y-info" />
+          <span>{{ $t('coupon.infoText') }}</span>
+        </div>
+      </form>
+    </section>
+
+    <!-- History -->
+    <section class="y-panel">
+      <div class="y-panel-header">
+        <h2 class="y-h3">{{ $t('uiUser.coupons.historyTitle') }}</h2>
+        <span v-if="usageHistory.length > 0" class="y-chip font-mono">{{ $t('uiUser.coupons.usedCount', usageHistory.length) }}</span>
       </div>
-    </div>
 
-    <!-- Usage History -->
-    <div class="card bg-base-100 shadow-2xl border border-base-300">
-      <div class="card-body">
-        <div class="flex items-center justify-between mb-4">
-          <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-lg bg-secondary/10 flex items-center justify-center">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
-            </div>
-            <h2 class="card-title text-2xl">{{ $t('coupon.myHistory') }}</h2>
-          </div>
-          <div v-if="usageHistory.length > 0" class="px-2 py-1 rounded text-sm font-medium inline-flex items-center gap-2 bg-purple-100 text-purple-800">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            {{ usageHistory.length }} {{ $t('coupon.used') }}
-          </div>
-        </div>
+      <YLoader v-if="loadingHistory" :label="$t('uiUser.common.loading')" />
 
-        <div v-if="loadingHistory" class="flex justify-center py-16">
-          <span class="loading loading-spinner loading-lg text-primary"></span>
-        </div>
+      <EmptyState v-else-if="usageHistory.length === 0" :title="$t('uiUser.coupons.emptyTitle')" :description="$t('uiUser.coupons.emptyDesc')" />
 
-        <div v-else-if="usageHistory.length === 0" class="text-center py-16">
-          <div class="flex justify-center mb-6">
-            <div class="relative">
-              <div class="w-32 h-32 rounded-full bg-base-200 flex items-center justify-center">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-base-content/20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
-                </svg>
-              </div>
-              <div class="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-primary/20 animate-pulse"></div>
-              <div class="absolute -bottom-2 -left-2 w-6 h-6 rounded-full bg-secondary/20 animate-pulse" style="animation-delay: 0.5s"></div>
-            </div>
-          </div>
-          <h3 class="text-xl font-semibold mb-2">{{ $t('coupon.noHistory') }}</h3>
-          <p class="text-base-content/60 max-w-md mx-auto">{{ $t('coupon.noHistoryDesc') }}</p>
-        </div>
-
-        <div v-else class="overflow-x-auto">
-          <table class="table table-zebra">
-            <thead>
-              <tr class="border-b-2 border-base-300">
-                <th class="bg-base-200">
-                  <div class="flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
-                    </svg>
-                    {{ $t('coupon.code') }}
-                  </div>
-                </th>
-                <th class="bg-base-200">
-                  <div class="flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                    </svg>
-                    {{ $t('coupon.type') }}
-                  </div>
-                </th>
-                <th class="bg-base-200">
-                  <div class="flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    {{ $t('coupon.benefit') }}
-                  </div>
-                </th>
-                <th class="bg-base-200">
-                  <div class="flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                    {{ $t('coupon.usedAt') }}
-                  </div>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="usage in usageHistory" :key="usage.id" class="hover:bg-base-200/50 transition-colors">
-                <td>
-                  <div class="flex items-center gap-2">
-                    <div class="px-2 py-1 rounded border text-sm font-mono font-bold border-base-300">
-                      {{ usage.coupon?.code }}
-                    </div>
-                  </div>
-                </td>
-                <td>
-                  <div :class="getBadgeClass(usage.coupon?.discount_type)">
-                    {{ formatType(usage.coupon?.discount_type) }}
-                  </div>
-                </td>
-                <td>
-                  <span class="font-semibold text-success">{{ usage.benefit_applied }}</span>
-                </td>
-                <td>
-                  <div class="flex items-center gap-2 text-sm opacity-70">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    {{ formatDate(usage.used_at) }}
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+      <div v-else class="overflow-x-auto">
+        <table class="y-table">
+          <thead>
+            <tr>
+              <th>{{ $t('coupon.code') }}</th>
+              <th>{{ $t('coupon.type') }}</th>
+              <th>{{ $t('coupon.benefit') }}</th>
+              <th>{{ $t('coupon.usedAt') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="usage in usageHistory" :key="usage.id">
+              <td class="whitespace-nowrap font-mono text-[13px] font-medium">{{ usage.coupon?.code }}</td>
+              <td class="whitespace-nowrap">
+                <span :class="getBadgeClass(usage.coupon?.discount_type)">{{ formatType(usage.coupon?.discount_type) }}</span>
+              </td>
+              <td class="text-y-text">{{ usage.benefit_applied }}</td>
+              <td class="whitespace-nowrap font-mono text-[13px] text-y-muted">{{ formatDate(usage.used_at) }}</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
-    </div>
+    </section>
   </div>
 </template>
-
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import axios from '../utils/axios'
 import { useToast } from '../composables/useToast'
+import { Ticket, Check, Info } from 'lucide-vue-next'
+import PageHeader from '../components/ui/PageHeader.vue'
+import EmptyState from '../components/ui/EmptyState.vue'
+import YLoader from '../components/brand/YLoader.vue'
 
 const { t } = useI18n()
 const toast = useToast()
@@ -268,10 +161,10 @@ const formatDate = (dateString) => {
 
 const getBadgeClass = (type) => {
   const classes = {
-    quota_increase: 'px-2 py-1 rounded text-sm font-medium inline-flex items-center gap-2 bg-blue-100 text-blue-800',
-    percentage: 'px-2 py-1 rounded text-sm font-medium inline-flex items-center gap-2 bg-purple-100 text-purple-800',
-    fixed: 'px-2 py-1 rounded text-sm font-medium inline-flex items-center gap-2 bg-pink-100 text-pink-800',
+    quota_increase: 'y-chip-mint',
+    percentage: 'y-chip-info',
+    fixed: 'y-chip-info',
   }
-  return classes[type] || 'px-2 py-1 rounded text-sm font-medium inline-flex items-center gap-2 bg-gray-100 text-gray-800'
+  return classes[type] || 'y-chip'
 }
 </script>

@@ -1,239 +1,187 @@
 <template>
-  <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8 max-w-7xl space-y-6">
-    <!-- Header -->
-    <div class="flex justify-between items-center">
-      <div>
-        <div class="flex items-center gap-3 mb-2">
-          <router-link to="/admin/root-domains" class="btn btn-ghost btn-sm gap-1">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-            </svg>
-            {{ $t('admin.backToRootDomains') }}
-          </router-link>
-        </div>
-        <h1 class="text-3xl font-bold">{{ rootDomain ? $t('admin.domainsUnder', { domain: rootDomain.domain }) : '...' }}</h1>
-      </div>
+  <div class="y-page">
+    <div class="space-y-4">
+      <router-link to="/admin/root-domains" class="btn btn-ghost btn-sm -ml-3 gap-1.5 text-y-muted">
+        <ArrowLeft :size="16" :stroke-width="1.5" />
+        {{ $t('admin.backToRootDomains') }}
+      </router-link>
+      <PageHeader :eyebrow="$t('shell.adminArea')" :description="$t('uiAdmin1.rootDomainDomains.description')">
+        <template #title>
+          <template v-if="rootDomain">{{ $t('admin.domainsUnder', { domain: rootDomain.domain }) }}</template>
+          <span v-else class="text-y-faint">…</span>
+        </template>
+        <template #actions>
+          <span class="y-chip font-mono">{{ $t('uiAdmin1.domainCount', { count: domains.length }) }}</span>
+        </template>
+      </PageHeader>
     </div>
 
-    <!-- Search -->
-    <div class="flex gap-4">
-      <div class="form-control flex-1 max-w-md">
-        <div class="relative">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 absolute left-3 top-1/2 -translate-y-1/2 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
+    <section class="y-panel overflow-hidden">
+      <div class="y-panel-header">
+        <label class="relative block w-full sm:max-w-sm">
+          <span class="sr-only">{{ $t('common.search') }}</span>
+          <Search :size="16" :stroke-width="1.5" class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-y-faint" />
           <input
             v-model="searchQuery"
             type="text"
             :placeholder="$t('admin.searchDomains')"
-            class="input input-bordered w-full pl-10"
+            class="input input-bordered h-10 min-h-0 w-full pl-9 font-mono text-sm"
             @input="debouncedSearch"
           />
-        </div>
+        </label>
       </div>
-      <div class="text-sm opacity-70 flex items-center">
-        {{ domains.length }} {{ $t('admin.totalDomains') }}
+
+      <YLoader v-if="loading" :label="$t('common.loading')" />
+
+      <EmptyState v-else-if="domains.length === 0" :title="$t('admin.noDomains')" :description="$t('admin.noDomainsDesc')" />
+
+      <div v-else class="overflow-x-auto">
+        <table class="y-table">
+          <thead>
+            <tr>
+              <th>{{ $t('adminDomains.domain') }}</th>
+              <th>{{ $t('admin.owner') }}</th>
+              <th>{{ $t('admin.status') }}</th>
+              <th>{{ $t('admin.dnsSynced') }}</th>
+              <th>{{ $t('admin.registeredAt') }}</th>
+              <th>{{ $t('admin.expiresAt') }}</th>
+              <th class="text-right">{{ $t('admin.actions') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="domain in domains" :key="domain.id">
+              <td>
+                <span class="y-domain block">{{ domain.full_domain }}</span>
+                <span class="font-mono text-xs text-y-faint">ID {{ domain.id }}</span>
+              </td>
+              <td>
+                <div v-if="domain.user" class="min-w-0">
+                  <span class="block text-sm font-medium text-y-text">{{ domain.user.username }}</span>
+                  <span class="block text-xs text-y-faint">{{ domain.user.email }}</span>
+                </div>
+                <span v-else class="text-y-faint">—</span>
+              </td>
+              <td>
+                <StatusDot :tone="statusTone(domain.status)" :label="getStatusLabel(domain.status)" />
+              </td>
+              <td>
+                <StatusDot :tone="domain.dns_synced ? 'ok' : 'warn'" :label="domain.dns_synced ? $t('admin.yes') : $t('admin.no')" />
+              </td>
+              <td class="whitespace-nowrap text-sm text-y-muted">{{ formatDate(domain.registered_at) }}</td>
+              <td class="whitespace-nowrap text-sm text-y-muted">{{ formatDate(domain.expires_at) }}</td>
+              <td>
+                <div class="flex justify-end gap-1">
+                  <button
+                    v-if="domain.user"
+                    type="button"
+                    class="btn btn-ghost btn-sm btn-square"
+                    :title="$t('admin.viewUser')"
+                    :aria-label="$t('admin.viewUser')"
+                    @click="viewUser(domain.user)"
+                  >
+                    <UserRound :size="16" :stroke-width="1.5" />
+                  </button>
+                  <button
+                    v-if="domain.status === 'active'"
+                    type="button"
+                    class="btn btn-ghost btn-sm btn-square text-y-warn"
+                    :title="$t('admin.suspend')"
+                    :aria-label="$t('admin.suspend')"
+                    @click="updateDomainStatus(domain, 'suspended')"
+                  >
+                    <Ban :size="16" :stroke-width="1.5" />
+                  </button>
+                  <button
+                    v-else-if="domain.status === 'suspended'"
+                    type="button"
+                    class="btn btn-ghost btn-sm btn-square text-y-mint-text"
+                    :title="$t('admin.activate')"
+                    :aria-label="$t('admin.activate')"
+                    @click="updateDomainStatus(domain, 'active')"
+                  >
+                    <CircleCheck :size="16" :stroke-width="1.5" />
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-sm btn-square text-y-danger-text"
+                    :title="$t('admin.delete')"
+                    :aria-label="$t('admin.delete')"
+                    @click="deleteDomain(domain)"
+                  >
+                    <Trash2 :size="16" :stroke-width="1.5" />
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
-    </div>
-
-    <!-- Loading -->
-    <div v-if="loading" class="flex justify-center py-12">
-      <span class="loading loading-spinner loading-lg"></span>
-    </div>
-
-    <!-- Empty State -->
-    <div v-else-if="domains.length === 0" class="card bg-base-200 shadow-xl">
-      <div class="card-body items-center text-center py-12">
-        <div class="mb-6">
-          <div class="w-24 h-24 rounded-full bg-base-300 flex items-center justify-center mx-auto">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-base-content opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
-            </svg>
-          </div>
-        </div>
-        <h3 class="card-title text-2xl mb-2">{{ $t('admin.noDomains') }}</h3>
-        <p class="mb-4 opacity-70">{{ $t('admin.noDomainsDesc') }}</p>
-      </div>
-    </div>
-
-    <!-- Domains Table -->
-    <div v-else class="overflow-x-auto bg-base-100 rounded-lg shadow">
-      <table class="table table-zebra w-full">
-        <thead>
-          <tr>
-            <th>{{ $t('admin.totalDomains') }}</th>
-            <th>{{ $t('admin.owner') }}</th>
-            <th>{{ $t('admin.status') }}</th>
-            <th>{{ $t('admin.dnsSynced') }}</th>
-            <th>{{ $t('admin.registeredAt') }}</th>
-            <th>{{ $t('admin.expiresAt') }}</th>
-            <th>{{ $t('admin.actions') }}</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="domain in domains" :key="domain.id">
-            <td>
-              <div class="font-mono font-bold">{{ domain.full_domain }}</div>
-              <div class="text-xs opacity-50">ID: {{ domain.id }}</div>
-            </td>
-            <td>
-              <div v-if="domain.user">
-                <div class="font-bold">{{ domain.user.username }}</div>
-                <div class="text-xs opacity-50">{{ domain.user.email }}</div>
-              </div>
-              <span v-else class="opacity-40">-</span>
-            </td>
-            <td>
-              <span
-                class="px-2 py-0.5 rounded-full text-xs font-medium inline-flex items-center gap-1"
-                :class="getStatusClass(domain.status)"
-              >
-                <svg v-if="domain.status === 'active'" xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <svg v-else-if="domain.status === 'suspended'" xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                </svg>
-                <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                {{ getStatusLabel(domain.status) }}
-              </span>
-            </td>
-            <td>
-              <span
-                class="px-2 py-0.5 rounded-full text-xs font-medium inline-flex items-center gap-1"
-                :class="domain.dns_synced ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'"
-              >
-                <svg v-if="domain.dns_synced" xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                </svg>
-                <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                {{ domain.dns_synced ? $t('admin.yes') : $t('admin.no') }}
-              </span>
-            </td>
-            <td class="text-sm">{{ formatDate(domain.registered_at) }}</td>
-            <td class="text-sm">{{ formatDate(domain.expires_at) }}</td>
-            <td>
-              <div class="flex gap-1">
-                <button
-                  v-if="domain.user"
-                  @click="viewUser(domain.user)"
-                  class="btn btn-ghost btn-sm btn-square"
-                  :title="$t('admin.viewUser')"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                </button>
-                <button
-                  v-if="domain.status === 'active'"
-                  @click="updateDomainStatus(domain, 'suspended')"
-                  class="btn btn-ghost btn-sm btn-square text-warning"
-                  :title="$t('admin.suspend')"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                  </svg>
-                </button>
-                <button
-                  v-else-if="domain.status === 'suspended'"
-                  @click="updateDomainStatus(domain, 'active')"
-                  class="btn btn-ghost btn-sm btn-square text-success"
-                  :title="$t('admin.activate')"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </button>
-                <button
-                  @click="deleteDomain(domain)"
-                  class="btn btn-ghost btn-sm btn-square text-error"
-                  :title="$t('admin.delete')"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </button>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+    </section>
 
     <!-- User Detail Modal -->
     <dialog :class="{ 'modal': true, 'modal-open': showUserModal }">
       <div class="modal-box w-11/12 max-w-2xl">
-        <h3 class="font-bold text-lg mb-4">{{ $t('admin.userInfo') }}</h3>
-        <div v-if="selectedUser" class="space-y-4">
-          <div class="grid grid-cols-2 gap-4">
+        <h3 class="text-lg font-semibold text-y-text">{{ $t('admin.userInfo') }}</h3>
+        <div v-if="selectedUser" class="mt-5 space-y-5">
+          <dl class="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
             <div>
-              <label class="label"><span class="label-text font-semibold">ID</span></label>
-              <div>{{ selectedUser.id }}</div>
+              <dt class="y-label">{{ $t('uiAdmin1.id') }}</dt>
+              <dd class="mt-1 font-mono text-sm text-y-text">{{ selectedUser.id }}</dd>
             </div>
             <div>
-              <label class="label"><span class="label-text font-semibold">{{ $t('admin.users') }}</span></label>
-              <div class="font-bold">{{ selectedUser.username }}</div>
+              <dt class="y-label">{{ $t('uiAdmin1.username') }}</dt>
+              <dd class="mt-1 text-sm font-medium text-y-text">{{ selectedUser.username }}</dd>
             </div>
             <div>
-              <label class="label"><span class="label-text font-semibold">Email</span></label>
-              <div>{{ selectedUser.email }}</div>
+              <dt class="y-label">{{ $t('uiAdmin1.email') }}</dt>
+              <dd class="mt-1 break-all text-sm text-y-text">{{ selectedUser.email }}</dd>
             </div>
             <div>
-              <label class="label"><span class="label-text font-semibold">{{ $t('admin.status') }}</span></label>
-              <div>
-                <span
-                  class="px-2 py-0.5 rounded-full text-xs font-medium inline-flex items-center gap-1"
-                  :class="getUserStatusClass(selectedUser.status)"
-                >
-                  {{ selectedUser.status }}
-                </span>
-              </div>
+              <dt class="y-label">{{ $t('admin.status') }}</dt>
+              <dd class="mt-1">
+                <span :class="getUserStatusClass(selectedUser.status)">{{ getUserStatusLabel(selectedUser.status) }}</span>
+              </dd>
             </div>
             <div>
-              <label class="label"><span class="label-text font-semibold">{{ $t('admin.registeredAt') }}</span></label>
-              <div>{{ formatDate(selectedUser.created_at) }}</div>
+              <dt class="y-label">{{ $t('admin.registeredAt') }}</dt>
+              <dd class="mt-1 text-sm text-y-text">{{ formatDate(selectedUser.created_at) }}</dd>
             </div>
             <div>
-              <label class="label"><span class="label-text font-semibold">Domain Quota</span></label>
-              <div>{{ selectedUser.domain_quota }}</div>
+              <dt class="y-label">{{ $t('uiAdmin1.domainQuota') }}</dt>
+              <dd class="mt-1 font-mono text-sm text-y-text">{{ selectedUser.domain_quota }}</dd>
             </div>
-          </div>
+          </dl>
 
-          <div class="divider"></div>
-
-          <div class="flex gap-2">
+          <div
+            v-if="selectedUser.status === 'active' || selectedUser.status === 'banned' || selectedUser.status === 'frozen'"
+            class="y-divider pt-5"
+          >
             <button
               v-if="selectedUser.status === 'active'"
+              type="button"
+              class="btn btn-outline btn-sm gap-1.5 text-y-danger-text"
               @click="updateUserStatus(selectedUser, 'banned')"
-              class="btn btn-warning btn-sm gap-1"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-              </svg>
+              <Ban :size="16" :stroke-width="1.5" />
               {{ $t('admin.suspend') }}
             </button>
             <button
-              v-else-if="selectedUser.status === 'banned' || selectedUser.status === 'frozen'"
+              v-else
+              type="button"
+              class="btn btn-primary btn-sm gap-1.5"
               @click="updateUserStatus(selectedUser, 'active')"
-              class="btn btn-success btn-sm gap-1"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+              <CircleCheck :size="16" :stroke-width="1.5" />
               {{ $t('admin.activate') }}
             </button>
           </div>
         </div>
         <div class="modal-action">
-          <button @click="showUserModal = false" class="btn">{{ $t('admin.close') }}</button>
+          <button type="button" class="btn btn-ghost" @click="showUserModal = false">{{ $t('admin.close') }}</button>
         </div>
       </div>
       <form method="dialog" class="modal-backdrop">
-        <button type="button" @click="showUserModal = false">close</button>
+        <button type="button" @click="showUserModal = false">{{ $t('common.close') }}</button>
       </form>
     </dialog>
   </div>
@@ -245,6 +193,11 @@ import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import axios from '../utils/axios'
 import { useToast } from '../composables/useToast'
+import { ArrowLeft, Search, UserRound, Ban, CircleCheck, Trash2 } from 'lucide-vue-next'
+import PageHeader from '../components/ui/PageHeader.vue'
+import StatusDot from '../components/ui/StatusDot.vue'
+import EmptyState from '../components/ui/EmptyState.vue'
+import YLoader from '../components/brand/YLoader.vue'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -343,13 +296,13 @@ const updateUserStatus = async (user, status) => {
   }
 }
 
-const getStatusClass = (status) => {
-  const classes = {
-    active: 'bg-success/10 text-success',
-    suspended: 'bg-warning/10 text-warning',
-    expired: 'bg-error/10 text-error',
+const statusTone = (status) => {
+  const tones = {
+    active: 'ok',
+    suspended: 'warn',
+    expired: 'danger',
   }
-  return classes[status] || 'bg-base-300 text-base-content'
+  return tones[status] || 'muted'
 }
 
 const getStatusLabel = (status) => {
@@ -363,11 +316,20 @@ const getStatusLabel = (status) => {
 
 const getUserStatusClass = (status) => {
   const classes = {
-    active: 'bg-success/10 text-success',
-    frozen: 'bg-warning/10 text-warning',
-    banned: 'bg-error/10 text-error',
+    active: 'y-chip-mint',
+    frozen: 'y-chip-warn',
+    banned: 'y-chip-danger',
   }
-  return classes[status] || 'bg-base-300 text-base-content'
+  return classes[status] || 'y-chip'
+}
+
+const getUserStatusLabel = (status) => {
+  const labels = {
+    active: t('uiAdmin1.userStatus.active'),
+    frozen: t('uiAdmin1.userStatus.frozen'),
+    banned: t('uiAdmin1.userStatus.banned'),
+  }
+  return labels[status] || status
 }
 
 const formatDate = (date) => {

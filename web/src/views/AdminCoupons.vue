@@ -1,240 +1,259 @@
 <template>
-  <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8 max-w-7xl space-y-6">
-    <!-- Header -->
-    <div class="flex justify-between items-center">
-      <div>
-        <h1 class="text-3xl font-bold">{{ $t('admin.couponManagement') }}</h1>
-        <p class="text-lg opacity-70 mt-2">{{ $t('admin.couponManagementDesc') }}</p>
+  <div class="y-page">
+    <PageHeader
+      :eyebrow="$t('uiAdmin2.eyebrow')"
+      :title="$t('uiAdmin2.coupons.title')"
+      :description="$t('uiAdmin2.coupons.description')"
+    >
+      <template #actions>
+        <button type="button" class="btn btn-primary gap-1.5" @click="showCreateModal = true">
+          <Plus :size="16" :stroke-width="1.5" />
+          {{ $t('uiAdmin2.coupons.create') }}
+        </button>
+      </template>
+    </PageHeader>
+
+    <section class="y-panel">
+      <YLoader v-if="loading" :label="$t('uiAdmin2.loading')" />
+
+      <EmptyState
+        v-else-if="coupons.length === 0"
+        :title="$t('uiAdmin2.coupons.emptyTitle')"
+        :description="$t('uiAdmin2.coupons.emptyDescription')"
+      >
+        <button type="button" class="btn btn-outline btn-sm gap-1.5" @click="showCreateModal = true">
+          <Plus :size="14" :stroke-width="1.5" />
+          {{ $t('uiAdmin2.coupons.create') }}
+        </button>
+      </EmptyState>
+
+      <div v-else class="overflow-x-auto">
+        <table class="y-table">
+          <thead>
+            <tr>
+              <th>{{ $t('admin.code') }}</th>
+              <th>{{ $t('admin.type') }}</th>
+              <th>{{ $t('admin.value') }}</th>
+              <th>{{ $t('admin.uses') }}</th>
+              <th>{{ $t('admin.validFrom') }}</th>
+              <th>{{ $t('admin.validUntil') }}</th>
+              <th>{{ $t('admin.status') }}</th>
+              <th>{{ $t('admin.reusable') }}</th>
+              <th class="text-right">{{ $t('admin.actions') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="coupon in coupons" :key="coupon.id">
+              <td>
+                <p class="whitespace-nowrap font-mono font-medium text-y-text">{{ coupon.code }}</p>
+                <p v-if="coupon.description" class="max-w-[16rem] truncate text-xs text-y-faint">{{ coupon.description }}</p>
+              </td>
+              <td>
+                <span class="y-chip whitespace-nowrap">
+                  <component :is="couponTypeIcon(coupon.discount_type)" :size="12" :stroke-width="2" class="text-y-mint-text" />
+                  {{ formatType(coupon.discount_type) }}
+                </span>
+              </td>
+              <td class="whitespace-nowrap font-mono">{{ formatValue(coupon) }}</td>
+              <td class="whitespace-nowrap font-mono text-y-muted">
+                <span class="text-y-text">{{ coupon.used_count }}</span> / {{ coupon.max_uses || '∞' }}
+              </td>
+              <td class="min-w-[8.5rem] text-xs leading-5 text-y-muted">{{ formatDate(coupon.valid_from) }}</td>
+              <td class="min-w-[8.5rem] text-xs leading-5 text-y-muted">
+                {{ coupon.valid_until ? formatDate(coupon.valid_until) : $t('admin.noExpiry') }}
+              </td>
+              <td class="whitespace-nowrap">
+                <StatusDot :tone="coupon.is_active ? 'ok' : 'muted'" :label="coupon.is_active ? $t('admin.active') : $t('admin.inactive')" />
+              </td>
+              <td class="whitespace-nowrap">
+                <span v-if="coupon.is_reusable" class="y-chip-info">
+                  <Repeat :size="12" :stroke-width="2" />
+                  {{ $t('uiAdmin2.coupons.reusable') }}
+                </span>
+                <span v-else class="text-sm text-y-faint">{{ $t('uiAdmin2.coupons.singleUse') }}</span>
+              </td>
+              <td>
+                <div class="flex justify-end gap-1">
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-sm btn-square"
+                    :title="$t('uiAdmin2.edit')"
+                    :aria-label="$t('uiAdmin2.edit')"
+                    @click="editCoupon(coupon)"
+                  >
+                    <Pencil :size="16" :stroke-width="1.5" />
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-sm btn-square text-y-danger-text"
+                    :title="$t('uiAdmin2.delete')"
+                    :aria-label="$t('uiAdmin2.delete')"
+                    @click="confirmDelete(coupon)"
+                  >
+                    <Trash2 :size="16" :stroke-width="1.5" />
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
-      <button @click="showCreateModal = true" class="btn btn-primary">
-        + {{ $t('admin.createCoupon') }}
-      </button>
-    </div>
-
-    <!-- Coupons Table -->
-    <div v-if="loading" class="flex justify-center py-12">
-      <span class="loading loading-spinner loading-lg"></span>
-    </div>
-
-    <div v-else-if="coupons.length === 0" class="card bg-base-200 shadow-xl">
-      <div class="card-body items-center text-center py-12">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-20 w-20 opacity-40 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
-        </svg>
-        <h3 class="card-title text-2xl mb-2">{{ $t('admin.noCoupons') }}</h3>
-        <p class="mb-4">{{ $t('admin.noCouponsDesc') }}</p>
-        <button @click="showCreateModal = true" class="btn btn-primary">{{ $t('admin.createCoupon') }}</button>
-      </div>
-    </div>
-
-    <div v-else class="overflow-x-auto">
-      <table class="table table-zebra w-full">
-        <thead>
-          <tr>
-            <th>{{ $t('admin.code') }}</th>
-            <th>{{ $t('admin.type') }}</th>
-            <th>{{ $t('admin.value') }}</th>
-            <th>{{ $t('admin.uses') }}</th>
-            <th>{{ $t('admin.validFrom') }}</th>
-            <th>{{ $t('admin.validUntil') }}</th>
-            <th>{{ $t('admin.status') }}</th>
-            <th>{{ $t('admin.reusable') }}</th>
-            <th>{{ $t('admin.actions') }}</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="coupon in coupons" :key="coupon.id">
-            <td class="font-mono font-bold">{{ coupon.code }}</td>
-            <td>
-              <div class="px-2 py-0.5 rounded text-xs font-medium inline-flex items-center gap-1 bg-blue-100 text-blue-800">
-                <!-- Type icons -->
-                <svg v-if="coupon.discount_type === 'quota_increase'" xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 11l5-5m0 0l5 5m-5-5v12" />
-                </svg>
-                <svg v-else-if="coupon.discount_type === 'percentage'" xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                </svg>
-                <svg v-else-if="coupon.discount_type === 'fixed'" xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                {{ formatType(coupon.discount_type) }}
-              </div>
-            </td>
-            <td>{{ formatValue(coupon) }}</td>
-            <td>{{ coupon.used_count }} / {{ coupon.max_uses || '∞' }}</td>
-            <td>{{ formatDate(coupon.valid_from) }}</td>
-            <td>{{ coupon.valid_until ? formatDate(coupon.valid_until) : $t('admin.noExpiry') }}</td>
-            <td>
-              <div class="px-2 py-0.5 rounded text-xs font-medium inline-flex items-center gap-1" :class="coupon.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'">
-                <svg v-if="coupon.is_active" xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                {{ coupon.is_active ? $t('admin.active') : $t('admin.inactive') }}
-              </div>
-            </td>
-            <td>
-              <div class="px-2 py-0.5 rounded text-xs font-medium inline-flex items-center gap-1" :class="coupon.is_reusable ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'">
-                <svg v-if="coupon.is_reusable" xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-                <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                </svg>
-                {{ coupon.is_reusable ? $t('admin.yes') : $t('admin.no') }}
-              </div>
-            </td>
-            <td>
-              <div class="flex gap-2">
-                <button @click="editCoupon(coupon)" class="btn btn-sm btn-ghost">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                  </svg>
-                </button>
-                <button @click="confirmDelete(coupon)" class="btn btn-sm btn-ghost text-error">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
-                  </svg>
-                </button>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+    </section>
 
     <!-- Create/Edit Modal -->
     <dialog class="modal" :class="{ 'modal-open': showCreateModal || showEditModal }">
-      <div class="modal-box w-11/12 max-w-2xl">
-        <h3 class="font-bold text-lg">
-          {{ showEditModal ? t('admin.editCoupon') : t('admin.createCoupon') }}
+      <div class="modal-box relative w-11/12 max-w-2xl">
+        <button
+          type="button"
+          class="btn btn-ghost btn-sm btn-square absolute right-3 top-3"
+          :aria-label="$t('uiAdmin2.close')"
+          @click="closeModal"
+        >
+          <X :size="16" :stroke-width="1.5" />
+        </button>
+        <h3 class="text-lg font-semibold text-y-text">
+          {{ showEditModal ? t('uiAdmin2.coupons.editTitle') : t('uiAdmin2.coupons.createTitle') }}
         </h3>
+        <p class="mt-1 text-sm text-y-muted">{{ t('uiAdmin2.coupons.modalDescription') }}</p>
 
-        <form @submit.prevent="handleSubmit" class="space-y-4 mt-4">
-          <div class="form-control">
-            <label class="label"><span class="label-text">{{ t('admin.couponCode') }}</span></label>
+        <form class="mt-6 space-y-4" @submit.prevent="handleSubmit">
+          <label class="y-field">
+            <span class="y-field-label">{{ t('uiAdmin2.coupons.fields.code') }}</span>
             <input
               v-model="form.code"
               type="text"
               placeholder="SAVE20"
-              class="input input-bordered uppercase"
+              class="input input-bordered w-full font-mono uppercase"
               :disabled="showEditModal"
+              autocomplete="off"
+              spellcheck="false"
               required
             />
-          </div>
+          </label>
 
-          <div class="form-control">
-            <label class="label"><span class="label-text">{{ t('admin.description') }}</span></label>
+          <label class="y-field">
+            <span class="y-field-label">{{ t('uiAdmin2.coupons.fields.description') }}</span>
             <textarea
               v-model="form.description"
-              class="textarea textarea-bordered"
+              class="textarea textarea-bordered w-full"
               rows="2"
-              placeholder="Optional description"
+              :placeholder="t('uiAdmin2.coupons.fields.descriptionPlaceholder')"
             ></textarea>
-          </div>
+          </label>
 
-          <div class="grid grid-cols-2 gap-4">
-            <div class="form-control">
-              <label class="label"><span class="label-text">{{ t('admin.type') }}</span></label>
-              <select v-model="form.discount_type" class="select select-bordered" :disabled="showEditModal" required>
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <label class="y-field">
+              <span class="y-field-label">{{ t('uiAdmin2.coupons.fields.type') }}</span>
+              <select v-model="form.discount_type" class="select select-bordered w-full" :disabled="showEditModal" required>
                 <option value="quota_increase">{{ t('admin.quotaIncrease') }}</option>
                 <option value="percentage">{{ t('admin.percentage') }}</option>
                 <option value="fixed">{{ t('admin.fixed') }}</option>
               </select>
-            </div>
+            </label>
 
-            <div v-if="form.discount_type === 'quota_increase'" class="form-control">
-              <label class="label"><span class="label-text">{{ t('admin.quotaIncrease') }}</span></label>
+            <label v-if="form.discount_type === 'quota_increase'" class="y-field">
+              <span class="y-field-label">{{ t('uiAdmin2.coupons.fields.quotaIncrease') }}</span>
               <input
                 v-model.number="form.quota_increase"
                 type="number"
                 min="1"
-                class="input input-bordered"
+                class="input input-bordered w-full font-mono"
                 required
               />
-            </div>
+            </label>
 
-            <div v-if="form.discount_type === 'percentage' || form.discount_type === 'fixed'" class="form-control">
-              <label class="label"><span class="label-text">{{ t('admin.discountValue') }}</span></label>
+            <label v-if="form.discount_type === 'percentage' || form.discount_type === 'fixed'" class="y-field">
+              <span class="y-field-label">{{ t('uiAdmin2.coupons.fields.discountValue') }}</span>
               <input
                 v-model.number="form.discount_value"
                 type="number"
                 :min="0"
                 :max="form.discount_type === 'percentage' ? 100 : undefined"
                 step="0.01"
-                class="input input-bordered"
+                class="input input-bordered w-full font-mono"
                 required
               />
-            </div>
+              <span class="y-field-hint">
+                {{ form.discount_type === 'percentage' ? t('uiAdmin2.coupons.fields.discountPercentHint') : t('uiAdmin2.coupons.fields.discountFixedHint') }}
+              </span>
+            </label>
           </div>
 
-          <div class="form-control">
-            <label class="label"><span class="label-text">{{ t('admin.maxUses') }} {{ t('admin.maxUsesHint') }}</span></label>
+          <label class="y-field">
+            <span class="y-field-label">{{ t('uiAdmin2.coupons.fields.maxUses') }}</span>
             <input
               v-model.number="form.max_uses"
               type="number"
               min="0"
-              class="input input-bordered"
+              class="input input-bordered w-full font-mono"
             />
-          </div>
+            <span class="y-field-hint">{{ t('uiAdmin2.coupons.fields.maxUsesHint') }}</span>
+          </label>
 
-          <div class="grid grid-cols-2 gap-4">
-            <div class="form-control">
-              <label class="label"><span class="label-text">{{ t('admin.validFrom') }}</span></label>
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <label class="y-field">
+              <span class="y-field-label">{{ t('uiAdmin2.coupons.fields.validFrom') }}</span>
               <input
                 v-model="form.valid_from"
                 type="datetime-local"
-                class="input input-bordered"
+                class="input input-bordered w-full font-mono"
               />
-            </div>
+            </label>
 
-            <div class="form-control">
-              <label class="label"><span class="label-text">{{ t('admin.validUntilOptional') }}</span></label>
+            <label class="y-field">
+              <span class="y-field-label">{{ t('uiAdmin2.coupons.fields.validUntil') }}</span>
               <input
                 v-model="form.valid_until"
                 type="datetime-local"
-                class="input input-bordered"
+                class="input input-bordered w-full font-mono"
               />
-            </div>
-          </div>
-
-          <div v-if="showEditModal" class="form-control">
-            <label class="label cursor-pointer">
-              <span class="label-text">{{ t('admin.active') }}</span>
-              <input v-model="form.is_active" type="checkbox" class="checkbox" />
+              <span class="y-field-hint">{{ t('uiAdmin2.coupons.fields.validUntilHint') }}</span>
             </label>
           </div>
 
-          <div class="form-control">
-            <label class="label cursor-pointer">
-              <span class="label-text">{{ t('admin.reusable') }} ({{ t('admin.reusableDesc') }})</span>
-              <input v-model="form.is_reusable" type="checkbox" class="checkbox" />
+          <div class="space-y-2">
+            <label v-if="showEditModal" class="flex cursor-pointer items-start gap-3 rounded-md border border-y-line px-4 py-3">
+              <input v-model="form.is_active" type="checkbox" class="checkbox checkbox-sm mt-0.5" />
+              <span class="flex flex-col gap-0.5">
+                <span class="y-field-label">{{ t('uiAdmin2.coupons.fields.active') }}</span>
+                <span class="y-field-hint">{{ t('uiAdmin2.coupons.fields.activeHint') }}</span>
+              </span>
+            </label>
+
+            <label class="flex cursor-pointer items-start gap-3 rounded-md border border-y-line px-4 py-3">
+              <input v-model="form.is_reusable" type="checkbox" class="checkbox checkbox-sm mt-0.5" />
+              <span class="flex flex-col gap-0.5">
+                <span class="y-field-label">{{ t('uiAdmin2.coupons.fields.reusable') }}</span>
+                <span class="y-field-hint">{{ t('uiAdmin2.coupons.fields.reusableHint') }}</span>
+              </span>
             </label>
           </div>
 
           <div class="modal-action">
-            <button type="button" @click="closeModal" class="btn">{{ t('admin.cancel') }}</button>
+            <button type="button" class="btn btn-ghost" @click="closeModal">{{ t('uiAdmin2.cancel') }}</button>
             <button type="submit" class="btn btn-primary" :disabled="submitting">
-              <span v-if="submitting" class="loading loading-spinner"></span>
-              <span v-else>{{ showEditModal ? t('admin.update') : t('admin.create') }}</span>
+              <span v-if="submitting" class="loading loading-spinner loading-sm"></span>
+              {{ showEditModal ? t('uiAdmin2.saveChanges') : t('uiAdmin2.coupons.create') }}
             </button>
           </div>
         </form>
       </div>
       <form method="dialog" class="modal-backdrop" @click="closeModal">
-        <button>close</button>
+        <button>{{ t('uiAdmin2.close') }}</button>
       </form>
     </dialog>
   </div>
 </template>
-
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import axios from '../utils/axios'
 import { useToast } from '../composables/useToast'
+import { Plus, Pencil, Trash2, X, Repeat, ArrowUp, Percent, Coins, Ticket } from 'lucide-vue-next'
+import PageHeader from '../components/ui/PageHeader.vue'
+import StatusDot from '../components/ui/StatusDot.vue'
+import EmptyState from '../components/ui/EmptyState.vue'
+import YLoader from '../components/brand/YLoader.vue'
 
 const { t } = useI18n()
 const toast = useToast()
@@ -379,6 +398,8 @@ const formatType = (type) => {
   }
   return types[type] ? t(types[type]) : type
 }
+
+const couponTypeIcon = (type) => ({ quota_increase: ArrowUp, percentage: Percent, fixed: Coins }[type] || Ticket)
 
 const formatValue = (coupon) => {
   switch (coupon.discount_type) {

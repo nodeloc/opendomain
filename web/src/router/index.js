@@ -21,49 +21,49 @@ const routes = [
     path: '/dashboard',
     name: 'Dashboard',
     component: () => import('../views/Dashboard.vue'),
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, layout: 'console' },
   },
   {
     path: '/domains',
     name: 'Domains',
     component: () => import('../views/Domains.vue'),
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, layout: 'console' },
   },
   {
     path: '/profile',
     name: 'Profile',
     component: () => import('../views/Profile.vue'),
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, layout: 'console' },
   },
   {
     path: '/domains/:domainId/dns',
     name: 'DNSManagement',
     component: () => import('../views/DNSManagement.vue'),
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, layout: 'console' },
   },
   {
     path: '/coupons',
     name: 'Coupons',
     component: () => import('../views/Coupons.vue'),
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, layout: 'console' },
   },
   {
     path: '/admin',
     name: 'Admin',
     component: () => import('../views/AdminDashboard.vue'),
-    meta: { requiresAuth: true, requiresAdmin: true },
+    meta: { requiresAuth: true, requiresAdmin: true, layout: 'console' },
   },
   {
     path: '/admin/coupons',
     name: 'AdminCoupons',
     component: () => import('../views/AdminCoupons.vue'),
-    meta: { requiresAuth: true, requiresAdmin: true },
+    meta: { requiresAuth: true, requiresAdmin: true, layout: 'console' },
   },
   {
     path: '/invitations',
     name: 'Invitations',
     component: () => import('../views/Invitations.vue'),
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, layout: 'console' },
   },
   {
     path: '/announcements',
@@ -84,19 +84,19 @@ const routes = [
     path: '/admin/announcements',
     name: 'AdminAnnouncements',
     component: () => import('../views/AdminAnnouncements.vue'),
-    meta: { requiresAuth: true, requiresAdmin: true },
+    meta: { requiresAuth: true, requiresAdmin: true, layout: 'console' },
   },
   {
     path: '/admin/root-domains',
     name: 'AdminRootDomains',
     component: () => import('../views/AdminRootDomains.vue'),
-    meta: { requiresAuth: true, requiresAdmin: true },
+    meta: { requiresAuth: true, requiresAdmin: true, layout: 'console' },
   },
   {
     path: '/admin/root-domains/:id/domains',
     name: 'AdminRootDomainDomains',
     component: () => import('../views/AdminRootDomainDomains.vue'),
-    meta: { requiresAuth: true, requiresAdmin: true },
+    meta: { requiresAuth: true, requiresAdmin: true, layout: 'console' },
   },
   {
     path: '/domain-health',
@@ -107,13 +107,13 @@ const routes = [
     path: '/checkout',
     name: 'Checkout',
     component: () => import('../views/DomainCheckout.vue'),
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, layout: 'console' },
   },
   {
     path: '/orders',
     name: 'Orders',
     component: () => import('../views/OrderList.vue'),
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, layout: 'console' },
   },
   {
     path: '/auth/callback',
@@ -134,49 +134,49 @@ const routes = [
     path: '/admin/pages',
     name: 'AdminPages',
     component: () => import('../views/AdminPages.vue'),
-    meta: { requiresAuth: true, requiresAdmin: true },
+    meta: { requiresAuth: true, requiresAdmin: true, layout: 'console' },
   },
   {
     path: '/admin/users',
     name: 'AdminUsers',
     component: () => import('../views/AdminUsers.vue'),
-    meta: { requiresAuth: true, requiresAdmin: true },
+    meta: { requiresAuth: true, requiresAdmin: true, layout: 'console' },
   },
   {
     path: '/admin/orders',
     name: 'AdminOrders',
     component: () => import('../views/AdminOrders.vue'),
-    meta: { requiresAuth: true, requiresAdmin: true },
+    meta: { requiresAuth: true, requiresAdmin: true, layout: 'console' },
   },
   {
     path: '/admin/settings',
     name: 'AdminSettings',
     component: () => import('../views/AdminSettings.vue'),
-    meta: { requiresAuth: true, requiresAdmin: true },
+    meta: { requiresAuth: true, requiresAdmin: true, layout: 'console' },
   },
   {
     path: '/admin/domains',
     name: 'AdminDomains',
     component: () => import('../views/AdminDomains.vue'),
-    meta: { requiresAuth: true, requiresAdmin: true },
+    meta: { requiresAuth: true, requiresAdmin: true, layout: 'console' },
   },
   {
     path: '/admin/pending-domains',
     name: 'AdminPendingDomains',
     component: () => import('../views/AdminPendingDomains.vue'),
-    meta: { requiresAuth: true, requiresAdmin: true },
+    meta: { requiresAuth: true, requiresAdmin: true, layout: 'console' },
   },
   {
     path: '/admin/scan-status',
     name: 'AdminScanStatus',
     component: () => import('../views/AdminScanStatus.vue'),
-    meta: { requiresAuth: true, requiresAdmin: true },
+    meta: { requiresAuth: true, requiresAdmin: true, layout: 'console' },
   },
   {
     path: '/admin/cyberpanel',
     name: 'AdminCyberPanel',
     component: () => import('../views/AdminCyberPanel.vue'),
-    meta: { requiresAuth: true, requiresAdmin: true },
+    meta: { requiresAuth: true, requiresAdmin: true, layout: 'console' },
   },
   {
     path: '/pages/:slug',
@@ -188,11 +188,19 @@ const routes = [
     name: 'WhoisDetail',
     component: () => import('../views/WhoisDetail.vue'),
   },
+  {
+    path: '/:pathMatch(.*)*',
+    name: 'NotFound',
+    component: () => import('../views/NotFound.vue'),
+  },
 ]
 
 const router = createRouter({
   history: createWebHistory(),
   routes,
+  scrollBehavior(to, from, savedPosition) {
+    return savedPosition || { top: 0 }
+  },
 })
 
 // 路由守卫

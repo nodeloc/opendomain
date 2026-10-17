@@ -1,74 +1,124 @@
 <template>
-  <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8 max-w-7xl space-y-8">
-    <div class="text-center py-8">
-      <h1 class="text-4xl font-bold mb-2">{{ $t('dashboard.welcome') }}{{ user?.username }}!</h1>
-      <p class="text-xl opacity-70">{{ $t('dashboard.manageText') }}</p>
-    </div>
+  <div class="y-page">
+    <PageHeader :eyebrow="$t('uiUser.dashboard.eyebrow')" :description="$t('uiUser.dashboard.description')">
+      <template #title>
+        {{ user?.username ? $t('uiUser.dashboard.greeting', { name: user.username }) : $t('uiUser.dashboard.greetingFallback') }}
+      </template>
+      <template #actions>
+        <router-link to="/" class="btn btn-primary gap-1.5">
+          <Plus :size="16" :stroke-width="1.5" />
+          {{ $t('uiUser.dashboard.claim') }}
+        </router-link>
+      </template>
+    </PageHeader>
 
     <!-- Stats -->
-    <div class="stats stats-vertical lg:stats-horizontal shadow w-full">
-      <div class="stat">
-        <div class="stat-title">{{ $t('dashboard.myDomains') }}</div>
-        <div class="stat-value">{{ domainCount }}</div>
-        <div class="stat-desc">{{ user?.domain_quota - domainCount }} {{ $t('dashboard.slotsRemaining') }}</div>
+    <section class="y-panel grid grid-cols-1 gap-px overflow-hidden bg-y-line sm:grid-cols-2 lg:grid-cols-4">
+      <div class="bg-y-surface px-5 py-6">
+        <p class="y-label">{{ $t('uiUser.dashboard.domains') }}</p>
+        <p class="mt-3 font-mono text-3xl font-medium tracking-tight text-y-text">
+          {{ domainCount }}<span class="text-lg text-y-faint"> / {{ user?.domain_quota ?? '—' }}</span>
+        </p>
+        <p class="mt-2 text-sm text-y-muted">{{ $t('uiUser.dashboard.slotsLeft', { n: slotsLeft }) }}</p>
       </div>
 
-      <div class="stat">
-        <div class="stat-title">{{ $t('dashboard.accountLevel') }}</div>
-        <div class="stat-value text-primary">{{ user?.user_level }}</div>
-        <div class="stat-desc">{{ user?.email_verified ? $t('dashboard.verified') : $t('dashboard.notVerified') }}</div>
+      <div class="bg-y-surface px-5 py-6">
+        <p class="y-label">{{ $t('uiUser.dashboard.level') }}</p>
+        <p class="mt-3 font-mono text-3xl font-medium tracking-tight text-y-text">{{ levelLabel }}</p>
+        <p class="mt-2 text-sm text-y-muted">{{ $t('uiUser.dashboard.levelHint') }}</p>
       </div>
 
-      <div class="stat">
-        <div class="stat-title">{{ $t('dashboard.inviteCode') }}</div>
-        <div class="stat-value text-secondary text-2xl">{{ user?.invite_code }}</div>
-        <div class="stat-desc">{{ $t('dashboard.shareRewards') }}</div>
-      </div>
-    </div>
-
-    <!-- Quick Actions -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      <router-link to="/domains" class="card bg-base-200 shadow-xl card-hover">
-        <div class="card-body items-center text-center">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-14 w-14 text-primary mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
-          </svg>
-          <h3 class="card-title">{{ $t('dashboard.myDomainsCard') }}</h3>
-          <p>{{ $t('dashboard.viewManageDomains') }}</p>
-        </div>
-      </router-link>
-
-      <router-link to="/profile" class="card bg-base-200 shadow-xl card-hover">
-        <div class="card-body items-center text-center">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-14 w-14 text-secondary mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-          </svg>
-          <h3 class="card-title">{{ $t('dashboard.profileCard') }}</h3>
-          <p>{{ $t('dashboard.updateSettings') }}</p>
-        </div>
-      </router-link>
-
-      <div class="card bg-base-200 shadow-xl card-hover">
-        <div class="card-body items-center text-center">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-14 w-14 text-accent mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
-          </svg>
-          <h3 class="card-title">{{ $t('dashboard.invitationsCard') }}</h3>
-          <p>{{ $t('dashboard.inviteFriends') }}</p>
+      <div class="bg-y-surface px-5 py-6">
+        <p class="y-label">{{ $t('uiUser.dashboard.email') }}</p>
+        <p class="mt-3 truncate text-[15px] text-y-text" :title="user?.email">{{ user?.email || '—' }}</p>
+        <div class="mt-2">
+          <StatusDot
+            :tone="user?.email_verified ? 'ok' : 'warn'"
+            :label="user?.email_verified ? $t('uiUser.dashboard.verified') : $t('uiUser.dashboard.notVerified')"
+          />
         </div>
       </div>
-    </div>
+
+      <div class="bg-y-surface px-5 py-6">
+        <p class="y-label">{{ $t('uiUser.dashboard.inviteCode') }}</p>
+        <div class="mt-3 flex items-center gap-2">
+          <span class="min-w-0 truncate font-mono text-2xl font-medium tracking-tight text-y-text">{{ user?.invite_code || '—' }}</span>
+          <button
+            v-if="user?.invite_code"
+            type="button"
+            class="btn btn-ghost btn-sm btn-square shrink-0"
+            :title="$t('uiUser.dashboard.copyCode')"
+            :aria-label="$t('uiUser.dashboard.copyCode')"
+            @click="copyInviteCode"
+          >
+            <Check v-if="codeCopied" :size="16" :stroke-width="1.5" class="text-y-mint-text" />
+            <Copy v-else :size="16" :stroke-width="1.5" />
+          </button>
+        </div>
+        <p class="mt-2 text-sm text-y-muted">{{ $t('uiUser.dashboard.inviteHint') }}</p>
+      </div>
+    </section>
+
+    <!-- Shortcuts -->
+    <section class="space-y-4">
+      <h2 class="y-label">{{ $t('uiUser.dashboard.shortcuts') }}</h2>
+      <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <router-link v-for="tile in tiles" :key="tile.to" :to="tile.to" class="y-link-tile group p-5">
+          <div class="flex items-start justify-between">
+            <span class="y-icon-tile"><component :is="tile.icon" :size="20" :stroke-width="1.5" /></span>
+            <ArrowUpRight :size="16" :stroke-width="1.5" class="text-y-faint transition-colors group-hover:text-y-text" />
+          </div>
+          <h3 class="mt-5 text-[15px] font-semibold text-y-text">{{ tile.title }}</h3>
+          <p class="mt-1 text-sm leading-6 text-y-muted">{{ tile.desc }}</p>
+        </router-link>
+      </div>
+    </section>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { Plus, Copy, Check, ArrowUpRight, Globe, User, Gift, Ticket } from 'lucide-vue-next'
 import { useAuthStore } from '../stores/auth'
+import { useToast } from '../composables/useToast'
 import axios from '../utils/axios'
+import PageHeader from '../components/ui/PageHeader.vue'
+import StatusDot from '../components/ui/StatusDot.vue'
 
+const { t, te } = useI18n()
+const toast = useToast()
 const authStore = useAuthStore()
 const user = computed(() => authStore.user)
 const domainCount = ref(0)
+const codeCopied = ref(false)
+
+const slotsLeft = computed(() => Math.max(0, (user.value?.domain_quota || 0) - domainCount.value))
+
+const levelLabel = computed(() => {
+  const level = user.value?.user_level
+  if (!level) return '—'
+  return te(`home.levelNames.${level}`) ? t(`home.levelNames.${level}`) : level
+})
+
+const tiles = computed(() => [
+  { to: '/domains', icon: Globe, title: t('uiUser.dashboard.tiles.domains'), desc: t('uiUser.dashboard.tiles.domainsDesc') },
+  { to: '/profile', icon: User, title: t('uiUser.dashboard.tiles.profile'), desc: t('uiUser.dashboard.tiles.profileDesc') },
+  { to: '/invitations', icon: Gift, title: t('uiUser.dashboard.tiles.invitations'), desc: t('uiUser.dashboard.tiles.invitationsDesc') },
+  { to: '/coupons', icon: Ticket, title: t('uiUser.dashboard.tiles.coupons'), desc: t('uiUser.dashboard.tiles.couponsDesc') },
+])
+
+const copyInviteCode = async () => {
+  if (!user.value?.invite_code) return
+  try {
+    await navigator.clipboard.writeText(user.value.invite_code)
+    codeCopied.value = true
+    toast.success(t('uiUser.common.codeCopied'))
+    setTimeout(() => { codeCopied.value = false }, 2000)
+  } catch {
+    toast.error(t('uiUser.common.copyFailed'))
+  }
+}
 
 onMounted(async () => {
   if (!authStore.user) {

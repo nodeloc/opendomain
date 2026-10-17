@@ -49,7 +49,7 @@ export default {
     services: 'Services',
     company: 'Company',
     resources: 'Resources',
-    copyright: '© 2024 OpenDomain. All rights reserved.',
+    copyright: '© Yunamo. All rights reserved.',
     description: 'Free subdomain distribution platform'
   },
   home: {

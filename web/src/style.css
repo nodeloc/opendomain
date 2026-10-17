@@ -1,19 +1,430 @@
+@font-face { font-family: Geist; src: url(/fonts/Geist-Regular.ttf) format("truetype"); font-weight: 400; font-display: swap; }
+@font-face { font-family: Geist; src: url(/fonts/Geist-Medium.ttf) format("truetype"); font-weight: 500; font-display: swap; }
+@font-face { font-family: Geist; src: url(/fonts/Geist-SemiBold.ttf) format("truetype"); font-weight: 600; font-display: swap; }
+@font-face { font-family: Geist; src: url(/fonts/Geist-Bold.ttf) format("truetype"); font-weight: 700; font-display: swap; }
+@font-face { font-family: Geist; src: url(/fonts/Geist-Black.ttf) format("truetype"); font-weight: 800 900; font-display: swap; }
+@font-face { font-family: "Geist Mono"; src: url(/fonts/GeistMono-Regular.ttf) format("truetype"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Geist Mono"; src: url(/fonts/GeistMono-Medium.ttf) format("truetype"); font-weight: 500; font-display: swap; }
+@font-face { font-family: "Geist Mono"; src: url(/fonts/GeistMono-SemiBold.ttf) format("truetype"); font-weight: 600 700; font-display: swap; }
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* 自定义全局样式 */
-body {
-  @apply bg-base-100 text-base-content;
+/* Brand tokens (space-separated RGB so Tailwind can apply alpha). */
+:root,
+[data-theme="yunamo"] {
+  --y-bg: 10 11 13;
+  --y-surface: 17 19 22;
+  --y-surface-2: 26 29 33;
+  --y-line: 34 38 43;
+  --y-line-strong: 42 46 53;
+  --y-text: 237 237 237;
+  --y-muted: 154 160 168;
+  --y-faint: 128 134 142;
+  --y-mint: 62 230 180;
+  --y-mint-hover: 143 242 211;
+  --y-mint-text: 62 230 180;
+  --y-on-mint: 4 17 12;
+  --y-mint-deep: 11 143 106;
+  --y-node: 62 230 180;
+  --y-ember: 255 138 92;
+  --y-danger: 255 90 82;
+  --y-danger-text: 255 138 132;
+  --y-warn: 242 193 78;
+  --y-info: 122 184 255;
+  --y-dot: 255 255 255;
+  --y-dot-alpha: 0.07;
 }
 
-/* 自定义组件样式 */
+[data-theme="yunamo-light"] {
+  --y-bg: 246 246 244;
+  --y-surface: 255 255 255;
+  --y-surface-2: 239 239 236;
+  --y-line: 227 227 223;
+  --y-line-strong: 211 211 206;
+  --y-text: 10 11 13;
+  --y-muted: 79 85 93;
+  --y-faint: 107 113 121;
+  /* Mint is 1.3:1 on light grounds, so mint used as text or a button fill switches to mint-deep tones. */
+  --y-mint: 10 127 94;
+  --y-mint-hover: 11 143 106;
+  --y-mint-text: 10 122 90;
+  --y-on-mint: 255 255 255;
+  --y-mint-deep: 11 143 106;
+  --y-node: 11 143 106;
+  --y-ember: 214 92 44;
+  --y-danger: 217 58 50;
+  --y-danger-text: 190 40 34;
+  --y-warn: 160 104 20;
+  --y-info: 31 111 209;
+  --y-dot: 10 11 13;
+  --y-dot-alpha: 0.08;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-y-bg text-y-text font-sans antialiased;
+    font-feature-settings: "ss01", "cv11";
+    text-rendering: optimizeLegibility;
+  }
+  ::selection {
+    background: rgb(var(--y-mint) / 0.28);
+  }
+  :focus-visible {
+    outline: 2px solid rgb(var(--y-mint));
+    outline-offset: 2px;
+  }
+  code, kbd, samp, pre {
+    @apply font-mono;
+  }
+}
+
 @layer components {
-  .btn-primary-gradient {
-    @apply bg-gradient-to-r from-primary to-secondary text-white;
+  /* ---------- Layout ---------- */
+  .y-container {
+    @apply mx-auto w-full max-w-content px-5 sm:px-6;
+  }
+  /* Flex gap instead of space-y: fixed-position modals placed inside a page must not pick up a top margin. */
+  .y-page {
+    @apply y-container flex flex-col gap-8 py-8 sm:py-10;
   }
 
-  .card-hover {
-    @apply transition-all duration-300 hover:shadow-xl hover:-translate-y-1;
+  /* ---------- Type ---------- */
+  .y-eyebrow {
+    @apply font-mono text-eyebrow uppercase text-y-mint-text;
+  }
+  .y-label {
+    @apply font-mono text-eyebrow uppercase text-y-faint;
+  }
+  .y-display {
+    @apply text-display text-y-text;
+  }
+  .y-h1 {
+    @apply text-h1 text-y-text;
+  }
+  .y-h2 {
+    @apply text-h2 text-y-text;
+  }
+  .y-h3 {
+    @apply text-h3 text-y-text;
+  }
+  .y-lead {
+    @apply text-lead text-y-muted;
+  }
+  .y-headline {
+    @apply font-black uppercase text-y-text;
+    letter-spacing: -0.045em;
+    line-height: 0.92;
+  }
+  .y-headline em,
+  .y-accent {
+    @apply not-italic text-y-mint-text;
+  }
+  .y-domain {
+    @apply font-mono font-medium text-y-text break-all;
+  }
+
+  /* ---------- Surfaces ---------- */
+  .y-panel {
+    @apply rounded-lg border border-y-line bg-y-surface;
+  }
+  .y-tile {
+    @apply rounded-xl border border-y-line bg-y-surface;
+  }
+  .y-inset {
+    @apply rounded-md border border-y-line bg-y-bg;
+  }
+  .y-panel-header {
+    @apply flex flex-wrap items-center justify-between gap-3 border-b border-y-line px-5 py-4;
+  }
+  .y-divider {
+    @apply border-t border-y-line;
+  }
+  .y-link-tile {
+    @apply y-panel block transition-colors duration-150 hover:border-y-line-strong hover:bg-y-surface-2;
+  }
+
+  /* ---------- Small elements ---------- */
+  .y-chip {
+    @apply inline-flex items-center gap-1.5 rounded-full border border-y-line bg-y-surface-2 px-2.5 py-0.5 text-xs text-y-muted;
+  }
+  .y-chip-mint {
+    @apply inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium text-y-mint-text;
+    background: rgb(var(--y-mint) / 0.1);
+    border-color: rgb(var(--y-mint) / 0.35);
+  }
+  .y-chip-danger {
+    @apply inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium text-y-danger-text;
+    background: rgb(var(--y-danger) / 0.1);
+    border-color: rgb(var(--y-danger) / 0.35);
+  }
+  .y-chip-warn {
+    @apply inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium text-y-warn;
+    background: rgb(var(--y-warn) / 0.1);
+    border-color: rgb(var(--y-warn) / 0.35);
+  }
+  .y-chip-info {
+    @apply inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium text-y-info;
+    background: rgb(var(--y-info) / 0.1);
+    border-color: rgb(var(--y-info) / 0.35);
+  }
+  :is(button, a).y-chip,
+  :is(button, a).y-chip-mint,
+  :is(button, a).y-chip-danger,
+  :is(button, a).y-chip-warn,
+  :is(button, a).y-chip-info {
+    @apply transition-colors duration-150 hover:border-y-line-strong;
+  }
+  .y-tag {
+    @apply inline-flex items-center rounded-sm border border-y-line bg-y-surface-2 px-1.5 py-0.5 font-mono text-[11px] font-medium uppercase tracking-wide text-y-mint-text;
+  }
+  .y-icon-tile {
+    @apply inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-y-line bg-y-surface-2 text-y-mint-text;
+  }
+  .y-dot {
+    @apply inline-block h-2 w-2 shrink-0 rounded-full;
+  }
+  .y-mint-soft {
+    background: rgb(var(--y-mint) / 0.1);
+    border-color: rgb(var(--y-mint) / 0.35);
+  }
+  .y-danger-soft {
+    background: rgb(var(--y-danger) / 0.08);
+    border-color: rgb(var(--y-danger) / 0.35);
+  }
+  .y-info-soft {
+    background: rgb(var(--y-info) / 0.08);
+    border-color: rgb(var(--y-info) / 0.35);
+  }
+  .y-warn-soft {
+    background: rgb(var(--y-warn) / 0.08);
+    border-color: rgb(var(--y-warn) / 0.35);
+  }
+
+  /* ---------- Data tables ---------- */
+  .y-table {
+    @apply w-full text-left text-sm;
+  }
+  .y-table thead th {
+    @apply border-b border-y-line px-4 py-3 font-mono text-[11px] font-normal uppercase tracking-[0.08em] text-y-faint whitespace-nowrap;
+  }
+  .y-table tbody td {
+    @apply border-b border-y-line px-4 py-3 align-middle text-y-text;
+  }
+  .y-table tbody tr:last-child td {
+    @apply border-b-0;
+  }
+  .y-table tbody tr {
+    @apply transition-colors duration-100;
+  }
+  .y-table tbody tr:hover {
+    background: rgb(var(--y-surface-2) / 0.6);
+  }
+
+  /* ---------- Forms ---------- */
+  .y-field {
+    @apply flex flex-col gap-1.5;
+  }
+  .y-field-label {
+    @apply text-sm font-medium text-y-text;
+  }
+  .y-field-hint {
+    @apply text-xs text-y-faint;
+  }
+
+  /* ---------- Graphic motifs ---------- */
+  .y-dot-grid {
+    background-image: radial-gradient(rgb(var(--y-dot) / var(--y-dot-alpha)) 1px, transparent 1px);
+    background-size: 24px 24px;
+    -webkit-mask-image: radial-gradient(ellipse at center, #000 35%, transparent 78%);
+    mask-image: radial-gradient(ellipse at center, #000 35%, transparent 78%);
+  }
+  .y-glow {
+    background: radial-gradient(closest-side, rgb(var(--y-mint) / 0.16), transparent);
+  }
+}
+
+/* ---------- DaisyUI refinements: hairlines, no shadows, brand type ---------- */
+@layer components {
+  .btn {
+    @apply font-semibold normal-case tracking-normal shadow-none;
+    min-height: 2.75rem;
+    height: 2.75rem;
+  }
+  .btn-sm {
+    min-height: 2.125rem;
+    height: 2.125rem;
+  }
+  .btn-xs {
+    min-height: 1.625rem;
+    height: 1.625rem;
+  }
+  .btn-lg {
+    min-height: 3.25rem;
+    height: 3.25rem;
+  }
+  .btn-primary:hover {
+    background-color: rgb(var(--y-mint-hover));
+    border-color: rgb(var(--y-mint-hover));
+  }
+  .btn:disabled,
+  .btn.btn-disabled {
+    background-color: rgb(var(--y-surface-2) / 0.6);
+    border-color: transparent;
+    color: rgb(var(--y-faint) / 0.8);
+  }
+  .btn-ghost:disabled,
+  .btn-ghost.btn-disabled {
+    background-color: transparent;
+  }
+  .btn-primary:disabled,
+  .btn-primary.btn-disabled {
+    background-color: rgb(var(--y-mint) / 0.22);
+    border-color: transparent;
+    color: rgb(var(--y-text) / 0.55);
+  }
+  .btn-ghost {
+    @apply text-y-text;
+  }
+  .btn-outline {
+    border-color: rgb(var(--y-line-strong));
+    color: rgb(var(--y-text));
+  }
+  .btn-outline:hover {
+    background-color: rgb(var(--y-surface-2));
+    border-color: rgb(var(--y-line-strong));
+  }
+  .btn-secondary {
+    border-color: rgb(var(--y-line-strong));
+  }
+  .card {
+    @apply shadow-none;
+  }
+  .input,
+  .select,
+  .textarea,
+  .file-input {
+    background-color: rgb(var(--y-bg));
+    border-color: rgb(var(--y-line-strong));
+    color: rgb(var(--y-text));
+  }
+  .input-bordered,
+  .select-bordered,
+  .textarea-bordered {
+    border-color: rgb(var(--y-line-strong));
+  }
+  .input:focus,
+  .input:focus-within,
+  .select:focus,
+  .textarea:focus {
+    outline: 2px solid rgb(var(--y-mint) / 0.45);
+    outline-offset: 0;
+    border-color: rgb(var(--y-mint) / 0.7);
+  }
+  .input::placeholder,
+  .textarea::placeholder {
+    color: rgb(var(--y-faint));
+  }
+  .dropdown-content,
+  .modal-box {
+    @apply border border-y-line shadow-none;
+    background-color: rgb(var(--y-surface));
+  }
+  .modal-box {
+    @apply rounded-lg;
+  }
+  .modal-backdrop,
+  .modal {
+    background-color: rgb(4 5 6 / 0.6);
+  }
+  .menu li > *:not(ul, .menu-title, details, .btn):active,
+  .menu li > *:not(ul, .menu-title, details, .btn).active {
+    background-color: rgb(var(--y-surface-2));
+    color: rgb(var(--y-text));
+  }
+  .menu-title {
+    @apply font-mono text-[11px] font-normal uppercase tracking-[0.08em] text-y-faint;
+  }
+  .toggle:checked,
+  .checkbox:checked {
+    --chkbg: rgb(var(--y-mint));
+    --chkfg: rgb(var(--y-on-mint));
+  }
+  .tabs-boxed {
+    @apply border border-y-line bg-y-surface p-1;
+  }
+  .tabs-boxed .tab-active:not(.tab-disabled):not([disabled]) {
+    background-color: rgb(var(--y-surface-2));
+    color: rgb(var(--y-text));
+  }
+  .alert {
+    @apply rounded-md border border-y-line bg-y-surface text-y-text shadow-none;
+  }
+  .alert-success {
+    color: rgb(var(--y-text));
+    background: rgb(var(--y-mint) / 0.1);
+    border-color: rgb(var(--y-mint) / 0.35);
+  }
+  .alert-error {
+    color: rgb(var(--y-danger-text));
+    background: rgb(var(--y-danger) / 0.08);
+    border-color: rgb(var(--y-danger) / 0.35);
+  }
+  .alert-warning {
+    color: rgb(var(--y-warn));
+    background: rgb(var(--y-warn) / 0.08);
+    border-color: rgb(var(--y-warn) / 0.35);
+  }
+  .alert-info {
+    color: rgb(var(--y-info));
+    background: rgb(var(--y-info) / 0.08);
+    border-color: rgb(var(--y-info) / 0.35);
+  }
+  .badge {
+    @apply font-medium;
+  }
+  .table :where(thead, tfoot) {
+    @apply font-mono text-[11px] font-normal uppercase tracking-[0.08em] text-y-faint;
+  }
+  .table :where(th, td) {
+    border-color: rgb(var(--y-line));
+  }
+  .loading {
+    color: rgb(var(--y-mint));
+  }
+}
+
+/* DaisyUI sets prose colours on ":root .prose", which outranks the typography plugin config. */
+:root .prose {
+  --tw-prose-body: rgb(var(--y-muted));
+  --tw-prose-headings: rgb(var(--y-text));
+  --tw-prose-links: rgb(var(--y-mint-text));
+  --tw-prose-bold: rgb(var(--y-text));
+  --tw-prose-counters: rgb(var(--y-faint));
+  --tw-prose-bullets: rgb(var(--y-faint));
+  --tw-prose-hr: rgb(var(--y-line));
+  --tw-prose-quotes: rgb(var(--y-text));
+  --tw-prose-quote-borders: rgb(var(--y-mint));
+  --tw-prose-captions: rgb(var(--y-faint));
+  --tw-prose-code: rgb(var(--y-text));
+  --tw-prose-pre-code: rgb(var(--y-text));
+  --tw-prose-pre-bg: rgb(var(--y-surface-2));
+  --tw-prose-th-borders: rgb(var(--y-line-strong));
+  --tw-prose-td-borders: rgb(var(--y-line));
+}
+:root .prose a {
+  text-decoration-color: rgb(var(--y-mint-text) / 0.4);
+  text-underline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
   }
 }

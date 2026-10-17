@@ -1,310 +1,464 @@
 <template>
-  <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8 max-w-7xl space-y-8">
-    <div class="flex justify-between items-center">
-      <h1 class="text-4xl font-bold">{{ $t('domains.myDomains') }}</h1>
-      <div class="flex gap-2">
-        <router-link to="/" class="btn btn-primary">
-          {{ $t('domains.registerNew') }}
-        </router-link>
-      </div>
-    </div>
+  <div>
+    <div class="y-page">
+      <PageHeader :eyebrow="$t('shell.workspace')" :title="$t('uiDomains.title')" :description="headerDescription">
+        <template #actions>
+          <router-link to="/" class="btn btn-primary gap-1.5">
+            <Plus :size="16" :stroke-width="1.5" />
+            {{ $t('uiDomains.claim') }}
+          </router-link>
+        </template>
+      </PageHeader>
 
-    <!-- Domains List -->
-    <div v-if="loading" class="flex justify-center py-12">
-      <span class="loading loading-spinner loading-lg"></span>
-    </div>
+      <YLoader v-if="loading" :label="$t('uiDomains.loading')" />
 
-    <div v-else-if="domains.length === 0" class="card bg-base-200 shadow-xl">
-      <div class="card-body items-center text-center py-12">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-20 w-20 opacity-40 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
-        </svg>
-        <h3 class="card-title text-2xl mb-2">{{ $t('domains.noDomains') }}</h3>
-        <p class="mb-4">{{ $t('domains.noDomainsDesc') }}</p>
-        <div class="flex gap-3">
-          <router-link to="/" class="btn btn-primary">{{ $t('domains.registerDomain') }}</router-link>
-        </div>
-      </div>
-    </div>
-
-    <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      <div v-for="domain in domains" :key="domain.id" class="card bg-base-100 border border-base-300 shadow-sm hover:shadow-md transition-shadow overflow-visible">
-        <div class="card-body p-5 gap-0">
-          <!-- Content wrapper: opacity applied here so card-actions/dropdown stacking context is not affected -->
-          <div :class="{ 'opacity-50': domain.status === 'suspended' || domain.status === 'abuse' }">
-
-            <!-- Header: domain name + status badge -->
-            <div class="flex items-start justify-between gap-3 mb-4">
-              <h2 class="text-sm font-semibold text-base-content leading-snug break-all" style="font-family: 'IBM Plex Mono', monospace; letter-spacing: -0.01em;">
-                {{ domain.full_domain }}
-              </h2>
-              <!-- Suspended badge: clickable to show details -->
-              <button
-                v-if="domain.status === 'suspended'"
-                class="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity"
-                :class="getStatusClass(domain.status)"
-                @click="openSuspendedInfo(domain)"
-              >
-                {{ domain.status }}
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </button>
-              <div v-else class="shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium" :class="getStatusClass(domain.status)">
-                {{ domain.status }}
-              </div>
+      <template v-else>
+        <!-- Usage -->
+        <section class="y-panel overflow-hidden">
+          <div class="grid grid-cols-2 gap-px bg-y-line lg:grid-cols-4">
+            <div class="bg-y-surface px-5 py-5">
+              <p class="y-label">{{ $t('uiDomains.statInUse') }}</p>
+              <p class="mt-3 font-mono text-3xl font-medium tracking-tight text-y-text">
+                {{ domains.length }}<span v-if="domainQuota !== null" class="text-lg text-y-faint"> / {{ domainQuota }}</span>
+              </p>
             </div>
-
-            <!-- Abuse Notice -->
-            <div v-if="domain.status === 'abuse'" class="flex items-start gap-1.5 text-xs text-error bg-error/10 rounded-lg px-3 py-2 mb-3">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-              </svg>
-              <span>{{ $t('domains.abuseNotice') }}</span>
+            <div class="bg-y-surface px-5 py-5">
+              <p class="y-label">{{ $t('uiDomains.statLeft') }}</p>
+              <p class="mt-3 font-mono text-3xl font-medium tracking-tight text-y-text">{{ slotsLeft === null ? '—' : slotsLeft }}</p>
             </div>
-
-            <!-- Pending Deletion Notice -->
-            <div
-              v-if="domain.first_failed_at && getDaysUntilDeletion(domain.first_failed_at) !== null"
-              class="flex items-start gap-1.5 text-xs rounded-lg px-3 py-2 mb-3"
-              :class="getDaysUntilDeletion(domain.first_failed_at) <= 3 ? 'text-error bg-error/10' : 'text-warning bg-warning/10'"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-              <span v-if="getDaysUntilDeletion(domain.first_failed_at) <= 0">{{ $t('domains.pendingDeletionSoonNotice') }}</span>
-              <span v-else>{{ $t('domains.pendingDeletionNotice', { days: getDaysUntilDeletion(domain.first_failed_at) }) }}</span>
+            <div class="bg-y-surface px-5 py-5">
+              <p class="y-label">{{ $t('uiDomains.statExpiring') }}</p>
+              <p class="mt-3 font-mono text-3xl font-medium tracking-tight" :class="expiringCount > 0 ? 'text-y-warn' : 'text-y-text'">{{ expiringCount }}</p>
             </div>
-
-            <!-- Meta info: registration & expiry -->
-            <dl class="space-y-1.5 text-xs mb-4">
-              <div class="flex items-center justify-between gap-2">
-                <dt class="text-base-content/50 shrink-0">{{ $t('domains.registered') }}</dt>
-                <dd class="font-medium tabular-nums text-right">{{ formatDate(domain.registered_at) }}</dd>
-              </div>
-              <div class="flex items-center justify-between gap-2">
-                <dt class="text-base-content/50 shrink-0">{{ $t('domains.expires') }}</dt>
-                <dd class="font-medium tabular-nums text-right flex items-center gap-1.5">
-                  {{ formatDate(domain.expires_at) }}
-                  <span v-if="domain.status === 'active' && getDaysUntilExpiry(domain.expires_at) <= 30" class="text-warning font-semibold">
-                    {{ getDaysUntilExpiry(domain.expires_at) }}d
-                  </span>
-                </dd>
-              </div>
-            </dl>
-
-            <!-- Status indicators row: health + DNS sync -->
-            <div class="flex items-center justify-between pt-3 border-t border-base-300">
-              <!-- Health Status -->
-              <div v-if="domain.scan_summary" class="flex items-center gap-1.5">
-                <span class="text-xs text-base-content/40">{{ $t('domains.healthStatus') }}</span>
-                <button
-                  class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium hover:opacity-80 transition-opacity"
-                  :class="getHealthBadgeClass(domain.scan_summary.overall_health)"
-                  @click="viewHealthDetails(domain)"
-                >
-                  {{ domain.scan_summary.overall_health || 'unknown' }}
-                </button>
-                <button
-                  class="text-base-content/30 hover:text-base-content/70 transition-colors"
-                  @click="viewScanDetails(domain)"
-                  :title="$t('domains.scanDetails')"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                  </svg>
-                </button>
-              </div>
-              <div v-else class="text-xs text-base-content/30">{{ $t('domains.noScanData') }}</div>
-
-              <!-- DNS Synced indicator -->
-              <div class="flex items-center gap-1 text-xs">
-                <span class="text-base-content/40">DNS</span>
-                <span v-if="domain.dns_synced" class="inline-flex items-center gap-1 text-success font-medium">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                  </svg>
-                  {{ $t('domains.yes') }}
-                </span>
-                <span v-else class="inline-flex items-center gap-1 text-warning font-medium">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  {{ $t('domains.no') }}
-                </span>
-              </div>
-            </div>
-
-          </div><!-- end opacity wrapper -->
-
-          <div class="card-actions justify-end mt-4 pt-3 border-t border-base-300 flex-wrap gap-2">
-            <div class="tooltip" :data-tip="isUsingDefaultNS(domain) ? $t('domains.manageDNS') : $t('domains.dnsTooltip')">
-              <button
-                class="btn btn-sm btn-primary"
-                @click="manageDNS(domain)"
-                :disabled="!isUsingDefaultNS(domain)"
-                :class="{ 'btn-disabled': !isUsingDefaultNS(domain) }"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                DNS
-              </button>
-            </div>
-
-            <!-- More Actions Dropdown -->
-            <div class="dropdown dropdown-end">
-              <label tabindex="0" class="btn btn-sm btn-ghost">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                </svg>
-              </label>
-              <ul tabindex="0" class="dropdown-content z-[9999] menu p-2 shadow-lg bg-base-100 rounded-box w-52">
-                <li><a @click="openModifyNS(domain)" class="flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer hover:bg-base-200 active:bg-base-300">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
-                  </svg>
-                  {{ $t('domains.modifyNameservers') }}
-                </a></li>
-                <li><a @click="openRenew(domain)" class="flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer hover:bg-base-200 active:bg-base-300">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                  {{ $t('domains.renewDomainTitle') }}
-                </a></li>
-                <li><a @click="openTransfer(domain)" class="flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer hover:bg-base-200 active:bg-base-300">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                  </svg>
-                  {{ $t('domains.transferDomainTitle') }}
-                </a></li>
-                <li><a @click="confirmDelete(domain)" class="flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer text-error hover:bg-error hover:text-error-content active:bg-error/80">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                  {{ $t('admin.delete') }}
-                </a></li>
-              </ul>
+            <div class="bg-y-surface px-5 py-5">
+              <p class="y-label">{{ $t('uiDomains.statAttention') }}</p>
+              <p class="mt-3 font-mono text-3xl font-medium tracking-tight" :class="attentionCount > 0 ? 'text-y-warn' : 'text-y-text'">{{ attentionCount }}</p>
             </div>
           </div>
-        </div>
-      </div>
+          <div v-if="quotaPercent !== null" class="flex items-center gap-3 border-t border-y-line px-5 py-3">
+            <div class="h-1 flex-1 overflow-hidden rounded-full bg-y-surface-2">
+              <div class="h-full rounded-full bg-y-mint transition-[width] duration-300" :style="{ width: quotaPercent + '%' }"></div>
+            </div>
+            <span class="shrink-0 font-mono text-xs text-y-faint">{{ $t('uiDomains.quotaUsed', { percent: quotaPercent }) }}</span>
+          </div>
+        </section>
+
+        <!-- Empty -->
+        <section v-if="domains.length === 0" class="y-panel">
+          <EmptyState :title="$t('uiDomains.emptyTitle')" :description="$t('uiDomains.emptyDesc')">
+            <router-link to="/" class="btn btn-primary gap-1.5">
+              <Plus :size="16" :stroke-width="1.5" />
+              {{ $t('uiDomains.claim') }}
+            </router-link>
+          </EmptyState>
+        </section>
+
+        <!-- Domain list -->
+        <section v-else class="y-panel">
+          <div class="y-panel-header">
+            <div role="tablist" class="tabs tabs-boxed tabs-sm" :aria-label="$t('uiDomains.filterLabel')">
+              <button
+                v-for="opt in filterOptions"
+                :key="opt.key"
+                type="button"
+                role="tab"
+                class="tab gap-1.5"
+                :class="{ 'tab-active': statusFilter === opt.key }"
+                :aria-selected="statusFilter === opt.key"
+                @click="statusFilter = opt.key"
+              >
+                {{ opt.label }}
+                <span class="font-mono text-[11px] text-y-faint">{{ opt.count }}</span>
+              </button>
+            </div>
+            <label class="input input-bordered input-sm flex w-full items-center gap-2 sm:w-64">
+              <Search :size="14" :stroke-width="1.5" class="shrink-0 text-y-faint" />
+              <input
+                v-model="searchQuery"
+                type="search"
+                class="min-w-0 grow bg-transparent font-mono text-[13px]"
+                :placeholder="$t('uiDomains.searchPlaceholder')"
+                :aria-label="$t('uiDomains.searchLabel')"
+                autocomplete="off"
+                autocapitalize="off"
+                spellcheck="false"
+              />
+            </label>
+          </div>
+
+          <EmptyState v-if="rows.length === 0" :title="$t('uiDomains.noMatchTitle')" :description="$t('uiDomains.noMatchDesc')">
+            <button type="button" class="btn btn-ghost btn-sm" @click="clearFilters">{{ $t('uiDomains.clearFilters') }}</button>
+          </EmptyState>
+
+          <template v-else>
+            <!-- Table, md and up. Separate borders + cell-level hover let the last row follow the panel's rounded corners;
+                 the panel itself cannot clip because row menus have to overflow it. -->
+            <table
+              class="y-table hidden border-separate border-spacing-0 md:table [&_tbody_tr:hover>td]:bg-y-surface-2/60 [&_tbody_tr:hover]:bg-transparent [&_tbody_tr:last-child>td:first-child]:rounded-bl-lg [&_tbody_tr:last-child>td:last-child]:rounded-br-lg"
+            >
+              <thead>
+                <tr>
+                  <th>{{ $t('uiDomains.colDomain') }}</th>
+                  <th>{{ $t('uiDomains.colStatus') }}</th>
+                  <th>{{ $t('uiDomains.colExpires') }}</th>
+                  <th>{{ $t('uiDomains.colDns') }}</th>
+                  <th class="hidden xl:table-cell">{{ $t('uiDomains.colHealth') }}</th>
+                  <th class="w-px text-right">{{ $t('uiDomains.colActions') }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template v-for="row in rows" :key="row.domain.id">
+                  <tr>
+                    <td :class="{ 'border-b-0': row.notices.length }">
+                      <p class="y-domain text-[14px]" :class="{ '!text-y-muted': isRestricted(row.domain) }">{{ row.domain.full_domain }}</p>
+                      <p class="mt-0.5 text-xs text-y-faint">{{ $t('uiDomains.registeredOn', { date: formatDate(row.domain.registered_at) }) }}</p>
+                    </td>
+                    <td class="whitespace-nowrap" :class="{ 'border-b-0': row.notices.length }">
+                      <button
+                        v-if="row.domain.status === 'suspended'"
+                        type="button"
+                        class="inline-flex items-center gap-1.5 rounded-sm hover:underline"
+                        :title="$t('uiDomains.viewSuspension')"
+                        @click="openSuspendedInfo(row.domain)"
+                      >
+                        <StatusDot :tone="getStatusTone(row.domain.status)" :label="statusLabel(row.domain.status)" />
+                        <Info :size="14" :stroke-width="1.5" class="text-y-faint" />
+                      </button>
+                      <StatusDot v-else :tone="getStatusTone(row.domain.status)" :label="statusLabel(row.domain.status)" />
+                    </td>
+                    <td class="whitespace-nowrap" :class="{ 'border-b-0': row.notices.length }">
+                      <p class="font-mono text-[13px] text-y-text">{{ formatDate(row.domain.expires_at) }}</p>
+                      <span v-if="isExpiringSoon(row.domain)" class="y-chip-warn mt-1 !py-0 font-mono text-[11px]">
+                        {{ $t('uiDomains.daysLeft', { n: getDaysUntilExpiry(row.domain.expires_at) }) }}
+                      </span>
+                    </td>
+                    <td class="whitespace-nowrap" :class="{ 'border-b-0': row.notices.length }">
+                      <StatusDot :tone="row.domain.dns_synced ? 'ok' : 'warn'" :label="row.domain.dns_synced ? $t('uiDomains.synced') : $t('uiDomains.notSynced')" />
+                      <p class="mt-0.5 text-xs text-y-faint">{{ isUsingDefaultNS(row.domain) ? $t('uiDomains.nsDefault') : $t('uiDomains.nsCustom') }}</p>
+                    </td>
+                    <td class="hidden whitespace-nowrap xl:table-cell" :class="{ 'border-b-0': row.notices.length }">
+                      <div v-if="row.domain.scan_summary" class="flex items-center gap-1">
+                        <button type="button" :class="getHealthBadgeClass(row.domain.scan_summary.overall_health)" @click="viewHealthDetails(row.domain)">
+                          {{ healthLabel(row.domain.scan_summary.overall_health) }}
+                        </button>
+                        <button
+                          type="button"
+                          class="btn btn-ghost btn-xs btn-square text-y-faint"
+                          :title="$t('domains.scanDetails')"
+                          :aria-label="$t('domains.scanDetails')"
+                          @click="viewScanDetails(row.domain)"
+                        >
+                          <ChartColumn :size="14" :stroke-width="1.5" />
+                        </button>
+                      </div>
+                      <span v-else class="text-xs text-y-faint">{{ $t('domains.noScanData') }}</span>
+                    </td>
+                    <td class="whitespace-nowrap" :class="{ 'border-b-0': row.notices.length }">
+                      <div class="flex items-center justify-end gap-1">
+                        <span :title="isUsingDefaultNS(row.domain) ? $t('domains.manageDNS') : $t('domains.dnsTooltip')">
+                          <button
+                            type="button"
+                            class="btn btn-ghost btn-sm btn-square disabled:border-transparent disabled:bg-transparent"
+                            :disabled="!isUsingDefaultNS(row.domain)"
+                            :aria-label="$t('uiDomains.dnsRecords')"
+                            @click="manageDNS(row.domain)"
+                          >
+                            <ListTree :size="16" :stroke-width="1.5" />
+                          </button>
+                        </span>
+                        <button
+                          type="button"
+                          class="btn btn-ghost btn-sm btn-square"
+                          :title="$t('domains.renewDomainTitle')"
+                          :aria-label="$t('domains.renewDomainTitle')"
+                          @click="openRenew(row.domain)"
+                        >
+                          <RefreshCw :size="16" :stroke-width="1.5" />
+                        </button>
+                        <div class="dropdown dropdown-end">
+                          <div tabindex="0" role="button" class="btn btn-ghost btn-sm btn-square" :title="$t('uiDomains.moreActions')" :aria-label="$t('uiDomains.moreActions')">
+                            <Ellipsis :size="16" :stroke-width="1.5" />
+                          </div>
+                          <ul tabindex="0" class="dropdown-content menu z-20 mt-1 w-56 rounded-md p-1.5">
+                            <template v-for="item in menuItems(row.domain)" :key="item.key">
+                              <li v-if="item.divider" role="separator" class="pointer-events-none my-1 border-t border-y-line"></li>
+                              <li>
+                                <button
+                                  type="button"
+                                  class="flex items-center gap-2.5 rounded-sm px-3 py-2 text-sm hover:bg-y-surface-2"
+                                  :class="item.danger ? 'text-y-danger-text' : 'text-y-text'"
+                                  @click="runMenuItem(item)"
+                                >
+                                  <component :is="item.icon" :size="16" :stroke-width="1.5" :class="item.danger ? '' : 'text-y-faint'" />
+                                  {{ item.label }}
+                                </button>
+                              </li>
+                            </template>
+                          </ul>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr v-if="row.notices.length">
+                    <td colspan="6" class="!pt-0">
+                      <div class="space-y-1.5">
+                        <p
+                          v-for="notice in row.notices"
+                          :key="notice.key"
+                          class="flex items-start gap-2 text-xs leading-5"
+                          :class="notice.tone === 'danger' ? 'text-y-danger-text' : 'text-y-warn'"
+                        >
+                          <TriangleAlert :size="14" :stroke-width="1.5" class="mt-0.5 shrink-0" />
+                          <span>{{ notice.text }}</span>
+                        </p>
+                      </div>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+
+            <!-- Stacked rows, mobile -->
+            <ul class="divide-y divide-y-line md:hidden">
+              <li v-for="row in rows" :key="row.domain.id" class="space-y-4 px-4 py-4">
+                <div class="flex items-start justify-between gap-3">
+                  <div class="min-w-0">
+                    <p class="y-domain text-[15px]" :class="{ '!text-y-muted': isRestricted(row.domain) }">{{ row.domain.full_domain }}</p>
+                    <p class="mt-0.5 text-xs text-y-faint">{{ $t('uiDomains.registeredOn', { date: formatDate(row.domain.registered_at) }) }}</p>
+                  </div>
+                  <button
+                    v-if="row.domain.status === 'suspended'"
+                    type="button"
+                    class="inline-flex shrink-0 items-center gap-1.5"
+                    :title="$t('uiDomains.viewSuspension')"
+                    @click="openSuspendedInfo(row.domain)"
+                  >
+                    <StatusDot :tone="getStatusTone(row.domain.status)" :label="statusLabel(row.domain.status)" />
+                    <Info :size="14" :stroke-width="1.5" class="text-y-faint" />
+                  </button>
+                  <StatusDot v-else class="shrink-0" :tone="getStatusTone(row.domain.status)" :label="statusLabel(row.domain.status)" />
+                </div>
+
+                <dl class="grid grid-cols-2 gap-x-4 gap-y-3">
+                  <div>
+                    <dt class="y-label">{{ $t('uiDomains.colExpires') }}</dt>
+                    <dd class="mt-1 flex flex-wrap items-center gap-1.5">
+                      <span class="font-mono text-[13px] text-y-text">{{ formatDate(row.domain.expires_at) }}</span>
+                      <span v-if="isExpiringSoon(row.domain)" class="y-chip-warn !py-0 font-mono text-[11px]">
+                        {{ $t('uiDomains.daysLeft', { n: getDaysUntilExpiry(row.domain.expires_at) }) }}
+                      </span>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt class="y-label">{{ $t('uiDomains.colDns') }}</dt>
+                    <dd class="mt-1">
+                      <StatusDot :tone="row.domain.dns_synced ? 'ok' : 'warn'" :label="row.domain.dns_synced ? $t('uiDomains.synced') : $t('uiDomains.notSynced')" />
+                      <p class="text-xs text-y-faint">{{ isUsingDefaultNS(row.domain) ? $t('uiDomains.nsDefault') : $t('uiDomains.nsCustom') }}</p>
+                    </dd>
+                  </div>
+                  <div class="col-span-2">
+                    <dt class="y-label">{{ $t('uiDomains.colHealth') }}</dt>
+                    <dd class="mt-1">
+                      <div v-if="row.domain.scan_summary" class="flex items-center gap-1">
+                        <button type="button" :class="getHealthBadgeClass(row.domain.scan_summary.overall_health)" @click="viewHealthDetails(row.domain)">
+                          {{ healthLabel(row.domain.scan_summary.overall_health) }}
+                        </button>
+                        <button
+                          type="button"
+                          class="btn btn-ghost btn-xs btn-square text-y-faint"
+                          :title="$t('domains.scanDetails')"
+                          :aria-label="$t('domains.scanDetails')"
+                          @click="viewScanDetails(row.domain)"
+                        >
+                          <ChartColumn :size="14" :stroke-width="1.5" />
+                        </button>
+                      </div>
+                      <span v-else class="text-xs text-y-faint">{{ $t('domains.noScanData') }}</span>
+                    </dd>
+                  </div>
+                </dl>
+
+                <div v-if="row.notices.length" class="space-y-1.5">
+                  <p
+                    v-for="notice in row.notices"
+                    :key="notice.key"
+                    class="flex items-start gap-2 text-xs leading-5"
+                    :class="notice.tone === 'danger' ? 'text-y-danger-text' : 'text-y-warn'"
+                  >
+                    <TriangleAlert :size="14" :stroke-width="1.5" class="mt-0.5 shrink-0" />
+                    <span>{{ notice.text }}</span>
+                  </p>
+                </div>
+
+                <div class="flex items-center gap-2">
+                  <span class="flex-1" :title="isUsingDefaultNS(row.domain) ? $t('domains.manageDNS') : $t('domains.dnsTooltip')">
+                    <button type="button" class="btn btn-outline btn-sm w-full gap-1.5 disabled:border-y-line disabled:bg-transparent" :disabled="!isUsingDefaultNS(row.domain)" @click="manageDNS(row.domain)">
+                      <ListTree :size="16" :stroke-width="1.5" />
+                      {{ $t('uiDomains.dnsRecords') }}
+                    </button>
+                  </span>
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-sm btn-square"
+                    :title="$t('domains.renewDomainTitle')"
+                    :aria-label="$t('domains.renewDomainTitle')"
+                    @click="openRenew(row.domain)"
+                  >
+                    <RefreshCw :size="16" :stroke-width="1.5" />
+                  </button>
+                  <div class="dropdown dropdown-end">
+                    <div tabindex="0" role="button" class="btn btn-ghost btn-sm btn-square" :title="$t('uiDomains.moreActions')" :aria-label="$t('uiDomains.moreActions')">
+                      <Ellipsis :size="16" :stroke-width="1.5" />
+                    </div>
+                    <ul tabindex="0" class="dropdown-content menu z-20 mt-1 w-56 rounded-md p-1.5">
+                      <template v-for="item in menuItems(row.domain)" :key="item.key">
+                        <li v-if="item.divider" role="separator" class="pointer-events-none my-1 border-t border-y-line"></li>
+                        <li>
+                          <button
+                            type="button"
+                            class="flex items-center gap-2.5 rounded-sm px-3 py-2 text-sm hover:bg-y-surface-2"
+                            :class="item.danger ? 'text-y-danger-text' : 'text-y-text'"
+                            @click="runMenuItem(item)"
+                          >
+                            <component :is="item.icon" :size="16" :stroke-width="1.5" :class="item.danger ? '' : 'text-y-faint'" />
+                            {{ item.label }}
+                          </button>
+                        </li>
+                      </template>
+                    </ul>
+                  </div>
+                </div>
+              </li>
+            </ul>
+          </template>
+        </section>
+      </template>
     </div>
 
     <!-- CyberPanel Hosting Modal -->
     <dialog :class="{ 'modal': true, 'modal-open': showCpModal }">
       <div class="modal-box max-w-lg" v-if="cpModalDomain">
-        <h3 class="font-bold text-2xl mb-1">{{ $t('domains.cpHostingTitle') }}</h3>
-        <p class="text-sm opacity-60 mb-4 font-mono">{{ cpModalDomain.full_domain }}</p>
+        <h3 class="text-lg font-semibold text-y-text">{{ $t('domains.cpHostingTitle') }}</h3>
+        <p class="y-domain mt-1 text-sm !font-normal !text-y-muted">{{ cpModalDomain.full_domain }}</p>
 
-        <!-- 已有账号：管理视图 -->
-        <div v-if="cpAccountByDomain[cpModalDomain.id]" class="space-y-4">
-          <div class="grid grid-cols-2 gap-3 text-sm">
-            <div class="bg-base-200 rounded-lg p-3">
-              <p class="opacity-60 text-xs mb-1">{{ $t('domains.cpHostingStatus') }}</p>
-              <span class="inline-block px-2 py-0.5 rounded text-xs font-medium" :class="{
-                'bg-green-100 text-green-800': cpAccountByDomain[cpModalDomain.id].status === 'active',
-                'bg-blue-100 text-blue-800': cpAccountByDomain[cpModalDomain.id].status === 'pending',
-                'bg-amber-100 text-amber-800': cpAccountByDomain[cpModalDomain.id].status === 'suspended',
-                'bg-red-100 text-red-800': cpAccountByDomain[cpModalDomain.id].status === 'terminated',
-              }">{{ cpAccountByDomain[cpModalDomain.id].status }}</span>
+        <!-- Existing account -->
+        <div v-if="cpAccountByDomain[cpModalDomain.id]" class="mt-5 space-y-4">
+          <div class="grid grid-cols-2 gap-3">
+            <div class="y-inset px-4 py-3">
+              <p class="y-label">{{ $t('domains.cpHostingStatus') }}</p>
+              <span class="mt-2" :class="cpStatusChip(cpAccountByDomain[cpModalDomain.id].status)">{{ cpStatusLabel(cpAccountByDomain[cpModalDomain.id].status) }}</span>
             </div>
-            <div class="bg-base-200 rounded-lg p-3">
-              <p class="opacity-60 text-xs mb-1">{{ $t('domains.cpHostingServer') }}</p>
-              <p class="font-medium">{{ cpAccountByDomain[cpModalDomain.id].server?.name || '-' }}</p>
+            <div class="y-inset px-4 py-3">
+              <p class="y-label">{{ $t('domains.cpHostingServer') }}</p>
+              <p class="mt-2 text-sm font-medium text-y-text">{{ cpAccountByDomain[cpModalDomain.id].server?.name || '—' }}</p>
             </div>
-            <div class="bg-base-200 rounded-lg p-3 col-span-2">
-              <p class="opacity-60 text-xs mb-1">{{ $t('domains.cpHostingUsername') }}</p>
-              <div class="flex items-center justify-between">
-                <p class="font-mono font-bold">{{ cpAccountByDomain[cpModalDomain.id].cp_username }}</p>
-                <button @click="copyText(cpAccountByDomain[cpModalDomain.id].cp_username)" class="btn btn-xs btn-ghost">Copy</button>
+            <div class="y-inset col-span-2 px-4 py-3">
+              <p class="y-label">{{ $t('domains.cpHostingUsername') }}</p>
+              <div class="mt-1.5 flex items-center justify-between gap-2">
+                <p class="break-all font-mono text-sm font-medium text-y-text">{{ cpAccountByDomain[cpModalDomain.id].cp_username }}</p>
+                <button
+                  type="button"
+                  class="btn btn-ghost btn-xs btn-square"
+                  :title="$t('uiDomains.copy')"
+                  :aria-label="$t('uiDomains.copy')"
+                  @click="copyText(cpAccountByDomain[cpModalDomain.id].cp_username)"
+                >
+                  <Copy :size="14" :stroke-width="1.5" />
+                </button>
               </div>
             </div>
-            <!-- 密码行 -->
-            <div class="bg-base-200 rounded-lg p-3 col-span-2">
-              <p class="opacity-60 text-xs mb-1">{{ $t('domains.cpHostingPassword') }}</p>
-              <div class="flex items-center justify-between gap-2">
-                <p class="font-mono font-bold tracking-wider flex-1">
+            <div class="y-inset col-span-2 px-4 py-3">
+              <p class="y-label">{{ $t('domains.cpHostingPassword') }}</p>
+              <div class="mt-1.5 flex items-center justify-between gap-2">
+                <p class="min-w-0 flex-1 break-all font-mono text-sm font-medium tracking-wider text-y-text">
                   <span v-if="cpCredentials">{{ showCpPassword ? cpCredentials.cp_password : '••••••••' }}</span>
-                  <span v-else class="opacity-40 text-xs">{{ $t('domains.cpPasswordHidden') }}</span>
+                  <span v-else class="font-sans text-xs font-normal tracking-normal text-y-faint">{{ $t('domains.cpPasswordHidden') }}</span>
                 </p>
-                <div class="flex gap-1">
+                <div class="flex shrink-0 gap-1">
                   <button
-                    @click="fetchCpCredentials(cpAccountByDomain[cpModalDomain.id])"
-                    class="btn btn-xs btn-ghost"
+                    type="button"
+                    class="btn btn-ghost btn-xs gap-1"
                     :disabled="cpCredentialsLoading"
+                    @click="fetchCpCredentials(cpAccountByDomain[cpModalDomain.id])"
                   >
                     <span v-if="cpCredentialsLoading" class="loading loading-spinner loading-xs"></span>
-                    <span v-else-if="!cpCredentials">{{ $t('domains.cpPasswordShow') }}</span>
-                    <span v-else>{{ showCpPassword ? $t('domains.cpPasswordHide') : $t('domains.cpPasswordShow') }}</span>
+                    <template v-else-if="!cpCredentials"><Eye :size="14" :stroke-width="1.5" />{{ $t('domains.cpPasswordShow') }}</template>
+                    <template v-else>
+                      <EyeOff v-if="showCpPassword" :size="14" :stroke-width="1.5" />
+                      <Eye v-else :size="14" :stroke-width="1.5" />
+                      {{ showCpPassword ? $t('domains.cpPasswordHide') : $t('domains.cpPasswordShow') }}
+                    </template>
                   </button>
-                  <button v-if="cpCredentials" @click="copyText(cpCredentials.cp_password)" class="btn btn-xs btn-ghost">Copy</button>
+                  <button
+                    v-if="cpCredentials"
+                    type="button"
+                    class="btn btn-ghost btn-xs btn-square"
+                    :title="$t('uiDomains.copy')"
+                    :aria-label="$t('uiDomains.copy')"
+                    @click="copyText(cpCredentials.cp_password)"
+                  >
+                    <Copy :size="14" :stroke-width="1.5" />
+                  </button>
                 </div>
               </div>
             </div>
           </div>
 
-          <div v-if="cpAccountByDomain[cpModalDomain.id].error_msg" class="alert alert-warning text-sm">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            {{ cpAccountByDomain[cpModalDomain.id].error_msg }}
+          <div v-if="cpAccountByDomain[cpModalDomain.id].error_msg" class="alert alert-warning items-start text-sm">
+            <TriangleAlert :size="16" :stroke-width="1.5" class="mt-0.5 shrink-0" />
+            <span>{{ cpAccountByDomain[cpModalDomain.id].error_msg }}</span>
           </div>
 
           <div class="modal-action flex-wrap gap-2">
-            <button @click="closeCpModal" class="btn btn-ghost">{{ $t('common.close') }}</button>
-            <button @click="confirmDeleteCpAccount" class="btn btn-error" :disabled="cpSubmitting">
+            <button type="button" class="btn btn-ghost" @click="closeCpModal">{{ $t('common.close') }}</button>
+            <button type="button" class="btn btn-outline text-y-danger-text" :disabled="cpSubmitting" @click="confirmDeleteCpAccount">
               <span v-if="cpSubmitting" class="loading loading-spinner loading-sm"></span>
               {{ $t('domains.cpHostingDelete') }}
             </button>
-            <button @click="openCpPanel(cpAccountByDomain[cpModalDomain.id])" class="btn btn-primary" :disabled="cpCredentialsLoading">
+            <button type="button" class="btn btn-primary gap-1.5" :disabled="cpCredentialsLoading" @click="openCpPanel(cpAccountByDomain[cpModalDomain.id])">
               <span v-if="cpCredentialsLoading" class="loading loading-spinner loading-sm"></span>
-              <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-              </svg>
+              <ExternalLink v-else :size="16" :stroke-width="1.5" />
               {{ $t('domains.cpHostingOpenPanel') }}
             </button>
           </div>
         </div>
 
-        <!-- 申请表单：选择服务器 -->
-        <div v-else class="space-y-4">
-          <p class="text-sm opacity-70">{{ $t('domains.cpHostingApply') }}</p>
+        <!-- Apply: choose a server -->
+        <div v-else class="mt-5 space-y-4">
+          <p class="text-sm text-y-muted">{{ $t('domains.cpHostingApply') }}</p>
 
-          <div v-if="cpServersLoading" class="flex justify-center py-6">
-            <span class="loading loading-spinner loading-md"></span>
-          </div>
-          <div v-else-if="cpServers.length === 0" class="text-center py-4 text-sm opacity-60">
+          <YLoader v-if="cpServersLoading" :size="28" />
+          <p v-else-if="cpServers.length === 0" class="y-inset px-4 py-6 text-center text-sm text-y-muted">
             {{ $t('domains.cpNoServersAvailable') }}
-          </div>
+          </p>
           <div v-else class="space-y-2">
-            <p class="text-sm font-medium">{{ $t('domains.cpHostingChooseServer') }}</p>
-            <div
-              v-for="srv in cpServers" :key="srv.id"
-              class="flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors"
+            <p class="y-field-label">{{ $t('domains.cpHostingChooseServer') }}</p>
+            <label
+              v-for="srv in cpServers"
+              :key="srv.id"
+              class="flex items-center gap-3 rounded-md border px-4 py-3 transition-colors"
               :class="[
-                !srv.available ? 'opacity-50 cursor-not-allowed border-base-300' :
-                cpSelectedServer === srv.id ? 'border-primary bg-primary/5' : 'border-base-300 hover:border-primary/40'
+                !srv.available ? 'cursor-not-allowed border-y-line text-y-faint' :
+                cpSelectedServer === srv.id ? 'y-mint-soft cursor-pointer' : 'cursor-pointer border-y-line hover:border-y-line-strong hover:bg-y-surface-2'
               ]"
               @click="srv.available && (cpSelectedServer = srv.id)"
             >
-              <input type="radio" :value="srv.id" v-model="cpSelectedServer" :disabled="!srv.available" class="radio radio-primary radio-sm" />
-              <div class="flex-1 min-w-0">
-                <p class="font-semibold text-sm">{{ srv.name }}</p>
-                <p class="text-xs opacity-60">
+              <input v-model="cpSelectedServer" type="radio" :value="srv.id" :disabled="!srv.available" class="radio radio-primary radio-sm" />
+              <div class="min-w-0 flex-1">
+                <p class="text-sm font-medium" :class="srv.available ? 'text-y-text' : 'text-y-faint'">{{ srv.name }}</p>
+                <p class="font-mono text-xs text-y-faint">
                   {{ srv.current_accounts }} / {{ srv.max_accounts === 0 ? '∞' : srv.max_accounts }} {{ $t('domains.cpAccountsUsed') }}
                 </p>
               </div>
-              <span v-if="!srv.available" class="text-xs text-red-500 font-medium">{{ $t('domains.cpServerFull') }}</span>
-            </div>
+              <span v-if="!srv.available" class="y-chip-danger">{{ $t('domains.cpServerFull') }}</span>
+            </label>
           </div>
 
           <div v-if="cpFormError" class="alert alert-error text-sm">{{ cpFormError }}</div>
 
           <div class="modal-action">
-            <button @click="closeCpModal" class="btn btn-ghost">{{ $t('common.cancel') }}</button>
-            <button @click="createCpAccount" class="btn btn-primary" :disabled="cpSubmitting || !cpSelectedServer || cpServers.length === 0">
+            <button type="button" class="btn btn-ghost" @click="closeCpModal">{{ $t('common.cancel') }}</button>
+            <button type="button" class="btn btn-primary" :disabled="cpSubmitting || !cpSelectedServer || cpServers.length === 0" @click="createCpAccount">
               <span v-if="cpSubmitting" class="loading loading-spinner loading-sm"></span>
               {{ $t('domains.cpApplyHosting') }}
             </button>
@@ -316,12 +470,12 @@
 
     <!-- CyberPanel Delete Confirm Modal -->
     <dialog :class="{ 'modal': true, 'modal-open': showCpDeleteConfirm }">
-      <div class="modal-box">
-        <h3 class="font-bold text-lg">{{ $t('domains.cpHostingDelete') }}</h3>
-        <p class="py-4 text-sm">{{ $t('domains.cpHostingDeleteConfirm') }}</p>
+      <div class="modal-box max-w-md">
+        <h3 class="text-lg font-semibold text-y-text">{{ $t('domains.cpHostingDelete') }}</h3>
+        <p class="mt-2 text-sm leading-6 text-y-muted">{{ $t('domains.cpHostingDeleteConfirm') }}</p>
         <div class="modal-action">
-          <button @click="showCpDeleteConfirm = false" class="btn btn-ghost">{{ $t('common.cancel') }}</button>
-          <button @click="deleteCpAccount" class="btn btn-error" :disabled="cpSubmitting">
+          <button type="button" class="btn btn-ghost" @click="showCpDeleteConfirm = false">{{ $t('common.cancel') }}</button>
+          <button type="button" class="btn btn-error" :disabled="cpSubmitting" @click="deleteCpAccount">
             <span v-if="cpSubmitting" class="loading loading-spinner loading-sm"></span>
             {{ $t('admin.delete') }}
           </button>
@@ -331,79 +485,74 @@
 
     <!-- Modify Nameservers Modal -->
     <dialog :class="{ 'modal': true, 'modal-open': showNSModal }">
-      <div class="modal-box" v-if="selectedDomain">
-        <h3 class="font-bold text-2xl mb-4">{{ $t('domains.modifyNameservers') }}</h3>
-        <p class="text-sm opacity-70 mb-4">{{ $t('domains.domain') }}: <span class="font-mono font-bold">{{ selectedDomain.full_domain }}</span></p>
+      <div class="modal-box max-w-lg" v-if="selectedDomain">
+        <h3 class="text-lg font-semibold text-y-text">{{ $t('domains.modifyNameservers') }}</h3>
+        <p class="mt-1 text-sm text-y-muted">{{ $t('domains.domain') }}: <span class="y-domain">{{ selectedDomain.full_domain }}</span></p>
 
-        <div class="form-control mb-4">
-          <label class="label cursor-pointer justify-start gap-3">
-            <input
-              v-model="useCustomNS"
-              type="checkbox"
-              class="toggle toggle-primary"
-            />
-            <span class="label-text font-semibold">Using Custom Nameservers</span>
-          </label>
-          <label class="label">
-            <span class="label-text-alt opacity-60">Toggle off to use system default nameservers</span>
-          </label>
-        </div>
+        <label class="mt-5 flex cursor-pointer items-start gap-3 rounded-md border border-y-line px-4 py-3">
+          <input v-model="useCustomNS" type="checkbox" class="toggle toggle-primary toggle-sm mt-0.5" />
+          <span class="min-w-0">
+            <span class="block text-sm font-medium text-y-text">{{ $t('uiDomains.nsUseCustom') }}</span>
+            <span class="mt-0.5 block text-xs leading-5 text-y-faint">{{ $t('uiDomains.nsUseCustomHint') }}</span>
+          </span>
+        </label>
 
-        <!-- Default Nameservers (Read-only) -->
-        <div v-if="!useCustomNS" class="form-control space-y-3">
-          <div v-for="(ns, index) in ['ns1.nodelook.com', 'ns2.nodelook.com']" :key="index" class="flex gap-2">
+        <!-- Default nameservers (read-only) -->
+        <div v-if="!useCustomNS" class="mt-5 y-field">
+          <span class="y-field-label">{{ $t('uiDomains.nsDefaultLabel') }}</span>
+          <div class="space-y-2">
             <input
+              v-for="(ns, index) in ['ns1.nodelook.com', 'ns2.nodelook.com']"
+              :key="index"
               :value="ns"
               type="text"
-              class="input input-bordered flex-1 bg-base-200"
+              class="input input-bordered w-full font-mono text-sm text-y-muted"
               readonly
               disabled
             />
-            <button class="btn btn-square btn-disabled opacity-50">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
           </div>
         </div>
 
-        <!-- Custom Nameservers (Editable) -->
-        <div v-else class="form-control space-y-3">
-          <div v-for="(ns, index) in nameservers" :key="index" class="flex gap-2">
-            <input
-              v-model="nameservers[index]"
-              type="text"
-              :placeholder="`Nameserver ${index + 1}`"
-              class="input input-bordered flex-1"
-            />
-            <button
-              v-if="nameservers.length > 1"
-              class="btn btn-error btn-square"
-              @click="removeNameserver(index)"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
+        <!-- Custom nameservers (editable) -->
+        <div v-else class="mt-5 y-field">
+          <span class="y-field-label">{{ $t('uiDomains.nsCustomLabel') }}</span>
+          <div class="space-y-2">
+            <div v-for="(ns, index) in nameservers" :key="index" class="flex gap-2">
+              <input
+                v-model="nameservers[index]"
+                type="text"
+                :placeholder="$t('uiDomains.nsPlaceholder', { n: index + 1 })"
+                :aria-label="$t('uiDomains.nsPlaceholder', { n: index + 1 })"
+                class="input input-bordered min-w-0 flex-1 font-mono text-sm"
+                autocomplete="off"
+                autocapitalize="off"
+                spellcheck="false"
+              />
+              <button
+                v-if="nameservers.length > 1"
+                type="button"
+                class="btn btn-ghost btn-square text-y-danger-text"
+                :title="$t('uiDomains.nsRemove')"
+                :aria-label="$t('uiDomains.nsRemove')"
+                @click="removeNameserver(index)"
+              >
+                <X :size="16" :stroke-width="1.5" />
+              </button>
+            </div>
+          </div>
+          <div>
+            <button type="button" class="btn btn-ghost btn-sm gap-1.5" @click="addNameserver">
+              <Plus :size="16" :stroke-width="1.5" />
+              {{ $t('uiDomains.nsAdd') }}
             </button>
           </div>
-
-          <button class="btn btn-sm btn-ghost" @click="addNameserver">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-            </svg>
-            Add Nameserver
-          </button>
         </div>
 
         <div class="modal-action">
-          <button class="btn btn-ghost" @click="closeNSModal">Cancel</button>
-          <button
-            class="btn btn-primary"
-            @click="saveNameservers"
-            :disabled="submitting"
-          >
+          <button type="button" class="btn btn-ghost" @click="closeNSModal">{{ $t('common.cancel') }}</button>
+          <button type="button" class="btn btn-primary" :disabled="submitting" @click="saveNameservers">
             <span v-if="submitting" class="loading loading-spinner loading-sm"></span>
-            <span v-else>Save</span>
+            <span v-else>{{ $t('common.save') }}</span>
           </button>
         </div>
       </div>
@@ -414,118 +563,100 @@
 
     <!-- Renew Domain Modal -->
     <dialog :class="{ 'modal': true, 'modal-open': showRenewModal }">
-      <div class="modal-box" v-if="selectedDomain">
-        <h3 class="font-bold text-2xl mb-4">{{ $t('domains.renewDomainTitle') }}</h3>
-        <p class="text-sm opacity-70 mb-4">{{ $t('domains.domain') }}: <span class="font-mono font-bold">{{ selectedDomain.full_domain }}</span></p>
+      <div class="modal-box max-w-lg" v-if="selectedDomain">
+        <h3 class="text-lg font-semibold text-y-text">{{ $t('domains.renewDomainTitle') }}</h3>
+        <p class="mt-1 text-sm text-y-muted">{{ $t('domains.domain') }}: <span class="y-domain">{{ selectedDomain.full_domain }}</span></p>
 
-        <div class="alert alert-info mb-4">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <div>
-            <div class="font-bold">{{ $t('domains.currentExpiration') }}</div>
-            <div class="text-sm">{{ formatDate(selectedDomain.expires_at) }}</div>
+        <div class="mt-5 grid grid-cols-2 gap-3">
+          <div class="y-inset px-4 py-3">
+            <p class="y-label">{{ $t('domains.currentExpiration') }}</p>
+            <p class="mt-1.5 font-mono text-sm text-y-text">{{ formatDate(selectedDomain.expires_at) }}</p>
+          </div>
+          <div class="y-mint-soft rounded-md border px-4 py-3">
+            <p class="y-label">{{ $t('domains.newExpiration') }}</p>
+            <p class="mt-1.5 font-mono text-sm text-y-mint-text">{{ calculateNewExpiry(selectedDomain.expires_at, renewYears) }}</p>
           </div>
         </div>
 
-        <div class="form-control mb-4">
-          <label class="label">
-            <span class="label-text font-semibold">{{ $t('domains.renewalPeriod') }}</span>
-          </label>
+        <div class="mt-5 y-field">
+          <div class="flex items-baseline justify-between gap-3">
+            <span class="y-field-label">{{ $t('domains.renewalPeriod') }}</span>
+            <span class="font-mono text-sm text-y-text">{{ $t('domains.yearCount', { count: renewYears }) }}</span>
+          </div>
           <input
             v-model.number="renewYears"
             type="range"
             min="1"
             max="10"
-            class="range range-primary"
+            class="range range-primary range-sm"
             :disabled="renewIsLifetime"
+            :aria-label="$t('domains.renewalPeriod')"
           />
-          <div class="flex justify-between text-xs px-2 mt-2">
+          <div class="flex justify-between font-mono text-xs text-y-faint">
             <span>1 {{ $t('domains.year') }}</span>
-            <span>{{ $t('domains.yearCount', { count: renewYears }) }}</span>
             <span>10 {{ $t('domains.years') }}</span>
           </div>
         </div>
 
-        <!-- Lifetime Option (for paid domains) -->
-        <div v-if="selectedDomain.root_domain && !selectedDomain.root_domain.is_free && selectedDomain.root_domain.lifetime_price" class="form-control mb-4">
-          <label class="label cursor-pointer justify-start gap-3">
-            <input
-              v-model="renewIsLifetime"
-              type="checkbox"
-              class="checkbox checkbox-secondary"
-            />
-            <span class="label-text">
-              <span class="font-semibold">{{ $t('domains.lifetimeRenewal') }}</span>
-              <span class="ml-2 text-sm opacity-70">{{ $t('domains.lifetimeRenewalDesc') }}</span>
-            </span>
-          </label>
-        </div>
+        <!-- Lifetime option (paid domains) -->
+        <label
+          v-if="selectedDomain.root_domain && !selectedDomain.root_domain.is_free && selectedDomain.root_domain.lifetime_price"
+          class="mt-4 flex cursor-pointer items-start gap-3 rounded-md border border-y-line px-4 py-3"
+        >
+          <input v-model="renewIsLifetime" type="checkbox" class="checkbox checkbox-sm mt-0.5" />
+          <span class="min-w-0">
+            <span class="block text-sm font-medium text-y-text">{{ $t('domains.lifetimeRenewal') }}</span>
+            <span class="block text-xs text-y-faint">{{ $t('domains.lifetimeRenewalDesc') }}</span>
+          </span>
+        </label>
 
-        <div class="alert alert-success">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <div>
-            <div class="font-bold">{{ $t('domains.newExpiration') }}</div>
-            <div class="text-sm">{{ calculateNewExpiry(selectedDomain.expires_at, renewYears) }}</div>
-          </div>
-        </div>
-
-        <!-- Coupon Code (for paid domains) -->
-        <div v-if="selectedDomain.root_domain && !selectedDomain.root_domain.is_free" class="mt-4">
-          <label class="label">
-            <span class="label-text">{{ $t('order.couponCode') }} ({{ $t('order.optional') }})</span>
-          </label>
+        <!-- Coupon code (paid domains) -->
+        <div v-if="selectedDomain.root_domain && !selectedDomain.root_domain.is_free" class="mt-5 y-field">
+          <span class="y-field-label">{{ $t('uiDomains.couponLabel') }} <span class="font-normal text-y-faint">({{ $t('uiDomains.optional') }})</span></span>
           <div class="join w-full">
             <input
               v-model="renewCouponCode"
               type="text"
               :placeholder="$t('coupon.enterCode')"
-              class="input input-bordered join-item flex-1"
+              :aria-label="$t('uiDomains.couponLabel')"
+              class="input input-bordered join-item min-w-0 flex-1 font-mono"
+              autocomplete="off"
+              autocapitalize="off"
+              spellcheck="false"
               @keyup.enter="applyRenewCoupon"
             />
-            <button 
-              class="btn btn-primary join-item"
-              @click="applyRenewCoupon"
-              :disabled="!renewCouponCode || renewCouponApplying"
-            >
+            <button type="button" class="btn btn-outline join-item" :disabled="!renewCouponCode || renewCouponApplying" @click="applyRenewCoupon">
               <span v-if="renewCouponApplying" class="loading loading-spinner loading-xs"></span>
               <span v-else>{{ $t('coupon.apply') }}</span>
             </button>
           </div>
-          <label v-if="renewCouponError" class="label">
-            <span class="label-text-alt text-error">{{ renewCouponError }}</span>
-          </label>
-          <label v-if="renewCouponApplied" class="label">
-            <span class="label-text-alt text-success">✓ {{ $t('order.couponApplied') }}</span>
-          </label>
+          <p v-if="renewCouponError" class="text-xs text-y-danger-text">{{ renewCouponError }}</p>
+          <p v-if="renewCouponApplied" class="flex items-center gap-1 text-xs text-y-mint-text">
+            <Check :size="14" :stroke-width="2" />
+            {{ $t('order.couponApplied') }}
+          </p>
         </div>
 
-        <!-- Price Display -->
-        <div v-if="selectedDomain.root_domain && !selectedDomain.root_domain.is_free" class="mt-4">
-          <div class="card bg-base-200">
-            <div class="card-body p-4">
-              <div class="flex justify-between items-center mb-2">
-                <span class="text-sm opacity-70">{{ $t('order.originalPrice') }}</span>
-                <span class="text-sm">{{ formatPrice(calculateRenewPrice()) }}</span>
-              </div>
-              <div v-if="renewPriceData && renewPriceData.discount_amount > 0" class="flex justify-between items-center mb-2 text-success">
-                <span class="text-sm">{{ $t('order.discount') }}</span>
-                <span class="text-sm">-{{ formatPrice(renewPriceData.discount_amount) }}</span>
-              </div>
-              <div class="divider my-1"></div>
-              <div class="flex justify-between items-center">
-                <span class="font-bold">{{ $t('order.finalPrice') }}</span>
-                <span class="text-2xl font-bold">{{ formatPrice(renewPriceData ? renewPriceData.final_price : calculateRenewPrice()) }}</span>
-              </div>
-            </div>
+        <!-- Price -->
+        <div v-if="selectedDomain.root_domain && !selectedDomain.root_domain.is_free" class="mt-5 y-inset space-y-2 px-4 py-4">
+          <div class="flex items-center justify-between text-sm">
+            <span class="text-y-muted">{{ $t('order.originalPrice') }}</span>
+            <span class="font-mono text-y-text">{{ formatPrice(calculateRenewPrice()) }}</span>
+          </div>
+          <div v-if="renewPriceData && renewPriceData.discount_amount > 0" class="flex items-center justify-between text-sm">
+            <span class="text-y-muted">{{ $t('order.discount') }}</span>
+            <span class="font-mono text-y-mint-text">-{{ formatPrice(renewPriceData.discount_amount) }}</span>
+          </div>
+          <div class="y-divider !my-3"></div>
+          <div class="flex items-center justify-between">
+            <span class="text-sm font-medium text-y-text">{{ $t('order.finalPrice') }}</span>
+            <span class="font-mono text-2xl font-medium tracking-tight text-y-text">{{ formatPrice(renewPriceData ? renewPriceData.final_price : calculateRenewPrice()) }}</span>
           </div>
         </div>
 
         <div class="modal-action">
-          <button class="btn btn-ghost" @click="closeRenewModal">{{ $t('common.cancel') }}</button>
-          <button class="btn btn-primary" @click="renewDomain" :disabled="submitting">
+          <button type="button" class="btn btn-ghost" @click="closeRenewModal">{{ $t('common.cancel') }}</button>
+          <button type="button" class="btn btn-primary" :disabled="submitting" @click="renewDomain">
             <span v-if="submitting" class="loading loading-spinner loading-sm"></span>
             <span v-else>{{ $t('domains.renew') }}</span>
           </button>
@@ -538,40 +669,37 @@
 
     <!-- Transfer Domain Modal -->
     <dialog :class="{ 'modal': true, 'modal-open': showTransferModal }">
-      <div class="modal-box" v-if="selectedDomain">
-        <h3 class="font-bold text-2xl mb-4">{{ $t('domains.transferDomainTitle') }}</h3>
-        <p class="text-sm opacity-70 mb-4">{{ $t('domains.domain') }}: <span class="font-mono font-bold">{{ selectedDomain.full_domain }}</span></p>
+      <div class="modal-box max-w-lg" v-if="selectedDomain">
+        <h3 class="text-lg font-semibold text-y-text">{{ $t('domains.transferDomainTitle') }}</h3>
+        <p class="mt-1 text-sm text-y-muted">{{ $t('domains.domain') }}: <span class="y-domain">{{ selectedDomain.full_domain }}</span></p>
 
-        <div class="alert alert-warning mb-4">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-          </svg>
+        <div class="alert alert-warning mt-5 items-start">
+          <TriangleAlert :size="18" :stroke-width="1.5" class="mt-0.5 shrink-0" />
           <div>
-            <div class="font-bold">Warning</div>
-            <div class="text-sm">This action will transfer domain ownership. You will lose access to this domain.</div>
+            <p class="text-sm font-medium">{{ $t('uiDomains.transferWarnTitle') }}</p>
+            <p class="mt-0.5 text-sm">{{ $t('uiDomains.transferWarnDesc') }}</p>
           </div>
         </div>
 
-        <div class="form-control">
-          <label class="label">
-            <span class="label-text font-semibold">Recipient Email or Username</span>
-          </label>
+        <label class="mt-5 y-field">
+          <span class="y-field-label">{{ $t('uiDomains.transferTarget') }}</span>
           <input
             v-model="transferTarget"
             type="text"
-            placeholder="Enter email or username"
-            class="input input-bordered"
+            :placeholder="$t('uiDomains.transferPlaceholder')"
+            class="input input-bordered w-full font-mono"
+            autocomplete="off"
+            autocapitalize="off"
+            spellcheck="false"
           />
-          <label class="label">
-            <span class="label-text-alt opacity-60">The user must have an account on this platform</span>
-          </label>
-        </div>
+          <span class="y-field-hint">{{ $t('uiDomains.transferHint', { site: siteName }) }}</span>
+        </label>
 
         <div class="modal-action">
-          <button class="btn btn-ghost" @click="closeTransferModal">Cancel</button>
-          <button class="btn btn-error" @click="transferDomain" :disabled="submitting || !transferTarget">
+          <button type="button" class="btn btn-ghost" @click="closeTransferModal">{{ $t('common.cancel') }}</button>
+          <button type="button" class="btn btn-error" :disabled="submitting || !transferTarget" @click="transferDomain">
             <span v-if="submitting" class="loading loading-spinner loading-sm"></span>
-            <span v-else>Transfer</span>
+            <span v-else>{{ $t('domains.transfer') }}</span>
           </button>
         </div>
       </div>
@@ -583,260 +711,146 @@
     <!-- FOSSBilling Sync Modal -->
     <dialog :class="{ 'modal': true, 'modal-open': showSyncModal }">
       <div class="modal-box max-w-2xl">
-        <h3 class="font-bold text-2xl mb-4">Sync Domains from FOSSBilling</h3>
-        <p class="text-sm opacity-70 mb-6">Enter your FOSSBilling credentials to import your domains</p>
+        <h3 class="text-lg font-semibold text-y-text">{{ $t('uiDomains.syncTitle') }}</h3>
+        <p class="mt-1 text-sm text-y-muted">{{ $t('uiDomains.syncDesc') }}</p>
 
-        <div v-if="!siteConfig.fossbilling?.url" class="form-control mb-4">
-          <label class="label">
-            <span class="label-text font-semibold">FOSSBilling Server URL</span>
+        <div class="mt-5 space-y-4">
+          <label v-if="!siteConfig.fossbilling?.url" class="y-field">
+            <span class="y-field-label">{{ $t('uiDomains.syncUrl') }}</span>
+            <input
+              v-model="syncForm.fossbilling_url"
+              type="text"
+              placeholder="https://your-fossbilling-server.com"
+              class="input input-bordered w-full font-mono"
+              :disabled="syncInProgress"
+              autocomplete="off"
+              autocapitalize="off"
+              spellcheck="false"
+            />
+            <span class="y-field-hint">{{ $t('uiDomains.syncUrlHint') }}</span>
           </label>
-          <input
-            v-model="syncForm.fossbilling_url"
-            type="text"
-            placeholder="https://your-fossbilling-server.com"
-            class="input input-bordered"
-            :disabled="syncInProgress"
-          />
-          <label class="label">
-            <span class="label-text-alt opacity-60">Full URL including https://</span>
-          </label>
-        </div>
 
-        <div v-if="siteConfig.fossbilling?.url" class="alert alert-info mb-4">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <span class="text-sm">Syncing from: <strong>{{ siteConfig.fossbilling.url }}</strong></span>
-        </div>
-
-        <!-- API Key Input -->
-        <div class="form-control mb-6">
-          <label class="label">
-            <span class="label-text font-semibold">FOSSBilling API Key</span>
-          </label>
-          <input
-            v-model="syncForm.fossbilling_api_key"
-            type="text"
-            placeholder="Enter your FOSSBilling API Key"
-            class="input input-bordered font-mono"
-            :disabled="syncInProgress"
-          />
-          <label class="label">
-            <span class="label-text-alt opacity-60">Get your API key from FOSSBilling admin panel</span>
-          </label>
-        </div>
-
-        <!-- Sync Results -->
-        <div v-if="syncResult" class="space-y-4 mb-4">
-          <div class="alert" :class="syncResult.error_count > 0 ? 'alert-warning' : 'alert-success'">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <div>
-              <div class="font-bold">{{ syncResult.message }}</div>
-              <div class="text-sm">
-                Synced: {{ syncResult.synced_count }} |
-                Existing: {{ syncResult.existing_count }} |
-                Skipped: {{ syncResult.skipped_count }} |
-                Errors: {{ syncResult.error_count }}
-              </div>
-            </div>
+          <div v-if="siteConfig.fossbilling?.url" class="alert alert-info items-start">
+            <Info :size="16" :stroke-width="1.5" class="mt-0.5 shrink-0" />
+            <span class="text-sm">{{ $t('uiDomains.syncFrom') }}: <span class="break-all font-mono">{{ siteConfig.fossbilling.url }}</span></span>
           </div>
 
-          <div v-if="syncResult.details && syncResult.details.length > 0" class="bg-base-200 p-4 rounded-lg max-h-60 overflow-y-auto">
-            <div class="text-sm font-semibold mb-2">Details:</div>
-            <ul class="text-xs space-y-1">
-              <li v-for="(detail, index) in syncResult.details" :key="index" class="opacity-80">
-                {{ detail }}
-              </li>
-            </ul>
+          <label class="y-field">
+            <span class="y-field-label">{{ $t('uiDomains.syncKey') }}</span>
+            <input
+              v-model="syncForm.fossbilling_api_key"
+              type="text"
+              :placeholder="$t('uiDomains.syncKeyPlaceholder')"
+              class="input input-bordered w-full font-mono"
+              :disabled="syncInProgress"
+              autocomplete="off"
+              autocapitalize="off"
+              spellcheck="false"
+            />
+            <span class="y-field-hint">{{ $t('uiDomains.syncKeyHint') }}</span>
+          </label>
+
+          <!-- Sync results -->
+          <div v-if="syncResult" class="space-y-3">
+            <div class="alert items-start" :class="syncResult.error_count > 0 ? 'alert-warning' : 'alert-success'">
+              <TriangleAlert v-if="syncResult.error_count > 0" :size="18" :stroke-width="1.5" class="mt-0.5 shrink-0" />
+              <CircleCheck v-else :size="18" :stroke-width="1.5" class="mt-0.5 shrink-0 text-y-mint-text" />
+              <div class="min-w-0">
+                <p class="text-sm font-medium">{{ syncResult.message }}</p>
+                <p class="mt-1 flex flex-wrap gap-x-4 gap-y-1 font-mono text-xs">
+                  <span>{{ $t('uiDomains.syncSynced') }} {{ syncResult.synced_count }}</span>
+                  <span>{{ $t('uiDomains.syncExisting') }} {{ syncResult.existing_count }}</span>
+                  <span>{{ $t('uiDomains.syncSkipped') }} {{ syncResult.skipped_count }}</span>
+                  <span>{{ $t('uiDomains.syncErrors') }} {{ syncResult.error_count }}</span>
+                </p>
+              </div>
+            </div>
+
+            <div v-if="syncResult.details && syncResult.details.length > 0" class="y-inset max-h-60 overflow-y-auto px-4 py-3">
+              <p class="y-label mb-2">{{ $t('uiDomains.syncDetails') }}</p>
+              <ul class="space-y-1 font-mono text-xs text-y-muted">
+                <li v-for="(detail, index) in syncResult.details" :key="index">{{ detail }}</li>
+              </ul>
+            </div>
           </div>
         </div>
 
         <div class="modal-action">
-          <button class="btn btn-ghost" @click="closeSyncModal" :disabled="syncInProgress">Cancel</button>
+          <button type="button" class="btn btn-ghost" :disabled="syncInProgress" @click="closeSyncModal">{{ $t('common.cancel') }}</button>
           <button
+            type="button"
             class="btn btn-primary"
-            @click="syncFromFOSSBilling"
             :disabled="syncInProgress || (!syncForm.fossbilling_url && !siteConfig.fossbilling?.url) || !syncForm.fossbilling_api_key"
+            @click="syncFromFOSSBilling"
           >
             <span v-if="syncInProgress" class="loading loading-spinner loading-sm"></span>
-            <span v-else>Sync Domains</span>
+            <span v-else>{{ $t('uiDomains.syncAction') }}</span>
           </button>
         </div>
       </div>
       <form method="dialog" class="modal-backdrop">
-        <button type="button" @click="closeSyncModal" :disabled="syncInProgress">close</button>
+        <button type="button" :disabled="syncInProgress" @click="closeSyncModal">close</button>
       </form>
     </dialog>
 
     <!-- Health Details Modal -->
     <dialog :class="{ 'modal': true, 'modal-open': showHealthDetailsModal }">
-      <div class="modal-box max-w-3xl" v-if="selectedDomain && selectedDomain.scan_summary">
-        <h3 class="font-bold text-2xl mb-4">{{ $t('domains.healthDetails') }}</h3>
-        <p class="text-sm opacity-70 mb-6">{{ $t('domains.domain') }}: <span class="font-mono font-bold">{{ selectedDomain.full_domain }}</span></p>
+      <div class="modal-box max-w-2xl" v-if="selectedDomain && selectedDomain.scan_summary">
+        <h3 class="text-lg font-semibold text-y-text">{{ $t('domains.healthDetails') }}</h3>
+        <p class="mt-1 text-sm text-y-muted">{{ $t('domains.domain') }}: <span class="y-domain">{{ selectedDomain.full_domain }}</span></p>
 
-        <!-- Overall Health -->
-        <div class="card bg-base-200 mb-6">
-          <div class="card-body p-6">
-            <div class="flex items-center justify-between">
-              <div>
-                <h4 class="text-lg font-semibold mb-1">{{ $t('domains.overallHealth') }}</h4>
-                <p class="text-xs opacity-70">{{ $t('domains.overallHealthDesc') }}</p>
-              </div>
-              <div class="px-4 py-2 rounded-lg text-lg font-bold" :class="getHealthBadgeClass(selectedDomain.scan_summary.overall_health)">
-                {{ selectedDomain.scan_summary.overall_health || 'unknown' }}
+        <div class="mt-5 y-inset flex items-center justify-between gap-4 px-4 py-4">
+          <div class="min-w-0">
+            <p class="text-sm font-medium text-y-text">{{ $t('domains.overallHealth') }}</p>
+            <p class="mt-0.5 text-xs text-y-faint">{{ $t('domains.overallHealthDesc') }}</p>
+          </div>
+          <span class="shrink-0" :class="getHealthBadgeClass(selectedDomain.scan_summary.overall_health)">
+            {{ healthLabel(selectedDomain.scan_summary.overall_health) }}
+          </span>
+        </div>
+
+        <ul class="mt-4 divide-y divide-y-line rounded-md border border-y-line">
+          <li v-for="check in healthChecks" :key="check.key" class="flex items-center justify-between gap-4 px-4 py-3">
+            <div class="flex min-w-0 items-start gap-3">
+              <component :is="check.icon" :size="18" :stroke-width="1.5" class="mt-0.5 shrink-0 text-y-faint" />
+              <div class="min-w-0">
+                <p class="text-sm font-medium text-y-text">{{ check.title }}</p>
+                <p class="mt-0.5 text-xs text-y-faint">{{ check.desc }}</p>
               </div>
             </div>
+            <span class="shrink-0" :class="check.cls">{{ check.value || $t('uiDomains.health.unknown') }}</span>
+          </li>
+          <li class="flex items-center justify-between gap-4 px-4 py-3">
+            <div class="flex min-w-0 items-start gap-3">
+              <Activity :size="18" :stroke-width="1.5" class="mt-0.5 shrink-0 text-y-faint" />
+              <div class="min-w-0">
+                <p class="text-sm font-medium text-y-text">{{ $t('domains.uptimePercentage') }}</p>
+                <p class="mt-0.5 text-xs text-y-faint">{{ $t('domains.uptimePercentageDesc') }}</p>
+              </div>
+            </div>
+            <span class="shrink-0 font-mono text-lg font-medium" :class="getUptimeClass(selectedDomain.scan_summary.uptime_percentage)">
+              {{ selectedDomain.scan_summary.uptime_percentage ? selectedDomain.scan_summary.uptime_percentage.toFixed(2) + '%' : $t('uiDomains.notAvailable') }}
+            </span>
+          </li>
+        </ul>
+
+        <div class="mt-4 grid grid-cols-2 gap-3">
+          <div class="y-inset px-4 py-3">
+            <p class="y-label">{{ $t('domains.totalScans') }}</p>
+            <p class="mt-1.5 font-mono text-2xl font-medium tracking-tight text-y-text">{{ selectedDomain.scan_summary.total_scans || 0 }}</p>
+          </div>
+          <div class="y-inset px-4 py-3">
+            <p class="y-label">{{ $t('domains.successfulScans') }}</p>
+            <p class="mt-1.5 font-mono text-2xl font-medium tracking-tight text-y-mint-text">{{ selectedDomain.scan_summary.successful_scans || 0 }}</p>
           </div>
         </div>
 
-        <!-- Detailed Status -->
-        <div class="space-y-3">
-          <!-- HTTP Status -->
-          <div class="card bg-base-200">
-            <div class="card-body p-4">
-              <div class="flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
-                  </svg>
-                  <div>
-                    <h5 class="font-semibold">{{ $t('domains.httpStatus') }}</h5>
-                    <p class="text-xs opacity-70">{{ $t('domains.httpStatusDesc') }}</p>
-                  </div>
-                </div>
-                <div class="px-3 py-1 rounded text-sm font-medium" :class="getStatusBadgeClass(selectedDomain.scan_summary.http_status)">
-                  {{ selectedDomain.scan_summary.http_status || 'unknown' }}
-                </div>
-              </div>
-            </div>
-          </div>
+        <p v-if="selectedDomain.scan_summary.last_scanned_at" class="mt-4 text-xs text-y-faint">
+          {{ $t('domains.lastScanned') }}: <span class="font-mono">{{ new Date(selectedDomain.scan_summary.last_scanned_at).toLocaleString() }}</span>
+        </p>
 
-          <!-- DNS Status -->
-          <div class="card bg-base-200">
-            <div class="card-body p-4">
-              <div class="flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
-                  </svg>
-                  <div>
-                    <h5 class="font-semibold">{{ $t('domains.dnsStatus') }}</h5>
-                    <p class="text-xs opacity-70">{{ $t('domains.dnsStatusDesc') }}</p>
-                  </div>
-                </div>
-                <div class="px-3 py-1 rounded text-sm font-medium" :class="getStatusBadgeClass(selectedDomain.scan_summary.dns_status)">
-                  {{ selectedDomain.scan_summary.dns_status || 'unknown' }}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- SSL Status -->
-          <div class="card bg-base-200">
-            <div class="card-body p-4">
-              <div class="flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                  </svg>
-                  <div>
-                    <h5 class="font-semibold">{{ $t('domains.sslStatus') }}</h5>
-                    <p class="text-xs opacity-70">{{ $t('domains.sslStatusDesc') }}</p>
-                  </div>
-                </div>
-                <div class="px-3 py-1 rounded text-sm font-medium" :class="getStatusBadgeClass(selectedDomain.scan_summary.ssl_status)">
-                  {{ selectedDomain.scan_summary.ssl_status || 'unknown' }}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Safe Browsing Status -->
-          <div class="card bg-base-200">
-            <div class="card-body p-4">
-              <div class="flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                  </svg>
-                  <div>
-                    <h5 class="font-semibold">{{ $t('domains.safeBrowsingStatus') }}</h5>
-                    <p class="text-xs opacity-70">{{ $t('domains.safeBrowsingStatusDesc') }}</p>
-                  </div>
-                </div>
-                <div class="px-3 py-1 rounded text-sm font-medium" :class="getSafeBrowsingBadgeClass(selectedDomain.scan_summary.safe_browsing_status)">
-                  {{ selectedDomain.scan_summary.safe_browsing_status || 'unknown' }}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- VirusTotal Status -->
-          <div class="card bg-base-200">
-            <div class="card-body p-4">
-              <div class="flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-warning" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
-                  <div>
-                    <h5 class="font-semibold">{{ $t('domains.virusTotalStatus') }}</h5>
-                    <p class="text-xs opacity-70">{{ $t('domains.virusTotalStatusDesc') }}</p>
-                  </div>
-                </div>
-                <div class="px-3 py-1 rounded text-sm font-medium" :class="getVirusTotalBadgeClass(selectedDomain.scan_summary.virustotal_status)">
-                  {{ selectedDomain.scan_summary.virustotal_status || 'unknown' }}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Uptime -->
-          <div class="card bg-base-200">
-            <div class="card-body p-4">
-              <div class="flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-info" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                  </svg>
-                  <div>
-                    <h5 class="font-semibold">{{ $t('domains.uptimePercentage') }}</h5>
-                    <p class="text-xs opacity-70">{{ $t('domains.uptimePercentageDesc') }}</p>
-                  </div>
-                </div>
-                <div class="text-lg font-bold" :class="getUptimeClass(selectedDomain.scan_summary.uptime_percentage)">
-                  {{ selectedDomain.scan_summary.uptime_percentage ? selectedDomain.scan_summary.uptime_percentage.toFixed(2) + '%' : 'N/A' }}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Scan Stats -->
-          <div class="card bg-base-200">
-            <div class="card-body p-4">
-              <div class="grid grid-cols-2 gap-4">
-                <div>
-                  <p class="text-xs opacity-70">{{ $t('domains.totalScans') }}</p>
-                  <p class="text-lg font-bold">{{ selectedDomain.scan_summary.total_scans || 0 }}</p>
-                </div>
-                <div>
-                  <p class="text-xs opacity-70">{{ $t('domains.successfulScans') }}</p>
-                  <p class="text-lg font-bold text-success">{{ selectedDomain.scan_summary.successful_scans || 0 }}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Last Scanned -->
-          <div v-if="selectedDomain.scan_summary.last_scanned_at" class="text-center text-sm opacity-70 mt-4">
-            {{ $t('domains.lastScanned') }}: {{ new Date(selectedDomain.scan_summary.last_scanned_at).toLocaleString() }}
-          </div>
-        </div>
-
-        <div class="modal-action mt-6">
-          <button class="btn btn-primary" @click="closeHealthDetailsModal">{{ $t('common.close') }}</button>
+        <div class="modal-action">
+          <button type="button" class="btn btn-ghost" @click="closeHealthDetailsModal">{{ $t('common.close') }}</button>
         </div>
       </div>
       <form method="dialog" class="modal-backdrop">
@@ -846,136 +860,104 @@
 
     <!-- Scan Details Modal -->
     <dialog :class="{ 'modal': true, 'modal-open': showScanDetailsModal }">
-      <div class="modal-box max-w-6xl" v-if="selectedDomain">
-        <h3 class="font-bold text-2xl mb-4">{{ $t('domains.scanDetails') }}</h3>
-        <p class="text-sm opacity-70 mb-4">{{ $t('domains.domain') }}: <span class="font-mono font-bold">{{ selectedDomain.full_domain }}</span></p>
+      <div class="modal-box max-w-5xl" v-if="selectedDomain">
+        <h3 class="text-lg font-semibold text-y-text">{{ $t('domains.scanDetails') }}</h3>
+        <p class="mt-1 text-sm text-y-muted">{{ $t('domains.domain') }}: <span class="y-domain">{{ selectedDomain.full_domain }}</span></p>
 
-        <!-- Scan Summary -->
-        <div v-if="selectedDomain.scan_summary" class="card bg-base-300 mb-4">
-          <div class="card-body p-4">
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div>
-                <div class="text-xs opacity-70">Overall Health</div>
-                <div class="mt-1">
-                  <span class="px-2 py-1 rounded text-xs font-medium" :class="getHealthBadgeClass(selectedDomain.scan_summary.overall_health)">
-                    {{ selectedDomain.scan_summary.overall_health || 'N/A' }}
-                  </span>
-                </div>
-              </div>
-              <div>
-                <div class="text-xs opacity-70">Safe Browsing</div>
-                <div class="mt-1">
-                  <span class="px-2 py-1 rounded text-xs font-medium" :class="getSafeBrowsingBadgeClass(selectedDomain.scan_summary.safe_browsing_status)">
-                    {{ selectedDomain.scan_summary.safe_browsing_status || 'N/A' }}
-                  </span>
-                </div>
-              </div>
-              <div>
-                <div class="text-xs opacity-70">VirusTotal</div>
-                <div class="mt-1">
-                  <span class="px-2 py-1 rounded text-xs font-medium" :class="getVirusTotalBadgeClass(selectedDomain.scan_summary.virustotal_status)">
-                    {{ selectedDomain.scan_summary.virustotal_status || 'N/A' }}
-                  </span>
-                </div>
-              </div>
-              <div>
-                <div class="text-xs opacity-70">Uptime</div>
-                <div class="mt-1 font-semibold">
-                  {{ selectedDomain.scan_summary.uptime_percentage ? selectedDomain.scan_summary.uptime_percentage.toFixed(2) + '%' : 'N/A' }}
-                </div>
-              </div>
-            </div>
+        <!-- Summary -->
+        <div v-if="selectedDomain.scan_summary" class="mt-5 grid grid-cols-2 gap-px overflow-hidden rounded-md border border-y-line bg-y-line md:grid-cols-4">
+          <div class="bg-y-bg px-4 py-3">
+            <p class="y-label">{{ $t('domains.overallHealth') }}</p>
+            <span class="mt-2" :class="getHealthBadgeClass(selectedDomain.scan_summary.overall_health)">{{ healthLabel(selectedDomain.scan_summary.overall_health) }}</span>
+          </div>
+          <div class="bg-y-bg px-4 py-3">
+            <p class="y-label">{{ $t('uiDomains.scanSafeBrowsing') }}</p>
+            <span class="mt-2" :class="getSafeBrowsingBadgeClass(selectedDomain.scan_summary.safe_browsing_status)">{{ selectedDomain.scan_summary.safe_browsing_status || $t('uiDomains.notAvailable') }}</span>
+          </div>
+          <div class="bg-y-bg px-4 py-3">
+            <p class="y-label">{{ $t('uiDomains.scanVirusTotal') }}</p>
+            <span class="mt-2" :class="getVirusTotalBadgeClass(selectedDomain.scan_summary.virustotal_status)">{{ selectedDomain.scan_summary.virustotal_status || $t('uiDomains.notAvailable') }}</span>
+          </div>
+          <div class="bg-y-bg px-4 py-3">
+            <p class="y-label">{{ $t('uiDomains.scanUptime') }}</p>
+            <p class="mt-1.5 font-mono text-sm font-medium text-y-text">
+              {{ selectedDomain.scan_summary.uptime_percentage ? selectedDomain.scan_summary.uptime_percentage.toFixed(2) + '%' : $t('uiDomains.notAvailable') }}
+            </p>
           </div>
         </div>
 
-        <!-- Scan Records Table -->
-        <div class="overflow-x-auto">
-          <div v-if="scanLoading" class="flex justify-center py-8">
-            <span class="loading loading-spinner loading-lg"></span>
+        <!-- Records -->
+        <div class="mt-4">
+          <YLoader v-if="scanLoading" :size="28" :label="$t('uiDomains.scanLoading')" />
+
+          <div v-else-if="scanRecords.length > 0" class="overflow-x-auto rounded-md border border-y-line">
+            <table class="y-table text-[13px]">
+              <thead>
+                <tr>
+                  <th>{{ $t('uiDomains.scanTime') }}</th>
+                  <th>{{ $t('uiDomains.scanStatus') }}</th>
+                  <th>{{ $t('uiDomains.scanHttp') }}</th>
+                  <th>{{ $t('uiDomains.scanDns') }}</th>
+                  <th>{{ $t('uiDomains.scanSsl') }}</th>
+                  <th>{{ $t('uiDomains.scanSafeBrowsing') }}</th>
+                  <th>{{ $t('uiDomains.scanVirusTotal') }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="scan in scanRecords" :key="scan.id">
+                  <td class="whitespace-nowrap font-mono text-xs text-y-muted">{{ formatDateTime(scan.scanned_at) }}</td>
+                  <td class="whitespace-nowrap"><span :class="getScanStatusBadgeClass(scan.status)">{{ scan.status }}</span></td>
+                  <td class="whitespace-nowrap"><span :class="getStatusBadgeClass(scan.http_status)">{{ scan.http_status || $t('uiDomains.notAvailable') }}</span></td>
+                  <td class="whitespace-nowrap"><span :class="getStatusBadgeClass(scan.dns_status)">{{ scan.dns_status || $t('uiDomains.notAvailable') }}</span></td>
+                  <td class="whitespace-nowrap"><span :class="getStatusBadgeClass(scan.ssl_status)">{{ scan.ssl_status || $t('uiDomains.notAvailable') }}</span></td>
+                  <td class="whitespace-nowrap"><span :class="getSafeBrowsingBadgeClass(scan.safe_browsing_status)">{{ scan.safe_browsing_status || $t('uiDomains.notAvailable') }}</span></td>
+                  <td class="whitespace-nowrap"><span :class="getVirusTotalBadgeClass(scan.virustotal_status)">{{ scan.virustotal_status || $t('uiDomains.notAvailable') }}</span></td>
+                </tr>
+              </tbody>
+            </table>
           </div>
 
-          <table v-else-if="scanRecords.length > 0" class="table table-sm">
-            <thead>
-              <tr>
-                <th>Time</th>
-                <th>Status</th>
-                <th>HTTP</th>
-                <th>DNS</th>
-                <th>SSL</th>
-                <th>Safe Browsing</th>
-                <th>VirusTotal</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="scan in scanRecords" :key="scan.id">
-                <td class="text-xs">{{ formatDateTime(scan.scanned_at) }}</td>
-                <td>
-                  <span class="px-2 py-0.5 rounded text-xs font-medium" :class="getScanStatusBadgeClass(scan.status)">
-                    {{ scan.status }}
-                  </span>
-                </td>
-                <td>
-                  <span class="px-2 py-0.5 rounded text-xs font-medium" :class="getStatusBadgeClass(scan.http_status)">
-                    {{ scan.http_status || 'N/A' }}
-                  </span>
-                </td>
-                <td>
-                  <span class="px-2 py-0.5 rounded text-xs font-medium" :class="getStatusBadgeClass(scan.dns_status)">
-                    {{ scan.dns_status || 'N/A' }}
-                  </span>
-                </td>
-                <td>
-                  <span class="px-2 py-0.5 rounded text-xs font-medium" :class="getStatusBadgeClass(scan.ssl_status)">
-                    {{ scan.ssl_status || 'N/A' }}
-                  </span>
-                </td>
-                <td>
-                  <span class="px-2 py-0.5 rounded text-xs font-medium" :class="getSafeBrowsingBadgeClass(scan.safe_browsing_status)">
-                    {{ scan.safe_browsing_status || 'N/A' }}
-                  </span>
-                </td>
-                <td>
-                  <span class="px-2 py-0.5 rounded text-xs font-medium" :class="getVirusTotalBadgeClass(scan.virustotal_status)">
-                    {{ scan.virustotal_status || 'N/A' }}
-                  </span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-
-          <div v-else class="text-center py-8 opacity-70">
-            No scan records found
-          </div>
+          <p v-else class="y-inset px-4 py-8 text-center text-sm text-y-muted">{{ $t('uiDomains.scanEmpty') }}</p>
         </div>
 
         <!-- Pagination -->
-        <div v-if="scanTotalPages > 1" class="flex justify-center mt-4">
-          <div class="join">
+        <nav v-if="scanTotalPages > 1" class="mt-4 flex items-center justify-center gap-1">
+          <button
+            type="button"
+            class="btn btn-ghost btn-sm btn-square"
+            :disabled="scanPage === 1 || scanLoading"
+            :title="$t('uiDomains.prevPage')"
+            :aria-label="$t('uiDomains.prevPage')"
+            @click="changeScanPage(scanPage - 1)"
+          >
+            <ChevronLeft :size="16" :stroke-width="1.5" />
+          </button>
+          <template v-for="page in visibleScanPages" :key="page">
             <button
-              class="join-item btn btn-sm"
-              @click="changeScanPage(scanPage - 1)"
-              :disabled="scanPage === 1 || scanLoading"
-            >«</button>
-            <template v-for="page in visibleScanPages" :key="page">
-              <button
-                v-if="page !== '...'"
-                class="join-item btn btn-sm"
-                :class="{ 'btn-active': page === scanPage }"
-                @click="changeScanPage(page)"
-                :disabled="scanLoading"
-              >{{ page }}</button>
-              <button v-else class="join-item btn btn-sm btn-disabled">...</button>
-            </template>
-            <button
-              class="join-item btn btn-sm"
-              @click="changeScanPage(scanPage + 1)"
-              :disabled="scanPage === scanTotalPages || scanLoading"
-            >»</button>
-          </div>
-        </div>
+              v-if="page !== '...'"
+              type="button"
+              class="btn btn-ghost btn-sm min-w-[2.125rem] px-2 font-mono font-medium"
+              :class="page === scanPage ? 'bg-y-surface-2 !text-y-text' : '!text-y-muted'"
+              :aria-current="page === scanPage ? 'page' : undefined"
+              :disabled="scanLoading"
+              @click="changeScanPage(page)"
+            >{{ page }}</button>
+            <span v-else class="px-1 font-mono text-sm text-y-faint">…</span>
+          </template>
+          <button
+            type="button"
+            class="btn btn-ghost btn-sm btn-square"
+            :disabled="scanPage === scanTotalPages || scanLoading"
+            :title="$t('uiDomains.nextPage')"
+            :aria-label="$t('uiDomains.nextPage')"
+            @click="changeScanPage(scanPage + 1)"
+          >
+            <ChevronRight :size="16" :stroke-width="1.5" />
+          </button>
+        </nav>
 
         <div class="modal-action">
-          <button class="btn" @click="closeScanDetailsModal">Close</button>
+          <button type="button" class="btn btn-ghost" @click="closeScanDetailsModal">{{ $t('common.close') }}</button>
         </div>
       </div>
       <form method="dialog" class="modal-backdrop">
@@ -985,15 +967,19 @@
 
     <!-- Suspended Info Modal -->
     <dialog :class="{ 'modal': true, 'modal-open': showSuspendedInfoModal }">
-      <div class="modal-box max-w-sm">
-        <h3 class="font-bold text-lg text-warning mb-3">{{ $t('domains.suspendedTitle') }}</h3>
-        <p class="text-sm mb-2">{{ $t('domains.suspendedNotice') }}</p>
-        <div v-if="suspendedInfoDomain?.suspend_reason" class="bg-base-200 rounded-lg px-3 py-2 text-sm mt-3">
-          <span class="font-semibold">{{ $t('domains.suspendReasonLabel') }}:</span>
-          <span class="ml-1">{{ suspendedInfoDomain.suspend_reason }}</span>
+      <div class="modal-box max-w-md">
+        <h3 class="flex items-center gap-2 text-lg font-semibold text-y-text">
+          <span class="y-dot bg-y-warn" aria-hidden="true"></span>
+          {{ $t('uiDomains.suspendedTitle') }}
+        </h3>
+        <p v-if="suspendedInfoDomain" class="y-domain mt-1 text-sm !font-normal !text-y-muted">{{ suspendedInfoDomain.full_domain }}</p>
+        <p class="mt-4 text-sm leading-6 text-y-muted">{{ $t('domains.suspendedNotice') }}</p>
+        <div v-if="suspendedInfoDomain?.suspend_reason" class="mt-4 y-inset px-4 py-3">
+          <p class="y-label">{{ $t('domains.suspendReasonLabel') }}</p>
+          <p class="mt-1.5 text-sm text-y-text">{{ suspendedInfoDomain.suspend_reason }}</p>
         </div>
         <div class="modal-action">
-          <button class="btn btn-sm" @click="showSuspendedInfoModal = false">{{ $t('common.close') }}</button>
+          <button type="button" class="btn btn-ghost" @click="showSuspendedInfoModal = false">{{ $t('common.close') }}</button>
         </div>
       </div>
       <form method="dialog" class="modal-backdrop">
@@ -1003,20 +989,25 @@
 
     <!-- Delete Domain Confirm Modal -->
     <dialog :class="{ 'modal': true, 'modal-open': showDeleteModal }">
-      <div class="modal-box">
-        <h3 class="font-bold text-xl text-error mb-2">{{ $t('domains.confirmDelete') }}</h3>
-        <p class="text-sm opacity-70 mb-1">{{ $t('domains.deleteTypeConfirm') }}</p>
-        <p class="font-mono font-bold text-base mb-4">{{ deleteTargetDomain?.full_domain }}</p>
+      <div class="modal-box max-w-md">
+        <h3 class="text-lg font-semibold text-y-text">{{ $t('uiDomains.deleteTitle') }}</h3>
+        <p class="mt-2 text-sm leading-6 text-y-muted">{{ $t('domains.deleteTypeConfirm') }}</p>
+        <p class="y-domain y-inset mt-4 select-all px-3 py-2 text-sm">{{ deleteTargetDomain?.full_domain }}</p>
         <input
           v-model="deleteConfirmInput"
           type="text"
-          class="input input-bordered w-full mb-4"
+          class="input input-bordered mt-3 w-full font-mono"
           :placeholder="$t('domains.deleteTypeConfirmPlaceholder')"
+          :aria-label="$t('domains.deleteTypeConfirmPlaceholder')"
+          autocomplete="off"
+          autocapitalize="off"
+          spellcheck="false"
           @keyup.enter="executeDelete"
         />
         <div class="modal-action">
-          <button class="btn" :disabled="deleting" @click="showDeleteModal = false">{{ $t('common.cancel') }}</button>
+          <button type="button" class="btn btn-ghost" :disabled="deleting" @click="showDeleteModal = false">{{ $t('common.cancel') }}</button>
           <button
+            type="button"
             class="btn btn-error"
             :disabled="deleting || deleteConfirmInput !== deleteTargetDomain?.full_domain"
             @click="executeDelete"
@@ -1032,19 +1023,28 @@
     </dialog>
   </div>
 </template>
-
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import {
+  Plus, Search, Info, TriangleAlert, ListTree, RefreshCw, Ellipsis, Server, Activity, ChartColumn,
+  ArrowLeftRight, Trash2, Copy, Eye, EyeOff, ExternalLink, X, Check, CircleCheck, Globe, Network,
+  Lock, ShieldCheck, Bug, ChevronLeft, ChevronRight,
+} from 'lucide-vue-next'
+import PageHeader from '../components/ui/PageHeader.vue'
+import StatusDot from '../components/ui/StatusDot.vue'
+import EmptyState from '../components/ui/EmptyState.vue'
+import YLoader from '../components/brand/YLoader.vue'
 import axios from '../utils/axios'
 import { useToast } from '../composables/useToast'
 import { useCurrency } from '../composables/useCurrency'
 import { formatDate as formatDateUtil, formatDateTime, daysUntilExpiry, addYears } from '../utils/time'
 import { useSiteConfigStore } from '../stores/siteConfig'
+import { useAuthStore } from '../stores/auth'
 
 const router = useRouter()
-const { t } = useI18n()
+const { t, te } = useI18n()
 const toast = useToast()
 const { formatPrice } = useCurrency()
 const siteConfig = useSiteConfigStore()
@@ -1316,20 +1316,23 @@ const fetchDomains = async () => {
   }
 }
 
-const getStatusClass = (status) => {
+const getStatusTone = (status) => {
   switch (status) {
     case 'active':
-      return 'bg-green-100 text-green-800'
+      return 'ok'
     case 'expired':
-      return 'bg-red-100 text-red-800'
-    case 'suspended':
-      return 'bg-amber-100 text-amber-800'
     case 'abuse':
-      return 'bg-red-700 text-white'
+      return 'danger'
+    case 'suspended':
+      return 'warn'
+    case 'pending':
+      return 'info'
     default:
-      return 'bg-gray-100 text-gray-800'
+      return 'muted'
   }
 }
+
+const statusLabel = (status) => (te(`uiDomains.status.${status}`) ? t(`uiDomains.status.${status}`) : status)
 
 const formatDate = (dateString) => {
   return formatDateUtil(dateString)
@@ -1753,60 +1756,59 @@ const closeScanDetailsModal = () => {
 const getHealthBadgeClass = (status) => {
   switch (status?.toLowerCase()) {
     case 'healthy':
-      return 'bg-green-100 text-green-800'
+      return 'y-chip-mint'
     case 'degraded':
-      return 'bg-yellow-100 text-yellow-800'
+      return 'y-chip-warn'
     case 'down':
-      return 'bg-red-100 text-red-800'
+      return 'y-chip-danger'
     default:
-      return 'bg-gray-100 text-gray-800'
+      return 'y-chip'
   }
 }
 
 const getSafeBrowsingBadgeClass = (status) => {
   switch (status?.toLowerCase()) {
     case 'safe':
-      return 'bg-green-100 text-green-800'
+      return 'y-chip-mint'
     case 'unsafe':
-      return 'bg-red-100 text-red-800'
+      return 'y-chip-danger'
     default:
-      return 'bg-gray-100 text-gray-800'
+      return 'y-chip'
   }
 }
 
 const getVirusTotalBadgeClass = (status) => {
   switch (status?.toLowerCase()) {
     case 'clean':
-      return 'bg-green-100 text-green-800'
+      return 'y-chip-mint'
     case 'malicious':
-      return 'bg-red-100 text-red-800'
+      return 'y-chip-danger'
     case 'suspicious':
-      return 'bg-yellow-100 text-yellow-800'
+      return 'y-chip-warn'
     default:
-      return 'bg-gray-100 text-gray-800'
+      return 'y-chip'
   }
 }
 
 const getUptimeClass = (percentage) => {
-  if (!percentage && percentage !== 0) return 'text-gray-400'
-  if (percentage >= 99) return 'text-green-600 font-semibold'
-  if (percentage >= 95) return 'text-green-500'
-  if (percentage >= 90) return 'text-yellow-500'
-  return 'text-red-500'
+  if (!percentage && percentage !== 0) return 'text-y-faint'
+  if (percentage >= 99) return 'text-y-mint-text'
+  if (percentage >= 95) return 'text-y-text'
+  if (percentage >= 90) return 'text-y-warn'
+  return 'text-y-danger-text'
 }
 
 const getScanStatusBadgeClass = (status) => {
   switch (status?.toLowerCase()) {
     case 'completed':
-      return 'bg-green-100 text-green-800'
+      return 'y-chip-mint'
     case 'failed':
-      return 'bg-red-100 text-red-800'
     case 'threat_detected':
-      return 'bg-red-100 text-red-800'
+      return 'y-chip-danger'
     case 'quota_exceeded':
-      return 'bg-yellow-100 text-yellow-800'
+      return 'y-chip-warn'
     default:
-      return 'bg-gray-100 text-gray-800'
+      return 'y-chip'
   }
 }
 
@@ -1814,12 +1816,12 @@ const getStatusBadgeClass = (status) => {
   switch (status?.toLowerCase()) {
     case 'ok':
     case 'valid':
-      return 'bg-green-100 text-green-800'
+      return 'y-chip-mint'
     case 'error':
     case 'invalid':
-      return 'bg-red-100 text-red-800'
+      return 'y-chip-danger'
     default:
-      return 'bg-gray-100 text-gray-800'
+      return 'y-chip'
   }
 }
 
@@ -1851,5 +1853,124 @@ const visibleScanPages = computed(() => {
   
   return pages
 })
+
+// Presentation helpers
+const authStore = useAuthStore()
+const siteName = computed(() => siteConfig.siteName || 'Yunamo')
+
+const domainQuota = computed(() => {
+  const q = authStore.user?.domain_quota
+  return typeof q === 'number' ? q : null
+})
+const slotsLeft = computed(() => (domainQuota.value === null ? null : Math.max(0, domainQuota.value - domains.value.length)))
+const quotaPercent = computed(() => {
+  if (!domainQuota.value) return null
+  return Math.min(100, Math.round((domains.value.length / domainQuota.value) * 100))
+})
+const headerDescription = computed(() =>
+  domainQuota.value === null
+    ? t('uiDomains.desc')
+    : t('uiDomains.descQuota', { used: domains.value.length, quota: domainQuota.value })
+)
+
+const isRestricted = (domain) => domain.status === 'suspended' || domain.status === 'abuse'
+const isExpiringSoon = (domain) => domain.status === 'active' && getDaysUntilExpiry(domain.expires_at) <= 30
+const hasDeletionNotice = (domain) => !!domain.first_failed_at && getDaysUntilDeletion(domain.first_failed_at) !== null
+const needsAttention = (domain) => domain.status !== 'active' || hasDeletionNotice(domain) || isExpiringSoon(domain)
+
+const expiringCount = computed(() => domains.value.filter(isExpiringSoon).length)
+const attentionCount = computed(() => domains.value.filter(needsAttention).length)
+
+const searchQuery = ref('')
+const statusFilter = ref('all')
+
+const filterOptions = computed(() => [
+  { key: 'all', label: t('uiDomains.filterAll'), count: domains.value.length },
+  { key: 'active', label: t('uiDomains.filterActive'), count: domains.value.filter((d) => d.status === 'active').length },
+  { key: 'attention', label: t('uiDomains.filterAttention'), count: attentionCount.value },
+])
+
+const clearFilters = () => {
+  searchQuery.value = ''
+  statusFilter.value = 'all'
+}
+
+const rowNotices = (domain) => {
+  const notices = []
+  if (domain.status === 'abuse') {
+    notices.push({ key: 'abuse', tone: 'danger', text: t('domains.abuseNotice') })
+  }
+  if (hasDeletionNotice(domain)) {
+    const days = getDaysUntilDeletion(domain.first_failed_at)
+    notices.push({
+      key: 'deletion',
+      tone: days <= 3 ? 'danger' : 'warn',
+      text: days <= 0 ? t('domains.pendingDeletionSoonNotice') : t('domains.pendingDeletionNotice', { days }),
+    })
+  }
+  return notices
+}
+
+const rows = computed(() => {
+  const q = searchQuery.value.trim().toLowerCase()
+  return domains.value
+    .filter((d) => {
+      if (statusFilter.value === 'active' && d.status !== 'active') return false
+      if (statusFilter.value === 'attention' && !needsAttention(d)) return false
+      return !q || (d.full_domain || '').toLowerCase().includes(q)
+    })
+    .map((domain) => ({ domain, notices: rowNotices(domain) }))
+})
+
+const menuItems = (domain) => {
+  const items = [{ key: 'ns', label: t('domains.modifyNameservers'), icon: Server, action: () => openModifyNS(domain) }]
+  if (domain.scan_summary) {
+    items.push(
+      { key: 'health', label: t('domains.healthDetails'), icon: Activity, action: () => viewHealthDetails(domain) },
+      { key: 'scans', label: t('domains.scanDetails'), icon: ChartColumn, action: () => viewScanDetails(domain) }
+    )
+  }
+  items.push(
+    { key: 'transfer', label: t('domains.transferDomainTitle'), icon: ArrowLeftRight, action: () => openTransfer(domain) },
+    { key: 'delete', label: t('admin.delete'), icon: Trash2, danger: true, divider: true, action: () => confirmDelete(domain) }
+  )
+  return items
+}
+
+// DaisyUI dropdowns stay open while focus is inside them, so drop focus before acting.
+const runMenuItem = (item) => {
+  document.activeElement?.blur()
+  item.action()
+}
+
+const healthLabel = (status) => {
+  const key = status?.toLowerCase()
+  if (key && te(`uiDomains.health.${key}`)) return t(`uiDomains.health.${key}`)
+  return status || t('uiDomains.health.unknown')
+}
+
+const healthChecks = computed(() => {
+  const s = selectedDomain.value?.scan_summary
+  if (!s) return []
+  return [
+    { key: 'http', icon: Globe, title: t('domains.httpStatus'), desc: t('domains.httpStatusDesc'), value: s.http_status, cls: getStatusBadgeClass(s.http_status) },
+    { key: 'dns', icon: Network, title: t('domains.dnsStatus'), desc: t('domains.dnsStatusDesc'), value: s.dns_status, cls: getStatusBadgeClass(s.dns_status) },
+    { key: 'ssl', icon: Lock, title: t('domains.sslStatus'), desc: t('domains.sslStatusDesc'), value: s.ssl_status, cls: getStatusBadgeClass(s.ssl_status) },
+    { key: 'safe', icon: ShieldCheck, title: t('domains.safeBrowsingStatus'), desc: t('domains.safeBrowsingStatusDesc'), value: s.safe_browsing_status, cls: getSafeBrowsingBadgeClass(s.safe_browsing_status) },
+    { key: 'vt', icon: Bug, title: t('domains.virusTotalStatus'), desc: t('domains.virusTotalStatusDesc'), value: s.virustotal_status, cls: getVirusTotalBadgeClass(s.virustotal_status) },
+  ]
+})
+
+const cpStatusChip = (status) => ({
+  active: 'y-chip-mint',
+  pending: 'y-chip-info',
+  suspended: 'y-chip-warn',
+  terminated: 'y-chip-danger',
+}[status] || 'y-chip')
+
+const cpStatusLabel = (status) => {
+  const key = { active: 'cpHostingActive', pending: 'cpHostingPending', suspended: 'cpHostingSuspended', terminated: 'cpHostingTerminated' }[status]
+  return key ? t(`domains.${key}`) : status
+}
 
 </script>

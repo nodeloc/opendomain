@@ -36,7 +36,7 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"status":  "ok",
-			"message": "OpenDomain API is running",
+			"message": "Yunamo API is running",
 		})
 	})
 

@@ -1,21 +1,18 @@
 <template>
   <div class="dropdown dropdown-end">
-    <label tabindex="0" class="btn btn-ghost btn-circle">
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
-      </svg>
-    </label>
-    <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-40 mt-3">
+    <button tabindex="0" type="button" class="btn btn-ghost btn-sm gap-1.5 px-2" :aria-label="$t('nav.language')">
+      <Languages :size="18" :stroke-width="1.5" />
+      <span class="font-mono text-xs uppercase text-y-muted">{{ currentLocale === 'zh-CN' ? '中' : 'EN' }}</span>
+    </button>
+    <ul tabindex="0" class="dropdown-content menu z-[60] mt-2 w-40 rounded-md p-1.5">
       <li>
-        <a @click="changeLocale('zh-CN')" :class="{ 'active': currentLocale === 'zh-CN' }">
-          <span class="text-xl">🇨🇳</span>
-          <span>简体中文</span>
+        <a :class="{ active: currentLocale === 'zh-CN' }" @click="changeLocale('zh-CN')">
+          <span class="w-6 font-mono text-xs text-y-faint">中</span>简体中文
         </a>
       </li>
       <li>
-        <a @click="changeLocale('en-US')" :class="{ 'active': currentLocale === 'en-US' }">
-          <span class="text-xl">🇺🇸</span>
-          <span>English</span>
+        <a :class="{ active: currentLocale === 'en-US' }" @click="changeLocale('en-US')">
+          <span class="w-6 font-mono text-xs text-y-faint">EN</span>English
         </a>
       </li>
     </ul>
@@ -25,6 +22,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { Languages } from 'lucide-vue-next'
 
 const { locale } = useI18n()
 
@@ -33,11 +31,7 @@ const currentLocale = computed(() => locale.value)
 const changeLocale = (newLocale) => {
   locale.value = newLocale
   localStorage.setItem('locale', newLocale)
+  document.documentElement.setAttribute('lang', newLocale)
+  if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
 }
 </script>
-
-<style scoped>
-.active {
-  @apply bg-primary text-primary-content;
-}
-</style>

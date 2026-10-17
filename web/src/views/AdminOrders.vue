@@ -1,279 +1,293 @@
 <template>
-  <div class="container mx-auto px-4 py-8">
-    <div class="flex justify-between items-center mb-6">
-      <h1 class="text-3xl font-bold">{{ $t('admin.orderManagement.title') }}</h1>
-      <div class="text-sm opacity-70">{{ $t('admin.orderManagement.totalCount', { count: pagination.total }) }}</div>
-    </div>
+  <div class="y-page">
+    <PageHeader
+      :eyebrow="$t('uiAdmin2.eyebrow')"
+      :title="$t('uiAdmin2.orders.title')"
+      :description="$t('uiAdmin2.orders.description')"
+    >
+      <template #actions>
+        <span class="font-mono text-sm text-y-faint">{{ $t('uiAdmin2.orders.totalCount', { count: pagination.total || 0 }) }}</span>
+      </template>
+    </PageHeader>
 
     <!-- Stats -->
-    <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
-      <div class="stat bg-base-100 rounded-lg shadow">
-        <div class="stat-title">{{ $t('admin.orderManagement.stats.totalOrders') }}</div>
-        <div class="stat-value text-sm">{{ pagination.total }}</div>
+    <div class="grid grid-cols-2 gap-3 lg:grid-cols-5">
+      <div class="y-panel p-5">
+        <p class="y-label">{{ $t('uiAdmin2.orders.stats.total') }}</p>
+        <p class="mt-2 font-mono text-3xl font-medium tracking-tight text-y-text">{{ pagination.total || 0 }}</p>
       </div>
-      <div class="stat bg-base-100 rounded-lg shadow">
-        <div class="stat-title">{{ $t('admin.orderManagement.stats.pendingOrders') }}</div>
-        <div class="stat-value text-sm text-warning">{{ getStatusCount('pending') }}</div>
+      <div class="y-panel p-5">
+        <p class="y-label">{{ $t('uiAdmin2.orders.stats.pending') }}</p>
+        <p class="mt-2 font-mono text-3xl font-medium tracking-tight text-y-text">{{ getStatusCount('pending') }}</p>
+        <p class="y-field-hint mt-1">{{ $t('uiAdmin2.onThisPage') }}</p>
       </div>
-      <div class="stat bg-base-100 rounded-lg shadow">
-        <div class="stat-title">{{ $t('admin.orderManagement.stats.completedOrders') }}</div>
-        <div class="stat-value text-sm text-success">{{ getStatusCount('completed') }}</div>
+      <div class="y-panel p-5">
+        <p class="y-label">{{ $t('uiAdmin2.orders.stats.completed') }}</p>
+        <p class="mt-2 font-mono text-3xl font-medium tracking-tight text-y-text">{{ getStatusCount('completed') }}</p>
+        <p class="y-field-hint mt-1">{{ $t('uiAdmin2.onThisPage') }}</p>
       </div>
-      <div class="stat bg-base-100 rounded-lg shadow">
-        <div class="stat-title">{{ $t('admin.orderManagement.stats.cancelledOrders') }}</div>
-        <div class="stat-value text-sm text-error">{{ getStatusCount('cancelled') }}</div>
+      <div class="y-panel p-5">
+        <p class="y-label">{{ $t('uiAdmin2.orders.stats.cancelled') }}</p>
+        <p class="mt-2 font-mono text-3xl font-medium tracking-tight text-y-text">{{ getStatusCount('cancelled') }}</p>
+        <p class="y-field-hint mt-1">{{ $t('uiAdmin2.onThisPage') }}</p>
       </div>
-      <div class="stat bg-base-100 rounded-lg shadow">
-        <div class="stat-title">{{ $t('admin.orderManagement.stats.totalRevenue') }}</div>
-        <div class="stat-value text-sm text-primary">{{ formatPrice(totalRevenue) }}</div>
+      <div class="y-panel col-span-2 p-5 lg:col-span-1">
+        <p class="y-label">{{ $t('uiAdmin2.orders.stats.revenue') }}</p>
+        <p class="mt-2 truncate font-mono text-3xl font-medium tracking-tight text-y-text">{{ formatPrice(totalRevenue) }}</p>
+        <p class="y-field-hint mt-1">{{ $t('uiAdmin2.onThisPage') }}</p>
       </div>
     </div>
 
-    <!-- Filters -->
-    <div class="mb-4 flex gap-2">
-      <button 
-        @click="filterStatus = ''"
-        :class="['px-4 py-2 rounded', filterStatus === '' ? 'bg-primary text-white' : 'bg-base-200']"
-      >
-        {{ $t('admin.orderManagement.filters.all') }}
-      </button>
-      <button 
-        @click="filterStatus = 'pending'"
-        :class="['px-4 py-2 rounded', filterStatus === 'pending' ? 'bg-primary text-white' : 'bg-base-200']"
-      >
-        {{ $t('admin.orderManagement.filters.pending') }}
-      </button>
-      <button 
-        @click="filterStatus = 'processing'"
-        :class="['px-4 py-2 rounded', filterStatus === 'processing' ? 'bg-primary text-white' : 'bg-base-200']"
-      >
-        {{ $t('admin.orderManagement.filters.processing') }}
-      </button>
-      <button 
-        @click="filterStatus = 'completed'"
-        :class="['px-4 py-2 rounded', filterStatus === 'completed' ? 'bg-primary text-white' : 'bg-base-200']"
-      >
-        {{ $t('admin.orderManagement.filters.completed') }}
-      </button>
-      <button 
-        @click="filterStatus = 'cancelled'"
-        :class="['px-4 py-2 rounded', filterStatus === 'cancelled' ? 'bg-primary text-white' : 'bg-base-200']"
-      >
-        {{ $t('admin.orderManagement.filters.cancelled') }}
-      </button>
-    </div>
-
-    <!-- Search Bar -->
-    <div class="mb-6">
-      <div class="relative">
-        <div class="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
+    <!-- Orders -->
+    <section class="y-panel">
+      <div class="y-panel-header">
+        <div class="max-w-full overflow-x-auto">
+          <div class="tabs tabs-boxed tabs-sm w-max" role="tablist" :aria-label="$t('uiAdmin2.orders.filterLabel')">
+            <button
+              v-for="option in statusFilters"
+              :key="option.value || 'all'"
+              type="button"
+              role="tab"
+              class="tab"
+              :class="{ 'tab-active': filterStatus === option.value }"
+              :aria-selected="filterStatus === option.value"
+              @click="filterStatus = option.value"
+            >
+              {{ option.label }}
+            </button>
+          </div>
         </div>
-        <input
-          v-model="searchQuery"
-          type="text"
-          :placeholder="$t('admin.orderManagement.searchPlaceholder')"
-          class="input input-bordered w-full pl-12 pr-10"
-          @input="debouncedSearch"
-        />
-        <button
-          v-if="searchQuery"
-          @click="clearSearch"
-          class="absolute inset-y-0 right-0 flex items-center pr-4 text-gray-400 hover:text-gray-600"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
+
+        <label class="input input-bordered input-sm flex h-10 w-full items-center gap-2 sm:max-w-sm">
+          <Search :size="16" :stroke-width="1.5" class="shrink-0 text-y-faint" />
+          <input
+            v-model="searchQuery"
+            type="text"
+            :placeholder="$t('admin.orderManagement.searchPlaceholder')"
+            class="min-w-0 grow bg-transparent text-sm"
+            @input="debouncedSearch"
+          />
+          <button
+            v-if="searchQuery"
+            type="button"
+            class="btn btn-ghost btn-xs btn-square"
+            :aria-label="$t('uiAdmin2.clearSearch')"
+            :title="$t('uiAdmin2.clearSearch')"
+            @click="clearSearch"
+          >
+            <X :size="14" :stroke-width="1.5" />
+          </button>
+        </label>
       </div>
-      <p v-if="searchQuery" class="text-sm text-gray-500 mt-2">
+
+      <p v-if="searchQuery" class="border-b border-y-line px-5 py-2.5 text-sm text-y-muted">
         {{ $t('admin.orderManagement.searchResults', { count: orders.length, query: searchQuery }) }}
       </p>
-    </div>
 
-    <!-- Orders Table -->
-    <div class="overflow-x-auto bg-base-100 rounded-lg shadow">
-      <table class="table w-full">
-        <thead>
-          <tr>
-            <th>{{ $t('admin.orderManagement.table.orderNumber') }}</th>
-            <th>{{ $t('admin.orderManagement.table.user') }}</th>
-            <th>{{ $t('admin.orderManagement.table.domain') }}</th>
-            <th>{{ $t('admin.orderManagement.table.rootDomain') }}</th>
-            <th>{{ $t('admin.orderManagement.table.amount') }}</th>
-            <th>{{ $t('admin.orderManagement.table.status') }}</th>
-            <th>{{ $t('admin.orderManagement.table.createdAt') }}</th>
-            <th>{{ $t('admin.orderManagement.table.actions') }}</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="order in orders" :key="order.id">
-            <td>
-              <div class="font-mono text-sm">{{ order.order_number }}</div>
-            </td>
-            <td>
-              <div v-if="order.user">
-                <div class="font-bold">{{ order.user.username }}</div>
-                <div class="text-xs opacity-50">ID: {{ order.user_id }}</div>
-              </div>
-              <div v-else class="text-gray-500">-</div>
-            </td>
-            <td>
-              <div class="font-medium">{{ order.subdomain }}</div>
-            </td>
-            <td>
-              <div v-if="order.root_domain">{{ order.root_domain.domain }}</div>
-              <div v-else class="text-gray-500">-</div>
-            </td>
-            <td>
-              <div class="font-bold">{{ formatPrice(Number(order.final_price || 0)) }}</div>
-              <div v-if="order.base_price !== undefined && order.base_price !== null" class="text-xs opacity-50">
-                {{ $t('admin.orderManagement.table.originalPrice') }}: {{ formatPrice(Number(order.base_price || 0)) }}
-              </div>
-            </td>
-            <td>
-              <span :class="getStatusBadgeClass(order.status)">
-                {{ $t(`admin.orderManagement.status.${order.status}`) }}
-              </span>
-            </td>
-            <td>{{ formatDate(order.created_at) }}</td>
-            <td>
-              <button 
-                @click="viewOrderDetails(order)" 
-                class="btn btn-sm btn-ghost"
-                :title="$t('admin.orderManagement.table.viewDetails')"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                  <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" />
-                </svg>
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-      <div v-if="orders.length === 0" class="text-center py-8 text-gray-500">
-        {{ $t('admin.orderManagement.noData') }}
+      <YLoader v-if="loading && orders.length === 0" :label="$t('uiAdmin2.loading')" />
+
+      <EmptyState
+        v-else-if="orders.length === 0"
+        :title="$t('uiAdmin2.orders.emptyTitle')"
+        :description="searchQuery || filterStatus ? $t('uiAdmin2.orders.emptyFilteredDescription') : $t('uiAdmin2.orders.emptyDescription')"
+      >
+        <button v-if="searchQuery" type="button" class="btn btn-outline btn-sm" @click="clearSearch">
+          {{ $t('uiAdmin2.clearSearch') }}
+        </button>
+      </EmptyState>
+
+      <div v-else class="overflow-x-auto">
+        <table class="y-table">
+          <thead>
+            <tr>
+              <th>{{ $t('admin.orderManagement.table.orderNumber') }}</th>
+              <th>{{ $t('admin.orderManagement.table.user') }}</th>
+              <th>{{ $t('admin.orderManagement.table.domain') }}</th>
+              <th>{{ $t('admin.orderManagement.table.rootDomain') }}</th>
+              <th class="text-right">{{ $t('admin.orderManagement.table.amount') }}</th>
+              <th>{{ $t('admin.orderManagement.table.status') }}</th>
+              <th>{{ $t('admin.orderManagement.table.createdAt') }}</th>
+              <th class="text-right">{{ $t('admin.orderManagement.table.actions') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="order in orders" :key="order.id">
+              <td class="whitespace-nowrap font-mono text-xs text-y-text">{{ order.order_number }}</td>
+              <td>
+                <template v-if="order.user">
+                  <p class="font-medium text-y-text">{{ order.user.username }}</p>
+                  <p class="font-mono text-xs text-y-faint">ID {{ order.user_id }}</p>
+                </template>
+                <span v-else class="text-y-faint">—</span>
+              </td>
+              <td><span class="y-domain text-sm">{{ order.subdomain }}</span></td>
+              <td>
+                <span v-if="order.root_domain" class="font-mono text-sm text-y-muted">{{ order.root_domain.domain }}</span>
+                <span v-else class="text-y-faint">—</span>
+              </td>
+              <td class="whitespace-nowrap text-right">
+                <p class="font-mono font-medium text-y-text">{{ formatPrice(Number(order.final_price || 0)) }}</p>
+                <p v-if="order.base_price !== undefined && order.base_price !== null" class="font-mono text-xs text-y-faint">
+                  {{ $t('admin.orderManagement.table.originalPrice') }} {{ formatPrice(Number(order.base_price || 0)) }}
+                </p>
+              </td>
+              <td>
+                <span :class="getStatusBadgeClass(order.status)">
+                  {{ $t(`admin.orderManagement.status.${order.status}`) }}
+                </span>
+              </td>
+              <td class="whitespace-nowrap text-y-muted">{{ formatDate(order.created_at) }}</td>
+              <td class="text-right">
+                <button
+                  type="button"
+                  class="btn btn-ghost btn-sm btn-square"
+                  :title="$t('admin.orderManagement.table.viewDetails')"
+                  :aria-label="$t('admin.orderManagement.table.viewDetails')"
+                  @click="viewOrderDetails(order)"
+                >
+                  <Eye :size="16" :stroke-width="1.5" />
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
-    </div>
+    </section>
 
     <!-- Pagination -->
-    <div v-if="pagination.total_page > 1" class="flex justify-center mt-6">
+    <div v-if="pagination.total_page > 1" class="flex flex-col items-center justify-between gap-3 sm:flex-row">
+      <p class="font-mono text-xs text-y-faint">{{ $t('uiAdmin2.pageOf', { page: currentPage, total: pagination.total_page }) }}</p>
       <div class="join">
         <button
-          class="join-item btn"
+          type="button"
+          class="join-item btn btn-outline btn-sm disabled:border-y-line disabled:bg-transparent disabled:text-y-faint"
           :disabled="currentPage === 1"
+          :aria-label="$t('uiAdmin2.previousPage')"
           @click="goToPage(currentPage - 1)"
         >
-          «
+          <ChevronLeft :size="16" :stroke-width="1.5" />
         </button>
         <template v-for="(page, index) in visiblePages" :key="index">
           <button
             v-if="typeof page === 'number'"
-            class="join-item btn"
-            :class="{ 'btn-active': page === currentPage }"
+            type="button"
+            class="join-item btn btn-outline btn-sm font-mono"
+            :class="{ 'bg-y-surface-2 !text-y-mint-text': page === currentPage }"
+            :aria-current="page === currentPage ? 'page' : undefined"
             @click="goToPage(page)"
           >
             {{ page }}
           </button>
-          <button v-else class="join-item btn btn-disabled">
-            ...
-          </button>
+          <button v-else type="button" class="join-item btn btn-outline btn-sm btn-disabled font-mono" tabindex="-1">…</button>
         </template>
         <button
-          class="join-item btn"
+          type="button"
+          class="join-item btn btn-outline btn-sm disabled:border-y-line disabled:bg-transparent disabled:text-y-faint"
           :disabled="currentPage === pagination.total_page"
+          :aria-label="$t('uiAdmin2.nextPage')"
           @click="goToPage(currentPage + 1)"
         >
-          »
+          <ChevronRight :size="16" :stroke-width="1.5" />
         </button>
       </div>
     </div>
 
     <!-- Order Details Modal -->
     <div v-if="showDetailsModal" class="modal modal-open">
-      <div class="modal-box max-w-2xl">
-        <h3 class="font-bold text-lg mb-4">{{ $t('admin.orderManagement.details.title') }}</h3>
-        <div v-if="selectedOrder" class="space-y-4">
-          <div class="grid grid-cols-2 gap-4">
+      <div class="modal-box relative max-w-2xl">
+        <button
+          type="button"
+          class="btn btn-ghost btn-sm btn-square absolute right-3 top-3"
+          :aria-label="$t('uiAdmin2.close')"
+          @click="showDetailsModal = false"
+        >
+          <X :size="16" :stroke-width="1.5" />
+        </button>
+        <h3 class="text-lg font-semibold text-y-text">{{ $t('admin.orderManagement.details.title') }}</h3>
+
+        <div v-if="selectedOrder" class="mt-6 space-y-4">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <p class="font-mono text-sm text-y-text break-all">{{ selectedOrder.order_number }}</p>
+            <span :class="getStatusBadgeClass(selectedOrder.status)">
+              {{ $t(`admin.orderManagement.status.${selectedOrder.status}`) }}
+            </span>
+          </div>
+
+          <dl class="grid grid-cols-1 gap-x-6 gap-y-4 rounded-md border border-y-line p-4 sm:grid-cols-2">
             <div>
-              <label class="label"><span class="label-text font-semibold">{{ $t('admin.orderManagement.details.orderNumber') }}</span></label>
-              <div class="text-lg font-mono">{{ selectedOrder.order_number }}</div>
+              <dt class="y-label">{{ $t('admin.orderManagement.details.domain') }}</dt>
+              <dd class="mt-1 y-domain text-sm">{{ selectedOrder.subdomain }}</dd>
             </div>
             <div>
-              <label class="label"><span class="label-text font-semibold">{{ $t('admin.orderManagement.details.status') }}</span></label>
-              <span :class="getStatusBadgeClass(selectedOrder.status)">
-                {{ $t(`admin.orderManagement.status.${selectedOrder.status}`) }}
-              </span>
+              <dt class="y-label">{{ $t('admin.orderManagement.details.rootDomain') }}</dt>
+              <dd class="mt-1 font-mono text-sm text-y-text">{{ selectedOrder.root_domain?.domain || '—' }}</dd>
             </div>
             <div>
-              <label class="label"><span class="label-text font-semibold">{{ $t('admin.orderManagement.details.user') }}</span></label>
-              <div class="text-lg">{{ selectedOrder.user?.username || '-' }}</div>
+              <dt class="y-label">{{ $t('admin.orderManagement.details.user') }}</dt>
+              <dd class="mt-1 text-sm text-y-text">{{ selectedOrder.user?.username || '—' }}</dd>
             </div>
             <div>
-              <label class="label"><span class="label-text font-semibold">{{ $t('admin.orderManagement.details.userId') }}</span></label>
-              <div class="text-lg">{{ selectedOrder.user_id }}</div>
+              <dt class="y-label">{{ $t('admin.orderManagement.details.userId') }}</dt>
+              <dd class="mt-1 font-mono text-sm text-y-text">{{ selectedOrder.user_id }}</dd>
             </div>
             <div>
-              <label class="label"><span class="label-text font-semibold">{{ $t('admin.orderManagement.details.domain') }}</span></label>
-              <div class="text-lg font-bold">{{ selectedOrder.subdomain }}</div>
-            </div>
-            <div>
-              <label class="label"><span class="label-text font-semibold">{{ $t('admin.orderManagement.details.rootDomain') }}</span></label>
-              <div class="text-lg">{{ selectedOrder.root_domain?.domain || '-' }}</div>
-            </div>
-            <div>
-              <label class="label"><span class="label-text font-semibold">{{ $t('admin.orderManagement.details.years') }}</span></label>
-              <div class="text-lg">{{ $t('admin.orderManagement.details.yearsValue', { count: selectedOrder.years }) }}</div>
-            </div>
-            <div>
-              <label class="label"><span class="label-text font-semibold">{{ $t('admin.orderManagement.details.originalPrice') }}</span></label>
-              <div class="text-lg">{{ formatPrice(Number(selectedOrder.base_price || 0)) }}</div>
-            </div>
-            <div>
-              <label class="label"><span class="label-text font-semibold">{{ $t('admin.orderManagement.details.discount') }}</span></label>
-              <div class="text-lg text-error">-{{ formatPrice(Number(selectedOrder.discount_amount || 0)) }}</div>
-            </div>
-            <div>
-              <label class="label"><span class="label-text font-semibold">{{ $t('admin.orderManagement.details.finalAmount') }}</span></label>
-              <div class="text-lg font-bold text-primary">{{ formatPrice(Number(selectedOrder.final_price || 0)) }}</div>
+              <dt class="y-label">{{ $t('admin.orderManagement.details.years') }}</dt>
+              <dd class="mt-1 text-sm text-y-text">{{ $t('admin.orderManagement.details.yearsValue', { count: selectedOrder.years }) }}</dd>
             </div>
             <div v-if="selectedOrder.coupon_code">
-              <label class="label"><span class="label-text font-semibold">{{ $t('admin.orderManagement.details.couponCode') }}</span></label>
-              <div class="text-lg font-mono">{{ selectedOrder.coupon_code }}</div>
+              <dt class="y-label">{{ $t('admin.orderManagement.details.couponCode') }}</dt>
+              <dd class="mt-1"><span class="y-tag">{{ selectedOrder.coupon_code }}</span></dd>
             </div>
             <div>
-              <label class="label"><span class="label-text font-semibold">{{ $t('admin.orderManagement.details.createdAt') }}</span></label>
-              <div class="text-lg">{{ formatDate(selectedOrder.created_at) }}</div>
+              <dt class="y-label">{{ $t('admin.orderManagement.details.createdAt') }}</dt>
+              <dd class="mt-1 text-sm text-y-text">{{ formatDate(selectedOrder.created_at) }}</dd>
             </div>
             <div v-if="selectedOrder.updated_at">
-              <label class="label"><span class="label-text font-semibold">{{ $t('admin.orderManagement.details.updatedAt') }}</span></label>
-              <div class="text-lg">{{ formatDate(selectedOrder.updated_at) }}</div>
+              <dt class="y-label">{{ $t('admin.orderManagement.details.updatedAt') }}</dt>
+              <dd class="mt-1 text-sm text-y-text">{{ formatDate(selectedOrder.updated_at) }}</dd>
             </div>
-          </div>
+          </dl>
+
+          <dl class="y-inset divide-y divide-y-line text-sm">
+            <div class="flex items-center justify-between gap-4 px-4 py-3">
+              <dt class="text-y-muted">{{ $t('admin.orderManagement.details.originalPrice') }}</dt>
+              <dd class="font-mono text-y-text">{{ formatPrice(Number(selectedOrder.base_price || 0)) }}</dd>
+            </div>
+            <div class="flex items-center justify-between gap-4 px-4 py-3">
+              <dt class="text-y-muted">{{ $t('admin.orderManagement.details.discount') }}</dt>
+              <dd class="font-mono text-y-text">-{{ formatPrice(Number(selectedOrder.discount_amount || 0)) }}</dd>
+            </div>
+            <div class="flex items-center justify-between gap-4 px-4 py-3">
+              <dt class="font-medium text-y-text">{{ $t('admin.orderManagement.details.finalAmount') }}</dt>
+              <dd class="font-mono text-base font-medium text-y-mint-text">{{ formatPrice(Number(selectedOrder.final_price || 0)) }}</dd>
+            </div>
+          </dl>
         </div>
+
         <div class="modal-action">
-          <button @click="showDetailsModal = false" class="btn">{{ $t('common.close') }}</button>
+          <button type="button" class="btn btn-ghost" @click="showDetailsModal = false">{{ $t('uiAdmin2.close') }}</button>
         </div>
       </div>
     </div>
   </div>
 </template>
-
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import axios from '../utils/axios'
 import { useToast } from '../composables/useToast'
 import { useCurrency } from '../composables/useCurrency'
+import { Search, X, Eye, ChevronLeft, ChevronRight } from 'lucide-vue-next'
+import PageHeader from '../components/ui/PageHeader.vue'
+import EmptyState from '../components/ui/EmptyState.vue'
+import YLoader from '../components/brand/YLoader.vue'
 
 const { t } = useI18n()
 const toast = useToast()
 const { formatPrice } = useCurrency()
 
 const orders = ref([])
+const loading = ref(true)
 const currentPage = ref(1)
 const pageSize = ref(20)
 const pagination = ref({
@@ -336,14 +350,23 @@ const getStatusCount = (status) => {
 
 const getStatusBadgeClass = (status) => {
   const classMap = {
-    pending: 'px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800',
-    processing: 'px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800',
-    completed: 'px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800',
-    cancelled: 'px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800',
-    failed: 'px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800'
+    pending: 'y-chip-warn',
+    processing: 'y-chip-info',
+    paid: 'y-chip-mint',
+    completed: 'y-chip-mint',
+    cancelled: 'y-chip-danger',
+    failed: 'y-chip-danger'
   }
-  return classMap[status] || 'px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800'
+  return classMap[status] || 'y-chip'
 }
+
+const statusFilters = computed(() => [
+  { value: '', label: t('admin.orderManagement.filters.all') },
+  { value: 'pending', label: t('admin.orderManagement.filters.pending') },
+  { value: 'processing', label: t('admin.orderManagement.filters.processing') },
+  { value: 'completed', label: t('admin.orderManagement.filters.completed') },
+  { value: 'cancelled', label: t('admin.orderManagement.filters.cancelled') }
+])
 
 const fetchOrders = async () => {
   try {
@@ -363,6 +386,8 @@ const fetchOrders = async () => {
     pagination.value = response.data.pagination || {}
   } catch (error) {
     toast.error(t('admin.orderManagement.fetchError'))
+  } finally {
+    loading.value = false
   }
 }
 

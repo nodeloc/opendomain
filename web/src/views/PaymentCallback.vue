@@ -1,91 +1,86 @@
 <template>
-  <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-12 max-w-2xl">
-    <!-- 处理中状态 -->
-    <div v-if="processing" class="card bg-base-100 shadow-xl">
-      <div class="card-body items-center text-center py-12">
-        <span class="loading loading-spinner loading-lg text-primary mb-6"></span>
-        <h2 class="card-title text-2xl mb-2">Processing Payment...</h2>
-        <p class="opacity-70">Please wait while we verify your payment</p>
+  <section class="y-container flex min-h-[calc(100vh-4rem)] items-center justify-center py-14 sm:py-16">
+    <div class="w-full max-w-lg">
+      <!-- Processing -->
+      <div v-if="processing" class="y-panel px-6 py-12 text-center sm:px-10">
+        <YLoader :size="44" class="!py-0" />
+        <p class="y-eyebrow mt-6">{{ $t('uiPublic.payment.eyebrow') }}</p>
+        <h1 class="y-h2 mt-3">{{ $t('uiPublic.payment.processingTitle') }}</h1>
+        <p class="mt-2 text-[15px] leading-6 text-y-muted">{{ $t('uiPublic.payment.processingDesc') }}</p>
       </div>
-    </div>
 
-    <!-- 成功状态 -->
-    <div v-else-if="success" class="card bg-base-100 shadow-xl border-2 border-success">
-      <div class="card-body items-center text-center py-12">
-        <div class="w-24 h-24 rounded-full bg-success/10 flex items-center justify-center mb-6">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
+      <!-- Success -->
+      <div v-else-if="success" class="y-panel p-6 sm:p-8">
+        <StatusDot tone="ok" :label="$t('uiPublic.payment.successStatus')" />
+        <h1 class="y-h2 mt-4">{{ $t('uiPublic.payment.successTitle') }}</h1>
+        <p class="mt-2 text-[15px] leading-6 text-y-muted">{{ $t('uiPublic.payment.successDesc') }}</p>
+
+        <div class="y-mint-soft mt-6 rounded-lg border px-5 py-4">
+          <p class="y-label">{{ $t('uiPublic.payment.domain') }}</p>
+          <p class="y-domain mt-1.5 text-lg">{{ orderInfo?.full_domain }}</p>
         </div>
 
-        <h2 class="card-title text-3xl mb-4 text-success">Payment Successful!</h2>
-
-        <p class="text-lg mb-2">Your domain has been registered successfully</p>
-        <p class="text-xl font-mono font-bold mb-6">{{ orderInfo?.full_domain }}</p>
-
-        <div class="stats shadow mb-6">
-          <div class="stat">
-            <div class="stat-title">Order Number</div>
-            <div class="stat-value text-lg font-mono">{{ orderInfo?.order_number }}</div>
+        <dl class="mt-4 grid grid-cols-1 divide-y divide-y-line rounded-lg border border-y-line sm:grid-cols-2 sm:divide-x sm:divide-y-0">
+          <div class="px-5 py-4">
+            <dt class="y-label">{{ $t('uiPublic.payment.orderNumber') }}</dt>
+            <dd class="mt-1.5 break-all font-mono text-sm text-y-text">{{ orderInfo?.order_number }}</dd>
           </div>
-          <div class="stat">
-            <div class="stat-title">Amount Paid</div>
-            <div class="stat-value text-lg text-primary">{{ formatPrice(orderInfo?.final_price || 0) }}</div>
+          <div class="px-5 py-4">
+            <dt class="y-label">{{ $t('uiPublic.payment.amountPaid') }}</dt>
+            <dd class="mt-1.5 font-mono text-sm text-y-text">{{ formatPrice(orderInfo?.final_price || 0) }}</dd>
           </div>
-        </div>
+        </dl>
 
-        <div class="flex gap-4 w-full max-w-md">
-          <button class="btn btn-ghost flex-1" @click="goToOrders">
-            View Orders
+        <div class="mt-8 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <button type="button" class="btn btn-outline" @click="goToOrders">
+            {{ $t('uiPublic.payment.viewOrders') }}
           </button>
-          <button class="btn btn-primary flex-1" @click="goToDomains">
-            View My Domains
+          <button type="button" class="btn btn-primary gap-1.5" @click="goToDomains">
+            {{ $t('uiPublic.payment.viewDomains') }}
+            <ArrowRight :size="16" :stroke-width="1.5" />
           </button>
         </div>
       </div>
-    </div>
 
-    <!-- 失败状态 -->
-    <div v-else class="card bg-base-100 shadow-xl border-2 border-error">
-      <div class="card-body items-center text-center py-12">
-        <div class="w-24 h-24 rounded-full bg-error/10 flex items-center justify-center mb-6">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-error" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
+      <!-- Failure -->
+      <div v-else class="y-panel p-6 sm:p-8">
+        <StatusDot tone="danger" :label="$t('uiPublic.payment.failedStatus')" />
+        <h1 class="y-h2 mt-4">{{ $t('uiPublic.payment.failedTitle') }}</h1>
+
+        <div class="y-danger-soft mt-6 flex items-start gap-3 rounded-lg border px-5 py-4">
+          <CircleX :size="18" :stroke-width="1.5" class="mt-0.5 shrink-0 text-y-danger-text" />
+          <p class="text-sm leading-6 text-y-danger-text">{{ errorMessage || $t('uiPublic.payment.failedDesc') }}</p>
         </div>
 
-        <h2 class="card-title text-3xl mb-4 text-error">Payment Failed</h2>
-
-        <p class="text-lg mb-6 opacity-70">{{ errorMessage || 'Your payment could not be processed' }}</p>
-
-        <div v-if="orderInfo" class="alert alert-warning mb-6">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-          </svg>
-          <div>
-            <div class="font-bold">Order #{{ orderInfo.order_number }}</div>
-            <div class="text-sm">You can retry payment from your orders page</div>
-          </div>
+        <div v-if="orderInfo" class="mt-4 rounded-lg border border-y-line px-5 py-4">
+          <p class="y-label">{{ $t('uiPublic.payment.orderNumber') }}</p>
+          <p class="mt-1.5 break-all font-mono text-sm text-y-text">{{ orderInfo.order_number }}</p>
+          <p v-if="orderInfo.full_domain" class="y-domain mt-1 text-sm text-y-muted">{{ orderInfo.full_domain }}</p>
+          <p class="mt-3 text-sm text-y-muted">{{ $t('uiPublic.payment.retryHint') }}</p>
         </div>
 
-        <div class="flex gap-4 w-full max-w-md">
-          <button class="btn btn-ghost flex-1" @click="goToHome">
-            Back to Home
+        <div class="mt-8 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <button type="button" class="btn btn-ghost" @click="goToHome">
+            {{ $t('uiPublic.backHome') }}
           </button>
-          <button class="btn btn-primary flex-1" @click="goToOrders">
-            View Orders
+          <button type="button" class="btn btn-primary gap-1.5" @click="goToOrders">
+            {{ $t('uiPublic.payment.viewOrders') }}
+            <ArrowRight :size="16" :stroke-width="1.5" />
           </button>
         </div>
       </div>
     </div>
-  </div>
+  </section>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { ArrowRight, CircleX } from 'lucide-vue-next'
 import axios from '../utils/axios'
 import { useCurrency } from '../composables/useCurrency'
+import YLoader from '../components/brand/YLoader.vue'
+import StatusDot from '../components/ui/StatusDot.vue'
 
 const route = useRoute()
 const router = useRouter()

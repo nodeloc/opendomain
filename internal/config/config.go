@@ -240,8 +240,8 @@ func setDefaults() {
 	viper.SetDefault("SCANNER_CONCURRENCY", 10)
 	viper.SetDefault("SCANNER_TIMEOUT", 30)
 
-	viper.SetDefault("SITE_NAME", "OpenDomain")
-	viper.SetDefault("SITE_DESCRIPTION", "Free Domain Registration Platform")
+	viper.SetDefault("SITE_NAME", "Yunamo")
+	viper.SetDefault("SITE_DESCRIPTION", "Free subdomains for builders")
 	viper.SetDefault("FRONTEND_URL", "http://localhost:3001")
 	viper.SetDefault("PAYMENT_CALLBACK_URL", fmt.Sprintf("http://localhost:%s/api/payments/callback", viper.GetString("PORT")))
 	viper.SetDefault("PAYMENT_TEST_MODE", false)

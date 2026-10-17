@@ -163,8 +163,8 @@ services:
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3001}
 
       # 站点配置
-      SITE_NAME: ${SITE_NAME:-OpenDomain}
-      SITE_DESCRIPTION: ${SITE_DESCRIPTION:-Free Domain Registration Platform}
+      SITE_NAME: ${SITE_NAME:-Yunamo}
+      SITE_DESCRIPTION: ${SITE_DESCRIPTION:-Free subdomains for builders}
 
       # 数据库配置（连接到 postgres 服务）
       DB_HOST: postgres
@@ -193,7 +193,7 @@ services:
       MAIL_PORT: ${MAIL_PORT:-587}
       MAIL_USER: ${MAIL_USER:-}
       MAIL_PASSWORD: ${MAIL_PASSWORD:-}
-      MAIL_FROM: ${MAIL_FROM:-noreply@opendomain.com}
+      MAIL_FROM: ${MAIL_FROM:-noreply@yunamo.com}
 
       # OAuth 配置
       GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}

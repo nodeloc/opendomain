@@ -1,27 +1,30 @@
 <template>
-  <div id="app" class="min-h-screen flex flex-col">
-    <Navbar />
-    <main class="flex-1">
-      <router-view />
-    </main>
-    <Footer />
-    <Toast />
-  </div>
+  <component :is="layout">
+    <router-view />
+  </component>
+  <Toast />
 </template>
 
 <script setup>
-import { watch } from 'vue'
-import Navbar from './components/Navbar.vue'
-import Footer from './components/Footer.vue'
+import { computed, watch } from 'vue'
+import { useRoute } from 'vue-router'
+import SiteLayout from './layouts/SiteLayout.vue'
+import ConsoleLayout from './layouts/ConsoleLayout.vue'
 import Toast from './components/Toast.vue'
 import { useSiteConfigStore } from './stores/siteConfig'
 
+const route = useRoute()
 const siteConfigStore = useSiteConfigStore()
 siteConfigStore.fetch()
 
-watch(() => siteConfigStore.siteName, (name) => {
-  if (name) {
-    document.title = `${name} - ${siteConfigStore.siteDescription}`
+const layout = computed(() => (route.meta.layout === 'console' ? ConsoleLayout : SiteLayout))
+
+watch(
+  () => [siteConfigStore.siteName, siteConfigStore.siteDescription],
+  ([name, description]) => {
+    if (name) {
+      document.title = description ? `${name} · ${description}` : name
+    }
   }
-})
+)
 </script>

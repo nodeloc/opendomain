@@ -1,160 +1,189 @@
 <template>
-  <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8 max-w-7xl space-y-6">
-    <!-- Header -->
-    <div class="flex justify-between items-center">
-      <div>
-        <h1 class="text-3xl font-bold">Announcement Management</h1>
-        <p class="text-lg opacity-70 mt-2">Create and manage announcements</p>
+  <div class="y-page">
+    <PageHeader
+      :eyebrow="$t('uiAdmin2.eyebrow')"
+      :title="$t('uiAdmin2.announcements.title')"
+      :description="$t('uiAdmin2.announcements.description')"
+    >
+      <template #actions>
+        <button type="button" class="btn btn-primary gap-1.5" @click="showCreateModal = true">
+          <Plus :size="16" :stroke-width="1.5" />
+          {{ $t('uiAdmin2.announcements.create') }}
+        </button>
+      </template>
+    </PageHeader>
+
+    <section class="y-panel">
+      <YLoader v-if="loading" :label="$t('uiAdmin2.loading')" />
+
+      <EmptyState
+        v-else-if="announcements.length === 0"
+        :title="$t('uiAdmin2.announcements.emptyTitle')"
+        :description="$t('uiAdmin2.announcements.emptyDescription')"
+      >
+        <button type="button" class="btn btn-outline btn-sm gap-1.5" @click="showCreateModal = true">
+          <Plus :size="14" :stroke-width="1.5" />
+          {{ $t('uiAdmin2.announcements.create') }}
+        </button>
+      </EmptyState>
+
+      <div v-else class="overflow-x-auto">
+        <table class="y-table">
+          <thead>
+            <tr>
+              <th>{{ $t('uiAdmin2.announcements.table.title') }}</th>
+              <th>{{ $t('uiAdmin2.announcements.table.type') }}</th>
+              <th class="text-right">{{ $t('uiAdmin2.announcements.table.priority') }}</th>
+              <th class="text-right">{{ $t('uiAdmin2.announcements.table.views') }}</th>
+              <th>{{ $t('uiAdmin2.announcements.table.status') }}</th>
+              <th>{{ $t('uiAdmin2.announcements.table.date') }}</th>
+              <th class="text-right">{{ $t('uiAdmin2.announcements.table.actions') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="announcement in announcements" :key="announcement.id">
+              <td class="max-w-md">
+                <p class="truncate font-medium text-y-text">{{ announcement.title }}</p>
+              </td>
+              <td class="whitespace-nowrap">
+                <span :class="getTypeBadgeClass(announcement.type)">{{ formatType(announcement.type) }}</span>
+              </td>
+              <td class="text-right font-mono">{{ announcement.priority }}</td>
+              <td class="text-right font-mono text-y-muted">{{ announcement.views }}</td>
+              <td class="whitespace-nowrap">
+                <StatusDot
+                  :tone="announcement.is_published ? 'ok' : 'muted'"
+                  :label="announcement.is_published ? $t('uiAdmin2.announcements.published') : $t('uiAdmin2.announcements.draft')"
+                />
+              </td>
+              <td class="whitespace-nowrap text-y-muted">{{ formatDate(announcement.created_at) }}</td>
+              <td>
+                <div class="flex justify-end gap-1">
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-sm btn-square"
+                    :title="$t('uiAdmin2.edit')"
+                    :aria-label="$t('uiAdmin2.edit')"
+                    @click="editAnnouncement(announcement)"
+                  >
+                    <Pencil :size="16" :stroke-width="1.5" />
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-sm btn-square text-y-danger-text"
+                    :title="$t('uiAdmin2.delete')"
+                    :aria-label="$t('uiAdmin2.delete')"
+                    @click="confirmDelete(announcement)"
+                  >
+                    <Trash2 :size="16" :stroke-width="1.5" />
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
-      <button @click="showCreateModal = true" class="btn btn-primary">
-        + Create Announcement
-      </button>
-    </div>
-
-    <!-- Announcements Table -->
-    <div v-if="loading" class="flex justify-center py-12">
-      <span class="loading loading-spinner loading-lg"></span>
-    </div>
-
-    <div v-else-if="announcements.length === 0" class="card bg-base-200 shadow-xl">
-      <div class="card-body items-center text-center py-12">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-20 w-20 opacity-40 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
-        </svg>
-        <h3 class="card-title text-2xl mb-2">No Announcements</h3>
-        <p class="mb-4">Create your first announcement to get started</p>
-        <button @click="showCreateModal = true" class="btn btn-primary">Create Announcement</button>
-      </div>
-    </div>
-
-    <div v-else class="overflow-x-auto">
-      <table class="table table-zebra w-full">
-        <thead>
-          <tr>
-            <th>Title</th>
-            <th>Type</th>
-            <th>Priority</th>
-            <th>Views</th>
-            <th>Status</th>
-            <th>Date</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="announcement in announcements" :key="announcement.id">
-            <td class="font-semibold max-w-md truncate">{{ announcement.title }}</td>
-            <td><div class="px-2 py-0.5 rounded text-xs font-medium" :class="getTypeBadgeClass(announcement.type)">{{ formatType(announcement.type) }}</div></td>
-            <td>{{ announcement.priority }}</td>
-            <td>{{ announcement.views }}</td>
-            <td>
-              <div class="px-2 py-0.5 rounded text-xs font-medium inline-block" :class="announcement.is_published ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'">
-                {{ announcement.is_published ? 'Published' : 'Draft' }}
-              </div>
-            </td>
-            <td>{{ formatDate(announcement.created_at) }}</td>
-            <td>
-              <div class="flex gap-2">
-                <button @click="editAnnouncement(announcement)" class="btn btn-sm btn-ghost">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                  </svg>
-                </button>
-                <button @click="confirmDelete(announcement)" class="btn btn-sm btn-ghost text-error">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
-                  </svg>
-                </button>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+    </section>
 
     <!-- Create/Edit Modal -->
     <dialog class="modal" :class="{ 'modal-open': showCreateModal || showEditModal }">
-      <div class="modal-box w-11/12 max-w-4xl">
-        <h3 class="font-bold text-lg">
-          {{ showEditModal ? 'Edit' : 'Create' }} Announcement
+      <div class="modal-box relative w-11/12 max-w-3xl">
+        <button
+          type="button"
+          class="btn btn-ghost btn-sm btn-square absolute right-3 top-3"
+          :aria-label="$t('uiAdmin2.close')"
+          @click="closeModal"
+        >
+          <X :size="16" :stroke-width="1.5" />
+        </button>
+        <h3 class="text-lg font-semibold text-y-text">
+          {{ showEditModal ? $t('uiAdmin2.announcements.editTitle') : $t('uiAdmin2.announcements.createTitle') }}
         </h3>
+        <p v-if="!showEditModal" class="mt-1 text-sm text-y-muted">{{ $t('uiAdmin2.announcements.modalDescription') }}</p>
 
-        <form @submit.prevent="handleSubmit" class="space-y-4 mt-4">
-          <div class="form-control">
-            <label class="label"><span class="label-text">Title</span></label>
+        <form class="mt-6 space-y-4" @submit.prevent="handleSubmit">
+          <label class="y-field">
+            <span class="y-field-label">{{ $t('uiAdmin2.announcements.fields.title') }}</span>
             <input
               v-model="form.title"
               type="text"
-              placeholder="Announcement title"
-              class="input input-bordered"
+              :placeholder="$t('uiAdmin2.announcements.fields.titlePlaceholder')"
+              class="input input-bordered w-full"
               required
             />
-          </div>
+          </label>
 
-          <div class="grid grid-cols-2 gap-4">
-            <div class="form-control">
-              <label class="label"><span class="label-text">Type</span></label>
-              <select v-model="form.type" class="select select-bordered" required>
-                <option value="general">General</option>
-                <option value="maintenance">Maintenance</option>
-                <option value="update">Update</option>
-                <option value="important">Important</option>
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <label class="y-field">
+              <span class="y-field-label">{{ $t('uiAdmin2.announcements.fields.type') }}</span>
+              <select v-model="form.type" class="select select-bordered w-full" required>
+                <option value="general">{{ $t('announcement.general') }}</option>
+                <option value="maintenance">{{ $t('announcement.maintenance') }}</option>
+                <option value="update">{{ $t('announcement.update') }}</option>
+                <option value="important">{{ $t('announcement.important') }}</option>
               </select>
-            </div>
+            </label>
 
-            <div class="form-control">
-              <label class="label"><span class="label-text">Priority (0-100)</span></label>
+            <label class="y-field">
+              <span class="y-field-label">{{ $t('uiAdmin2.announcements.fields.priority') }}</span>
               <input
                 v-model.number="form.priority"
                 type="number"
                 min="0"
                 max="100"
-                class="input input-bordered"
+                class="input input-bordered w-full font-mono"
               />
-            </div>
+              <span class="y-field-hint">{{ $t('uiAdmin2.announcements.fields.priorityHint') }}</span>
+            </label>
           </div>
 
-          <div class="form-control">
-            <label class="label"><span class="label-text">Content</span></label>
+          <label class="y-field">
+            <span class="y-field-label">{{ $t('uiAdmin2.announcements.fields.content') }}</span>
             <textarea
               v-model="form.content"
-              class="textarea textarea-bordered"
+              class="textarea textarea-bordered w-full font-mono text-sm leading-6"
               rows="10"
-              placeholder="Announcement content (supports **bold** and *italic*)"
+              :placeholder="$t('uiAdmin2.announcements.fields.contentPlaceholder')"
               required
             ></textarea>
-            <label class="label">
-              <span class="label-text-alt">Tip: Use **text** for bold, *text* for italic</span>
-            </label>
-          </div>
+            <span class="y-field-hint">{{ $t('uiAdmin2.announcements.fields.contentHint') }}</span>
+          </label>
 
-          <div v-if="showEditModal" class="form-control">
-            <label class="label cursor-pointer">
-              <span class="label-text">Published</span>
-              <input v-model="form.is_published" type="checkbox" class="checkbox" />
-            </label>
-          </div>
+          <label v-if="showEditModal" class="flex cursor-pointer items-start gap-3 rounded-md border border-y-line px-4 py-3">
+            <input v-model="form.is_published" type="checkbox" class="checkbox checkbox-sm mt-0.5" />
+            <span class="flex flex-col gap-0.5">
+              <span class="y-field-label">{{ $t('uiAdmin2.announcements.fields.published') }}</span>
+              <span class="y-field-hint">{{ $t('uiAdmin2.announcements.fields.publishedHint') }}</span>
+            </span>
+          </label>
 
           <div class="modal-action">
-            <button type="button" @click="closeModal" class="btn">Cancel</button>
+            <button type="button" class="btn btn-ghost" @click="closeModal">{{ $t('uiAdmin2.cancel') }}</button>
             <button type="submit" class="btn btn-primary" :disabled="submitting">
-              <span v-if="submitting" class="loading loading-spinner"></span>
-              <span v-else>{{ showEditModal ? 'Update' : 'Create' }}</span>
+              <span v-if="submitting" class="loading loading-spinner loading-sm"></span>
+              {{ showEditModal ? $t('uiAdmin2.saveChanges') : $t('uiAdmin2.create') }}
             </button>
           </div>
         </form>
       </div>
       <form method="dialog" class="modal-backdrop" @click="closeModal">
-        <button>close</button>
+        <button>{{ $t('uiAdmin2.close') }}</button>
       </form>
     </dialog>
   </div>
 </template>
-
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import axios from '../utils/axios'
 import { useToast } from '../composables/useToast'
+import { Plus, Pencil, Trash2, X } from 'lucide-vue-next'
+import PageHeader from '../components/ui/PageHeader.vue'
+import StatusDot from '../components/ui/StatusDot.vue'
+import EmptyState from '../components/ui/EmptyState.vue'
+import YLoader from '../components/brand/YLoader.vue'
 
+const { t } = useI18n()
 const toast = useToast()
 const announcements = ref([])
 const loading = ref(true)
@@ -192,15 +221,15 @@ const handleSubmit = async () => {
   try {
     if (showEditModal.value) {
       await axios.put(`/api/admin/announcements/${editingAnnouncement.value.id}`, form.value)
-      toast.success('Announcement updated successfully')
+      toast.success(t('uiAdmin2.announcements.updateSuccess'))
     } else {
       await axios.post('/api/admin/announcements', form.value)
-      toast.success('Announcement created successfully')
+      toast.success(t('uiAdmin2.announcements.createSuccess'))
     }
     closeModal()
     await fetchAnnouncements()
   } catch (error) {
-    toast.error(error.response?.data?.error || 'Operation failed')
+    toast.error(error.response?.data?.error || t('uiAdmin2.announcements.operationFailed'))
   } finally {
     submitting.value = false
   }
@@ -219,13 +248,13 @@ const editAnnouncement = (announcement) => {
 }
 
 const confirmDelete = async (announcement) => {
-  if (confirm(`Delete announcement "${announcement.title}"?`)) {
+  if (confirm(t('uiAdmin2.announcements.confirmDelete', { title: announcement.title }))) {
     try {
       await axios.delete(`/api/admin/announcements/${announcement.id}`)
-      toast.success('Announcement deleted successfully')
+      toast.success(t('uiAdmin2.announcements.deleteSuccess'))
       await fetchAnnouncements()
     } catch (error) {
-      toast.error(error.response?.data?.error || 'Failed to delete announcement')
+      toast.error(error.response?.data?.error || t('uiAdmin2.announcements.deleteFailed'))
     }
   }
 }
@@ -245,22 +274,22 @@ const closeModal = () => {
 
 const getTypeBadgeClass = (type) => {
   const classes = {
-    general: 'bg-blue-100 text-blue-800',
-    maintenance: 'bg-amber-100 text-amber-800',
-    update: 'bg-green-100 text-green-800',
-    important: 'bg-red-100 text-red-800',
+    general: 'y-chip',
+    maintenance: 'y-chip-warn',
+    update: 'y-chip-info',
+    important: 'y-chip-danger',
   }
-  return classes[type] || 'bg-gray-100 text-gray-800'
+  return classes[type] || 'y-chip'
 }
 
 const formatType = (type) => {
   const types = {
-    general: 'General',
-    maintenance: 'Maintenance',
-    update: 'Update',
-    important: 'Important',
+    general: 'announcement.general',
+    maintenance: 'announcement.maintenance',
+    update: 'announcement.update',
+    important: 'announcement.important',
   }
-  return types[type] || type
+  return types[type] ? t(types[type]) : type
 }
 
 const formatDate = (dateString) => {

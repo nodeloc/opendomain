@@ -1,171 +1,160 @@
 <template>
-  <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8 max-w-4xl">
-    <!-- 加载状态 -->
-    <div v-if="loading" class="flex justify-center py-12">
-      <span class="loading loading-spinner loading-lg"></span>
-    </div>
+  <div class="y-page">
+    <YLoader v-if="loading" :label="$t('uiUser.common.loading')" />
 
-    <!-- 主内容 -->
-    <div v-else class="space-y-6">
-      <!-- 标题 -->
-      <div>
-        <h1 class="text-3xl font-bold">{{ $t('checkout.title') }}</h1>
-        <p class="text-lg opacity-70 mt-2">{{ $t('checkout.subtitle') }}</p>
+    <template v-else>
+      <div class="space-y-4">
+        <button type="button" class="inline-flex items-center gap-1.5 text-sm text-y-muted transition-colors hover:text-y-text" @click="goBack">
+          <ArrowLeft :size="16" :stroke-width="1.5" />
+          {{ $t('uiUser.checkout.back') }}
+        </button>
+        <PageHeader :eyebrow="$t('uiUser.checkout.eyebrow')" :title="$t('uiUser.checkout.title')" :description="$t('uiUser.checkout.description')" />
       </div>
 
-      <!-- 域名信息卡片 -->
-      <div class="card bg-base-100 shadow-xl border border-base-300">
-        <div class="card-body">
-          <h2 class="card-title text-2xl mb-4">{{ $t('checkout.domainInfo') }}</h2>
-
-          <div class="flex items-center gap-3 p-4 bg-base-200 rounded-lg">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
-            </svg>
-            <div>
-              <div class="text-2xl font-mono font-bold">{{ fullDomain }}</div>
-              <div class="text-sm opacity-70 mt-1">{{ rootDomain?.description || 'Premium Domain' }}</div>
+      <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
+        <!-- Configuration -->
+        <div class="space-y-6">
+          <section class="y-panel flex items-center gap-4 px-5 py-5">
+            <span class="y-icon-tile"><Globe :size="20" :stroke-width="1.5" /></span>
+            <div class="min-w-0">
+              <p class="y-domain text-xl">{{ fullDomain }}</p>
+              <p class="mt-1 text-sm text-y-muted">{{ rootDomain?.description || $t('uiUser.checkout.premium') }}</p>
             </div>
-          </div>
-        </div>
-      </div>
+          </section>
 
-      <!-- 注册期限选择 -->
-      <div class="card bg-base-100 shadow-xl border border-base-300">
-        <div class="card-body">
-          <h2 class="card-title text-xl mb-4">{{ $t('checkout.registrationPeriod') }}</h2>
-
-          <div class="form-control">
-            <label class="label">
-              <span class="label-text font-semibold">{{ $t('checkout.duration') }}</span>
-            </label>
-            <div class="flex items-center gap-4">
-              <input
-                v-model.number="years"
-                type="range"
-                min="1"
-                max="10"
-                class="range range-primary flex-1"
-                :disabled="isLifetime"
-                @input="calculatePrice"
-              />
-              <div class="badge badge-primary badge-lg font-mono">{{ years }} {{ years === 1 ? $t('checkout.year') : $t('checkout.years') }}</div>
-            </div>
-          </div>
-
-          <div v-if="rootDomain?.lifetime_price" class="form-control mt-4">
-            <label class="label cursor-pointer justify-start gap-3">
-              <input
-                v-model="isLifetime"
-                type="checkbox"
-                class="checkbox checkbox-secondary"
-                @change="calculatePrice"
-              />
-              <span class="label-text">
-                <span class="font-semibold">{{ $t('checkout.lifetimeRegistration') }}</span>
-                <span class="ml-2 text-sm opacity-70">{{ $t('checkout.lifetimeDesc') }}</span>
+          <section class="y-panel">
+            <div class="y-panel-header">
+              <h2 class="y-h3">{{ $t('uiUser.checkout.termTitle') }}</h2>
+              <span class="font-mono text-sm text-y-muted">
+                {{ isLifetime ? $t('uiUser.checkout.lifetime') : $t('uiUser.checkout.yearsCount', years) }}
               </span>
-            </label>
-          </div>
+            </div>
+            <div class="space-y-5 px-5 py-5">
+              <div class="y-field">
+                <span class="y-field-label">{{ $t('uiUser.checkout.yearsLabel') }}</span>
+                <div class="grid grid-cols-5 gap-2 sm:grid-cols-10" role="radiogroup" :aria-label="$t('uiUser.checkout.yearsLabel')">
+                  <button
+                    v-for="n in 10"
+                    :key="n"
+                    type="button"
+                    role="radio"
+                    :aria-checked="!isLifetime && years === n"
+                    class="h-10 rounded-sm border font-mono text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+                    :class="!isLifetime && years === n
+                      ? 'y-mint-soft text-y-mint-text'
+                      : 'border-y-line bg-y-bg text-y-muted hover:border-y-line-strong hover:text-y-text'"
+                    :disabled="isLifetime || calculating"
+                    @click="years = n; calculatePrice()"
+                  >
+                    {{ n }}
+                  </button>
+                </div>
+                <span class="y-field-hint">{{ $t('uiUser.checkout.yearsHint') }}</span>
+              </div>
+
+              <label v-if="rootDomain?.lifetime_price" class="y-inset flex cursor-pointer items-start gap-3 px-4 py-3">
+                <input v-model="isLifetime" type="checkbox" class="checkbox checkbox-sm mt-0.5" @change="calculatePrice" />
+                <span>
+                  <span class="block text-sm font-medium text-y-text">{{ $t('uiUser.checkout.lifetimeTitle') }}</span>
+                  <span class="block text-xs text-y-muted">{{ $t('uiUser.checkout.lifetimeHint') }}</span>
+                </span>
+              </label>
+            </div>
+          </section>
+
+          <section class="y-panel">
+            <div class="y-panel-header">
+              <h2 class="y-h3">{{ $t('uiUser.checkout.couponTitle') }}</h2>
+              <span class="text-xs text-y-faint">{{ $t('uiUser.checkout.optional') }}</span>
+            </div>
+            <div class="space-y-3 px-5 py-5">
+              <div class="flex flex-col gap-2 sm:flex-row">
+                <input
+                  v-model="couponCode"
+                  type="text"
+                  :placeholder="$t('uiUser.checkout.couponPlaceholder')"
+                  class="input input-bordered w-full min-w-0 font-mono sm:flex-1 uppercase placeholder:normal-case"
+                  autocomplete="off"
+                  autocapitalize="characters"
+                  spellcheck="false"
+                  :aria-label="$t('uiUser.checkout.couponTitle')"
+                  @keyup.enter="applyCoupon"
+                />
+                <button type="button" class="btn btn-outline px-6" :disabled="calculating" @click="applyCoupon">
+                  <span v-if="calculating" class="loading loading-spinner loading-sm"></span>
+                  <span v-else>{{ $t('uiUser.checkout.apply') }}</span>
+                </button>
+              </div>
+
+              <div v-if="priceInfo?.coupon_applied" class="alert alert-success text-sm">
+                <CheckCircle2 :size="18" :stroke-width="1.5" class="text-y-mint-text" />
+                <span>{{ $t('uiUser.checkout.couponApplied', { amount: formatPrice(priceInfo.discount_amount) }) }}</span>
+              </div>
+
+              <div v-if="couponError" class="alert alert-error text-sm">
+                <XCircle :size="18" :stroke-width="1.5" />
+                <span>{{ couponError }}</span>
+              </div>
+            </div>
+          </section>
         </div>
-      </div>
 
-      <!-- 优惠券 -->
-      <div class="card bg-base-100 shadow-xl border border-base-300">
-        <div class="card-body">
-          <h2 class="card-title text-xl mb-4">{{ $t('checkout.couponCode') }}</h2>
+        <!-- Summary -->
+        <aside class="y-panel lg:sticky lg:top-20">
+          <div class="y-panel-header">
+            <h2 class="y-h3">{{ $t('uiUser.checkout.summary') }}</h2>
+            <span v-if="calculating" class="loading loading-spinner loading-xs"></span>
+          </div>
+          <div class="space-y-3 px-5 py-5 text-sm">
+            <div class="flex justify-between gap-4">
+              <span class="text-y-muted">{{ $t('uiUser.checkout.name') }}</span>
+              <span class="min-w-0 truncate text-right font-mono text-y-text" :title="fullDomain">{{ fullDomain }}</span>
+            </div>
+            <div class="flex justify-between gap-4">
+              <span class="text-y-muted">{{ $t('uiUser.checkout.term') }}</span>
+              <span class="font-mono text-y-text">{{ isLifetime ? $t('uiUser.checkout.lifetime') : $t('uiUser.checkout.yearsCount', years) }}</span>
+            </div>
+            <div class="flex justify-between gap-4">
+              <span class="text-y-muted">{{ $t('uiUser.checkout.basePrice') }}</span>
+              <span class="font-mono text-y-text">{{ formatPrice(priceInfo?.base_price || 0) }}</span>
+            </div>
+            <div v-if="priceInfo?.discount_amount > 0" class="flex justify-between gap-4">
+              <span class="text-y-muted">{{ $t('uiUser.checkout.discount') }}</span>
+              <span class="font-mono text-y-mint-text">−{{ formatPrice(priceInfo.discount_amount) }}</span>
+            </div>
 
-          <div class="join w-full">
-            <input
-              v-model="couponCode"
-              type="text"
-              :placeholder="$t('checkout.enterCoupon')"
-              class="input input-bordered join-item flex-1"
-              @keyup.enter="applyCoupon"
-            />
-            <button
-              class="btn btn-primary join-item"
-              @click="applyCoupon"
-              :disabled="calculating"
-            >
-              <span v-if="calculating" class="loading loading-spinner loading-sm"></span>
-              <span v-else>{{ $t('coupon.apply') }}</span>
+            <div class="y-divider !my-4"></div>
+
+            <div class="flex items-baseline justify-between gap-4">
+              <span class="font-medium text-y-text">{{ $t('uiUser.checkout.total') }}</span>
+              <span class="font-mono text-3xl font-medium tracking-tight text-y-text">{{ formatPrice(priceInfo?.final_price || 0) }}</span>
+            </div>
+            <p class="text-right text-xs text-y-faint">
+              <template v-if="isLifetime">{{ $t('uiUser.checkout.oneTime') }}</template>
+              <template v-else>{{ $t('uiUser.checkout.perYear', { price: formatPrice((priceInfo?.final_price || 0) / years) }) }}</template>
+            </p>
+          </div>
+          <div class="space-y-2 border-t border-y-line px-5 py-5">
+            <button type="button" class="btn btn-primary w-full" :disabled="creating || !priceInfo" @click="createOrderAndPay">
+              <span v-if="creating" class="loading loading-spinner loading-sm"></span>
+              <span v-else>{{ $t('uiUser.checkout.pay') }}</span>
             </button>
+            <button type="button" class="btn btn-ghost w-full" @click="goBack">{{ $t('common.cancel') }}</button>
           </div>
-
-          <div v-if="priceInfo?.coupon_applied" class="alert alert-success mt-4">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span>Coupon applied! You saved {{ formatPrice(priceInfo.discount_amount) }}</span>
-          </div>
-
-          <div v-if="couponError" class="alert alert-error mt-4">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span>{{ couponError }}</span>
-          </div>
-        </div>
+        </aside>
       </div>
-
-      <!-- 价格明细 -->
-      <div class="card bg-base-100 shadow-xl border border-base-300">
-        <div class="card-body">
-          <h2 class="card-title text-xl mb-4">Price Summary</h2>
-
-          <div class="space-y-3">
-            <div class="flex justify-between items-center pb-2">
-              <span class="opacity-70">Base Price:</span>
-              <span class="font-mono">{{ formatPrice(priceInfo?.base_price || 0) }}</span>
-            </div>
-
-            <div v-if="priceInfo?.discount_amount > 0" class="flex justify-between items-center pb-2 text-success">
-              <span>Discount:</span>
-              <span class="font-mono">-{{ formatPrice(priceInfo.discount_amount) }}</span>
-            </div>
-
-            <div class="divider my-2"></div>
-
-            <div class="flex justify-between items-center text-2xl font-bold">
-              <span>Total:</span>
-              <span class="font-mono text-primary">{{ formatPrice(priceInfo?.final_price || 0) }}</span>
-            </div>
-
-            <div v-if="isLifetime" class="text-sm opacity-70 text-center">
-              One-time payment for permanent ownership
-            </div>
-            <div v-else class="text-sm opacity-70 text-center">
-              {{ formatPrice((priceInfo?.final_price || 0) / years) }}/year
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 操作按钮 -->
-      <div class="flex gap-4">
-        <button class="btn btn-ghost flex-1" @click="goBack">
-          Cancel
-        </button>
-        <button
-          class="btn btn-primary flex-1"
-          @click="createOrderAndPay"
-          :disabled="creating || !priceInfo"
-        >
-          <span v-if="creating" class="loading loading-spinner loading-sm"></span>
-          <span v-else>Create Order & Pay</span>
-        </button>
-      </div>
-    </div>
+    </template>
   </div>
 </template>
-
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from '../utils/axios'
 import { useToast } from '../composables/useToast'
 import { useCurrency } from '../composables/useCurrency'
+import { ArrowLeft, Globe, CheckCircle2, XCircle } from 'lucide-vue-next'
+import PageHeader from '../components/ui/PageHeader.vue'
+import YLoader from '../components/brand/YLoader.vue'
 
 const route = useRoute()
 const router = useRouter()

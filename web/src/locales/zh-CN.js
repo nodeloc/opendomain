@@ -49,7 +49,7 @@ export default {
     services: '服务',
     company: '公司',
     resources: '资源',
-    copyright: '© 2024 OpenDomain. 保留所有权利。',
+    copyright: '© Yunamo. 保留所有权利。',
     description: '免费子域名分发平台'
   },
   home: {

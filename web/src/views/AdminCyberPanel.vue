@@ -1,50 +1,63 @@
 <template>
-  <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8 max-w-7xl space-y-6">
-    <!-- Header -->
-    <div class="flex justify-between items-center">
-      <div>
-        <h1 class="text-3xl font-bold">{{ $t('admin.cyberPanel') }}</h1>
-        <p class="text-lg opacity-70 mt-2">{{ $t('admin.cyberPanelDesc') }}</p>
-      </div>
-    </div>
+  <div class="y-page">
+    <PageHeader
+      :eyebrow="$t('shell.adminArea')"
+      :title="$t('admin.cyberPanel')"
+      :description="$t('uiAdmin3.cp.description')"
+    >
+      <template #actions>
+        <button type="button" class="btn btn-primary btn-sm gap-1.5" @click="openCreateServer">
+          <Plus :size="16" :stroke-width="1.5" />
+          {{ $t('admin.cpAddServer') }}
+        </button>
+      </template>
+    </PageHeader>
 
     <!-- Tabs -->
-    <div role="tablist" class="tabs tabs-lifted tabs-lg">
-      <button role="tab" class="tab" :class="{ 'tab-active': activeTab === 'servers' }" @click="activeTab = 'servers'">
-        🖥 {{ $t('admin.cpServers') }}
-        <span class="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-200 text-gray-700 ml-2">{{ servers.length }}</span>
+    <div role="tablist" class="tabs tabs-boxed w-full sm:w-fit">
+      <button
+        type="button"
+        role="tab"
+        class="tab flex-1 gap-2 sm:flex-none"
+        :class="{ 'tab-active': activeTab === 'servers' }"
+        :aria-selected="activeTab === 'servers'"
+        @click="activeTab = 'servers'"
+      >
+        <Server :size="16" :stroke-width="1.5" />
+        {{ $t('admin.cpServers') }}
+        <span class="font-mono text-xs text-y-faint">{{ servers.length }}</span>
       </button>
-      <button role="tab" class="tab" :class="{ 'tab-active': activeTab === 'accounts' }" @click="activeTab = 'accounts'; fetchAccounts()">
-        👤 {{ $t('admin.cpAccounts') }}
-        <span class="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-200 text-gray-700 ml-2">{{ accountTotal }}</span>
+      <button
+        type="button"
+        role="tab"
+        class="tab flex-1 gap-2 sm:flex-none"
+        :class="{ 'tab-active': activeTab === 'accounts' }"
+        :aria-selected="activeTab === 'accounts'"
+        @click="activeTab = 'accounts'; fetchAccounts()"
+      >
+        <Users :size="16" :stroke-width="1.5" />
+        {{ $t('admin.cpAccounts') }}
+        <span class="font-mono text-xs text-y-faint">{{ accountTotal }}</span>
       </button>
     </div>
 
-    <!-- ════ TAB: SERVERS ════ -->
-    <div v-if="activeTab === 'servers'">
-      <div class="flex justify-end mb-4">
-        <button @click="openCreateServer" class="btn btn-primary">
-          + {{ $t('admin.cpAddServer') }}
+    <!-- Servers -->
+    <section v-if="activeTab === 'servers'" class="y-panel">
+      <YLoader v-if="serversLoading" :label="$t('common.loading')" />
+
+      <EmptyState
+        v-else-if="servers.length === 0"
+        :title="$t('admin.cpNoServers')"
+        :description="$t('admin.cpNoServersDesc')"
+      >
+        <button type="button" class="btn btn-primary btn-sm gap-1.5" @click="openCreateServer">
+          <Plus :size="16" :stroke-width="1.5" />
+          {{ $t('admin.cpAddServer') }}
         </button>
-      </div>
-
-      <div v-if="serversLoading" class="flex justify-center py-12">
-        <span class="loading loading-spinner loading-lg"></span>
-      </div>
-
-      <div v-else-if="servers.length === 0" class="card bg-base-200 shadow-xl">
-        <div class="card-body items-center text-center py-12">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-20 w-20 opacity-40 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2" />
-          </svg>
-          <h3 class="card-title text-2xl mb-2">{{ $t('admin.cpNoServers') }}</h3>
-          <p class="mb-4">{{ $t('admin.cpNoServersDesc') }}</p>
-          <button @click="openCreateServer" class="btn btn-primary">{{ $t('admin.cpAddServer') }}</button>
-        </div>
-      </div>
+      </EmptyState>
 
       <div v-else class="overflow-x-auto">
-        <table class="table table-zebra w-full">
+        <table class="y-table">
           <thead>
             <tr>
               <th>{{ $t('admin.cpServerName') }}</th>
@@ -53,199 +66,261 @@
               <th>{{ $t('admin.cpPackage') }}</th>
               <th>{{ $t('admin.cpAccUsage') }}</th>
               <th>{{ $t('admin.status') }}</th>
-              <th>{{ $t('admin.actions') }}</th>
+              <th class="text-right">{{ $t('admin.actions') }}</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="server in servers" :key="server.id">
               <td>
-                <div class="font-semibold">{{ server.name }}</div>
-                <div v-if="server.is_default" class="inline-block px-1.5 py-0.5 rounded text-xs font-semibold bg-blue-100 text-blue-700 mt-1">Default</div>
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="whitespace-nowrap font-medium text-y-text">{{ server.name }}</span>
+                  <span v-if="server.is_default" class="y-chip-mint">{{ $t('uiAdmin3.cp.defaultBadge') }}</span>
+                </div>
               </td>
-              <td class="font-mono text-sm">{{ server.url }}</td>
-              <td>{{ server.admin_user }}</td>
-              <td>{{ server.package_name }}</td>
+              <td class="whitespace-nowrap font-mono text-sm text-y-muted">{{ server.url }}</td>
+              <td class="whitespace-nowrap font-mono text-sm">{{ server.admin_user }}</td>
+              <td class="whitespace-nowrap font-mono text-sm">{{ server.package_name }}</td>
               <td>
-                <div class="flex items-center gap-2">
-                  <span>{{ server.current_accounts }}</span>
-                  <span class="opacity-50">/</span>
-                  <span>{{ server.max_accounts === 0 ? '∞' : server.max_accounts }}</span>
-                  <progress
+                <div class="flex min-w-[7rem] flex-col gap-1.5">
+                  <span class="whitespace-nowrap font-mono text-sm">
+                    {{ server.current_accounts }}<span class="text-y-faint"> / {{ server.max_accounts === 0 ? '∞' : server.max_accounts }}</span>
+                  </span>
+                  <div
                     v-if="server.max_accounts > 0"
-                    class="progress progress-primary w-16"
-                    :value="server.current_accounts"
-                    :max="server.max_accounts"
-                  ></progress>
+                    class="h-1 w-20 overflow-hidden rounded-full bg-y-surface-2"
+                    role="progressbar"
+                    :aria-valuenow="server.current_accounts"
+                    aria-valuemin="0"
+                    :aria-valuemax="server.max_accounts"
+                  >
+                    <div class="h-full rounded-full" :class="usageBarClass(server)" :style="{ width: usagePercent(server) + '%' }"></div>
+                  </div>
                 </div>
               </td>
-              <td>
-                <span class="inline-block px-2 py-0.5 rounded text-xs font-medium" :class="server.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'">
-                  {{ server.is_active ? $t('admin.active') : $t('admin.inactive') }}
-                </span>
+              <td class="whitespace-nowrap">
+                <StatusDot :tone="server.is_active ? 'ok' : 'muted'" :label="server.is_active ? $t('admin.active') : $t('admin.inactive')" />
               </td>
-              <td>
-                <div class="flex gap-2">
-                  <button @click="testServer(server)" class="btn btn-xs btn-info" :disabled="testingId === server.id">
+              <td class="whitespace-nowrap">
+                <div class="flex justify-end gap-1">
+                  <button type="button" class="btn btn-ghost btn-xs gap-1" :disabled="testingId === server.id" @click="testServer(server)">
                     <span v-if="testingId === server.id" class="loading loading-spinner loading-xs"></span>
-                    <span v-else>{{ $t('admin.cpTest') }}</span>
+                    <PlugZap v-else :size="14" :stroke-width="1.5" />
+                    {{ $t('admin.cpTest') }}
                   </button>
-                  <button @click="openServerPanel(server)" class="btn btn-xs btn-primary" :disabled="openingPanelId === server.id">
+                  <button type="button" class="btn btn-outline btn-xs gap-1" :disabled="openingPanelId === server.id" @click="openServerPanel(server)">
                     <span v-if="openingPanelId === server.id" class="loading loading-spinner loading-xs"></span>
-                    <span v-else>{{ $t('admin.cpOpenPanel') }}</span>
+                    <ExternalLink v-else :size="14" :stroke-width="1.5" />
+                    {{ $t('admin.cpOpenPanel') }}
                   </button>
-                  <button @click="openEditServer(server)" class="btn btn-xs btn-ghost">{{ $t('admin.edit') }}</button>
-                  <button @click="confirmDeleteServer(server)" class="btn btn-xs btn-error">{{ $t('admin.delete') }}</button>
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-xs btn-square"
+                    :title="$t('admin.edit')"
+                    :aria-label="$t('admin.edit')"
+                    @click="openEditServer(server)"
+                  >
+                    <Pencil :size="14" :stroke-width="1.5" />
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-xs btn-square text-y-danger-text"
+                    :title="$t('admin.delete')"
+                    :aria-label="$t('admin.delete')"
+                    @click="confirmDeleteServer(server)"
+                  >
+                    <Trash2 :size="14" :stroke-width="1.5" />
+                  </button>
                 </div>
               </td>
             </tr>
           </tbody>
         </table>
       </div>
-    </div>
+    </section>
 
-    <!-- ════ TAB: ACCOUNTS ════ -->
-    <div v-if="activeTab === 'accounts'">
-      <!-- Filters -->
-      <div class="flex flex-wrap gap-3 mb-4">
-        <select v-model="accountFilter.status" @change="fetchAccounts" class="select select-bordered select-sm">
-          <option value="">{{ $t('admin.cpAllStatuses') }}</option>
-          <option value="pending">pending</option>
-          <option value="active">active</option>
-          <option value="suspended">suspended</option>
-          <option value="terminated">terminated</option>
-        </select>
-        <select v-model="accountFilter.server_id" @change="fetchAccounts" class="select select-bordered select-sm">
-          <option value="">{{ $t('admin.cpAllServers') }}</option>
-          <option v-for="s in servers" :key="s.id" :value="s.id">{{ s.name }}</option>
-        </select>
-      </div>
-
-      <div v-if="accountsLoading" class="flex justify-center py-12">
-        <span class="loading loading-spinner loading-lg"></span>
-      </div>
-
-      <div v-else-if="accounts.length === 0" class="card bg-base-200 shadow-xl">
-        <div class="card-body items-center text-center py-12">
-          <p class="opacity-60">{{ $t('admin.cpNoAccounts') }}</p>
+    <!-- Accounts -->
+    <section v-if="activeTab === 'accounts'" class="y-panel">
+      <div class="y-panel-header">
+        <h2 class="text-base font-semibold text-y-text">{{ $t('admin.cpAccounts') }}</h2>
+        <div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+          <select
+            v-model="accountFilter.status"
+            class="select select-bordered select-sm"
+            :aria-label="$t('admin.status')"
+            @change="fetchAccounts"
+          >
+            <option value="">{{ $t('admin.cpAllStatuses') }}</option>
+            <option v-for="status in accountStatuses" :key="status" :value="status">{{ accountStatusLabel(status) }}</option>
+          </select>
+          <select
+            v-model="accountFilter.server_id"
+            class="select select-bordered select-sm"
+            :aria-label="$t('admin.cpServer')"
+            @change="fetchAccounts"
+          >
+            <option value="">{{ $t('admin.cpAllServers') }}</option>
+            <option v-for="s in servers" :key="s.id" :value="s.id">{{ s.name }}</option>
+          </select>
         </div>
       </div>
 
-      <div v-else class="overflow-x-auto">
-        <table class="table table-zebra w-full text-sm">
-          <thead>
-            <tr>
-              <th>{{ $t('admin.cpDomain') }}</th>
-              <th>{{ $t('admin.cpCpUser') }}</th>
-              <th>{{ $t('admin.cpServer') }}</th>
-              <th>{{ $t('admin.cpOwner') }}</th>
-              <th>{{ $t('admin.status') }}</th>
-              <th>{{ $t('admin.cpCreatedAt') }}</th>
-              <th>{{ $t('admin.actions') }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="acc in accounts" :key="acc.id">
-              <td class="font-mono">{{ acc.domain?.full_domain || acc.domain_id }}</td>
-              <td>{{ acc.cp_username }}</td>
-              <td>{{ acc.server?.name || acc.server_id }}</td>
-              <td>{{ acc.user?.username || acc.user_id }}</td>
-              <td>
-                <span class="inline-block px-2 py-0.5 rounded text-xs font-medium" :class="statusClass(acc.status)">{{ acc.status }}</span>
-                <div v-if="acc.error_msg" class="tooltip" :data-tip="acc.error_msg">
-                  <span class="text-error text-xs ml-1">⚠</span>
-                </div>
-              </td>
-              <td>{{ formatDate(acc.created_at) }}</td>
-              <td>
-                <div class="flex gap-1">
-                  <button
-                    v-if="acc.status === 'active'"
-                    @click="adminSuspend(acc)"
-                    class="btn btn-xs btn-warning"
-                  >{{ $t('admin.suspend') }}</button>
-                  <button
-                    v-if="acc.status === 'suspended'"
-                    @click="adminUnsuspend(acc)"
-                    class="btn btn-xs btn-success"
-                  >{{ $t('admin.unsuspend') }}</button>
-                  <button
-                    v-if="acc.status !== 'terminated'"
-                    @click="confirmTerminateAccount(acc)"
-                    class="btn btn-xs btn-error"
-                  >{{ $t('admin.cpTerminate') }}</button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <YLoader v-if="accountsLoading" :label="$t('common.loading')" />
 
-        <!-- Pagination -->
-        <div class="flex justify-center mt-4 gap-2" v-if="accountTotal > accountPageSize">
-          <button class="btn btn-sm" :disabled="accountPage === 1" @click="accountPage--; fetchAccounts()">«</button>
-          <span class="btn btn-sm btn-disabled">{{ accountPage }} / {{ Math.ceil(accountTotal / accountPageSize) }}</span>
-          <button class="btn btn-sm" :disabled="accountPage >= Math.ceil(accountTotal / accountPageSize)" @click="accountPage++; fetchAccounts()">»</button>
+      <EmptyState
+        v-else-if="accounts.length === 0"
+        :title="$t('admin.cpNoAccounts')"
+        :description="$t('uiAdmin3.cp.noAccountsDesc')"
+      />
+
+      <div v-else>
+        <div class="overflow-x-auto">
+          <table class="y-table">
+            <thead>
+              <tr>
+                <th>{{ $t('admin.cpDomain') }}</th>
+                <th>{{ $t('admin.cpCpUser') }}</th>
+                <th>{{ $t('admin.cpServer') }}</th>
+                <th>{{ $t('admin.cpOwner') }}</th>
+                <th>{{ $t('admin.status') }}</th>
+                <th>{{ $t('admin.cpCreatedAt') }}</th>
+                <th class="text-right">{{ $t('admin.actions') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="acc in accounts" :key="acc.id">
+                <td><span class="y-domain whitespace-nowrap">{{ acc.domain?.full_domain || acc.domain_id }}</span></td>
+                <td class="whitespace-nowrap font-mono text-sm">{{ acc.cp_username }}</td>
+                <td class="whitespace-nowrap">{{ acc.server?.name || acc.server_id }}</td>
+                <td class="whitespace-nowrap text-y-muted">{{ acc.user?.username || acc.user_id }}</td>
+                <td class="whitespace-nowrap">
+                  <div class="flex items-center gap-2">
+                    <StatusDot :tone="statusTone(acc.status)" :label="accountStatusLabel(acc.status)" />
+                    <span v-if="acc.error_msg" class="tooltip tooltip-left" :data-tip="acc.error_msg">
+                      <AlertTriangle :size="14" :stroke-width="1.5" class="text-y-danger-text" :aria-label="$t('uiAdmin3.cp.lastError')" />
+                    </span>
+                  </div>
+                </td>
+                <td class="whitespace-nowrap font-mono text-xs text-y-muted">{{ formatDate(acc.created_at) }}</td>
+                <td class="whitespace-nowrap">
+                  <div class="flex justify-end gap-1">
+                    <button
+                      v-if="acc.status === 'active'"
+                      type="button"
+                      class="btn btn-ghost btn-xs gap-1"
+                      @click="adminSuspend(acc)"
+                    >
+                      <PauseCircle :size="14" :stroke-width="1.5" />
+                      {{ $t('admin.suspend') }}
+                    </button>
+                    <button
+                      v-if="acc.status === 'suspended'"
+                      type="button"
+                      class="btn btn-ghost btn-xs gap-1"
+                      @click="adminUnsuspend(acc)"
+                    >
+                      <PlayCircle :size="14" :stroke-width="1.5" />
+                      {{ $t('admin.unsuspend') }}
+                    </button>
+                    <button
+                      v-if="acc.status !== 'terminated'"
+                      type="button"
+                      class="btn btn-ghost btn-xs gap-1 text-y-danger-text"
+                      @click="confirmTerminateAccount(acc)"
+                    >
+                      <Ban :size="14" :stroke-width="1.5" />
+                      {{ $t('admin.cpTerminate') }}
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div v-if="accountTotal > accountPageSize" class="flex items-center justify-between gap-3 border-t border-y-line px-5 py-3">
+          <span class="font-mono text-xs text-y-faint">
+            {{ $t('uiAdmin3.pageOf', { page: accountPage, total: Math.ceil(accountTotal / accountPageSize) }) }}
+          </span>
+          <div class="flex items-center gap-1">
+            <button
+              type="button"
+              class="btn btn-ghost btn-sm btn-square"
+              :disabled="accountPage === 1"
+              :aria-label="$t('uiAdmin3.prevPage')"
+              @click="accountPage--; fetchAccounts()"
+            >
+              <ChevronLeft :size="16" :stroke-width="1.5" />
+            </button>
+            <button
+              type="button"
+              class="btn btn-ghost btn-sm btn-square"
+              :disabled="accountPage >= Math.ceil(accountTotal / accountPageSize)"
+              :aria-label="$t('uiAdmin3.nextPage')"
+              @click="accountPage++; fetchAccounts()"
+            >
+              <ChevronRight :size="16" :stroke-width="1.5" />
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </section>
 
-    <!-- ════ SERVER MODAL ════ -->
+    <!-- Server modal -->
     <dialog v-if="showServerModal" class="modal modal-open">
       <div class="modal-box w-11/12 max-w-2xl">
-        <h3 class="font-bold text-xl mb-4">
+        <h3 class="text-lg font-semibold text-y-text">
           {{ editingServer ? $t('admin.cpEditServer') : $t('admin.cpAddServer') }}
         </h3>
+        <p v-if="editingServer" class="mt-1 text-sm text-y-muted">{{ editingServer.name }}</p>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div class="form-control">
-            <label class="label"><span class="label-text">{{ $t('admin.cpServerName') }} *</span></label>
-            <input v-model="serverForm.name" type="text" class="input input-bordered" :placeholder="$t('admin.cpServerNamePlaceholder')" />
-          </div>
-          <div class="form-control">
-            <label class="label"><span class="label-text">{{ $t('admin.cpServerUrl') }} *</span></label>
-            <input v-model="serverForm.url" type="text" class="input input-bordered" placeholder="http://1.2.3.4:8090" />
-          </div>
-          <div class="form-control">
-            <label class="label"><span class="label-text">{{ $t('admin.cpAdminUser') }} *</span></label>
-            <input v-model="serverForm.admin_user" type="text" class="input input-bordered" placeholder="admin" />
-          </div>
-          <div class="form-control">
-            <label class="label">
-              <span class="label-text">{{ $t('admin.cpAdminPass') }} *</span>
-              <span v-if="editingServer" class="label-text-alt opacity-60">{{ $t('admin.cpPassHint') }}</span>
-            </label>
-            <input v-model="serverForm.admin_pass" type="password" class="input input-bordered" placeholder="••••••••" />
-          </div>
-          <div class="form-control">
-            <label class="label"><span class="label-text">{{ $t('admin.cpPackage') }} *</span></label>
-            <input v-model="serverForm.package_name" type="text" class="input input-bordered" placeholder="Default" />
-          </div>
-          <div class="form-control">
-            <label class="label"><span class="label-text">{{ $t('admin.cpMaxAccounts') }}</span></label>
-            <input v-model.number="serverForm.max_accounts" type="number" min="0" class="input input-bordered" placeholder="0 = unlimited" />
-          </div>
-          <div class="form-control col-span-full">
-            <label class="label"><span class="label-text">{{ $t('admin.description') }}</span></label>
-            <input v-model="serverForm.description" type="text" class="input input-bordered" />
-          </div>
-          <div class="form-control">
-            <label class="cursor-pointer label">
-              <span class="label-text">{{ $t('admin.active') }}</span>
-              <input v-model="serverForm.is_active" type="checkbox" class="toggle toggle-success" />
-            </label>
-          </div>
-          <div class="form-control">
-            <label class="cursor-pointer label">
-              <span class="label-text">{{ $t('admin.cpDefault') }}</span>
-              <input v-model="serverForm.is_default" type="checkbox" class="toggle toggle-primary" />
-            </label>
-          </div>
+        <div class="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
+          <label class="y-field">
+            <span class="y-field-label">{{ $t('admin.cpServerName') }} <span class="text-y-faint" :title="$t('uiAdmin3.cp.required')">*</span></span>
+            <input v-model="serverForm.name" type="text" class="input input-bordered w-full" :placeholder="$t('admin.cpServerNamePlaceholder')" />
+          </label>
+          <label class="y-field">
+            <span class="y-field-label">{{ $t('admin.cpServerUrl') }} <span class="text-y-faint" :title="$t('uiAdmin3.cp.required')">*</span></span>
+            <input v-model="serverForm.url" type="text" class="input input-bordered w-full font-mono" placeholder="http://1.2.3.4:8090" autocomplete="off" spellcheck="false" />
+          </label>
+          <label class="y-field">
+            <span class="y-field-label">{{ $t('admin.cpAdminUser') }} <span class="text-y-faint" :title="$t('uiAdmin3.cp.required')">*</span></span>
+            <input v-model="serverForm.admin_user" type="text" class="input input-bordered w-full font-mono" placeholder="admin" autocomplete="off" spellcheck="false" />
+          </label>
+          <label class="y-field">
+            <span class="y-field-label">{{ $t('admin.cpAdminPass') }} <span class="text-y-faint" :title="$t('uiAdmin3.cp.required')">*</span></span>
+            <input v-model="serverForm.admin_pass" type="password" class="input input-bordered w-full font-mono" placeholder="••••••••" autocomplete="new-password" />
+            <span v-if="editingServer" class="y-field-hint">{{ $t('admin.cpPassHint') }}</span>
+          </label>
+          <label class="y-field">
+            <span class="y-field-label">{{ $t('admin.cpPackage') }} <span class="text-y-faint" :title="$t('uiAdmin3.cp.required')">*</span></span>
+            <input v-model="serverForm.package_name" type="text" class="input input-bordered w-full font-mono" placeholder="Default" spellcheck="false" />
+          </label>
+          <label class="y-field">
+            <span class="y-field-label">{{ $t('admin.cpMaxAccounts') }}</span>
+            <input v-model.number="serverForm.max_accounts" type="number" min="0" class="input input-bordered w-full font-mono" :placeholder="$t('uiAdmin3.cp.unlimitedPlaceholder')" />
+          </label>
+          <label class="y-field md:col-span-2">
+            <span class="y-field-label">{{ $t('admin.description') }}</span>
+            <input v-model="serverForm.description" type="text" class="input input-bordered w-full" />
+          </label>
+          <label class="flex cursor-pointer items-center justify-between gap-4 rounded-md border border-y-line bg-y-surface-2 px-4 py-3">
+            <span class="text-sm font-medium text-y-text">{{ $t('admin.active') }}</span>
+            <input v-model="serverForm.is_active" type="checkbox" class="toggle toggle-primary" />
+          </label>
+          <label class="flex cursor-pointer items-center justify-between gap-4 rounded-md border border-y-line bg-y-surface-2 px-4 py-3">
+            <span class="text-sm font-medium text-y-text">{{ $t('admin.cpDefault') }}</span>
+            <input v-model="serverForm.is_default" type="checkbox" class="toggle toggle-primary" />
+          </label>
         </div>
 
-        <div v-if="serverModalError" class="alert alert-error mt-4">{{ serverModalError }}</div>
+        <div v-if="serverModalError" role="alert" class="alert alert-error mt-4 text-sm">
+          <AlertTriangle :size="16" :stroke-width="1.5" />
+          <span>{{ serverModalError }}</span>
+        </div>
 
         <div class="modal-action">
-          <button @click="showServerModal = false" class="btn btn-ghost">{{ $t('common.cancel') }}</button>
-          <button @click="saveServer" class="btn btn-primary" :disabled="serverSaving">
+          <button type="button" class="btn btn-ghost" @click="showServerModal = false">{{ $t('common.cancel') }}</button>
+          <button type="button" class="btn btn-primary" :disabled="serverSaving" @click="saveServer">
             <span v-if="serverSaving" class="loading loading-spinner loading-sm"></span>
             {{ $t('common.save') }}
           </button>
@@ -254,14 +329,14 @@
       <form method="dialog" class="modal-backdrop" @click="showServerModal = false"></form>
     </dialog>
 
-    <!-- ════ CONFIRM DELETE SERVER ════ -->
+    <!-- Confirm delete server -->
     <dialog v-if="showDeleteServerConfirm" class="modal modal-open">
       <div class="modal-box">
-        <h3 class="font-bold text-lg">{{ $t('admin.cpDeleteServerTitle') }}</h3>
-        <p class="py-4">{{ $t('admin.cpDeleteServerConfirm', { name: deletingServer?.name }) }}</p>
+        <h3 class="text-lg font-semibold text-y-text">{{ $t('admin.cpDeleteServerTitle') }}</h3>
+        <p class="mt-2 text-sm leading-6 text-y-muted">{{ $t('admin.cpDeleteServerConfirm', { name: deletingServer?.name }) }}</p>
         <div class="modal-action">
-          <button @click="showDeleteServerConfirm = false" class="btn btn-ghost">{{ $t('common.cancel') }}</button>
-          <button @click="deleteServer" class="btn btn-error" :disabled="serverSaving">
+          <button type="button" class="btn btn-ghost" @click="showDeleteServerConfirm = false">{{ $t('common.cancel') }}</button>
+          <button type="button" class="btn btn-error" :disabled="serverSaving" @click="deleteServer">
             <span v-if="serverSaving" class="loading loading-spinner loading-sm"></span>
             {{ $t('admin.delete') }}
           </button>
@@ -269,14 +344,14 @@
       </div>
     </dialog>
 
-    <!-- ════ CONFIRM TERMINATE ACCOUNT ════ -->
+    <!-- Confirm terminate account -->
     <dialog v-if="showTerminateConfirm" class="modal modal-open">
       <div class="modal-box">
-        <h3 class="font-bold text-lg">{{ $t('admin.cpTerminateTitle') }}</h3>
-        <p class="py-4">{{ $t('admin.cpTerminateConfirm', { domain: terminatingAccount?.domain?.full_domain }) }}</p>
+        <h3 class="text-lg font-semibold text-y-text">{{ $t('admin.cpTerminateTitle') }}</h3>
+        <p class="mt-2 text-sm leading-6 text-y-muted">{{ $t('admin.cpTerminateConfirm', { domain: terminatingAccount?.domain?.full_domain }) }}</p>
         <div class="modal-action">
-          <button @click="showTerminateConfirm = false" class="btn btn-ghost">{{ $t('common.cancel') }}</button>
-          <button @click="terminateAccount" class="btn btn-error" :disabled="accountActionLoading">
+          <button type="button" class="btn btn-ghost" @click="showTerminateConfirm = false">{{ $t('common.cancel') }}</button>
+          <button type="button" class="btn btn-error" :disabled="accountActionLoading" @click="terminateAccount">
             <span v-if="accountActionLoading" class="loading loading-spinner loading-sm"></span>
             {{ $t('admin.cpTerminate') }}
           </button>
@@ -286,17 +361,26 @@
 
     <!-- Toast -->
     <div v-if="toast.show" class="toast toast-top toast-end z-50">
-      <div class="alert" :class="toast.type === 'success' ? 'alert-success' : 'alert-error'">
+      <div role="status" class="alert text-sm" :class="toast.type === 'success' ? 'alert-success' : 'alert-error'">
+        <CheckCircle2 v-if="toast.type === 'success'" :size="16" :stroke-width="1.5" class="text-y-mint-text" />
+        <AlertTriangle v-else :size="16" :stroke-width="1.5" />
         <span>{{ toast.message }}</span>
       </div>
     </div>
   </div>
 </template>
-
 <script setup>
 import { ref, onMounted } from 'vue'
 import axios from '../utils/axios'
 import { useI18n } from 'vue-i18n'
+import {
+  Plus, Server, Users, PlugZap, ExternalLink, Pencil, Trash2, AlertTriangle,
+  PauseCircle, PlayCircle, Ban, ChevronLeft, ChevronRight, CheckCircle2,
+} from 'lucide-vue-next'
+import PageHeader from '../components/ui/PageHeader.vue'
+import StatusDot from '../components/ui/StatusDot.vue'
+import EmptyState from '../components/ui/EmptyState.vue'
+import YLoader from '../components/brand/YLoader.vue'
 
 const { t } = useI18n()
 
@@ -561,13 +645,33 @@ const terminateAccount = async () => {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────
-const statusClass = (status) => ({
-  'bg-blue-100 text-blue-800': status === 'pending',
-  'bg-green-100 text-green-800': status === 'active',
-  'bg-amber-100 text-amber-800': status === 'suspended',
-  'bg-red-100 text-red-800': status === 'terminated',
-})
+const accountStatuses = ['pending', 'active', 'suspended', 'terminated']
 
+const accountStatusLabel = (status) => ({
+  pending: t('domains.cpHostingPending'),
+  active: t('domains.cpHostingActive'),
+  suspended: t('domains.cpHostingSuspended'),
+  terminated: t('domains.cpHostingTerminated'),
+}[status] || status)
+
+const statusTone = (status) => ({
+  pending: 'info',
+  active: 'ok',
+  suspended: 'warn',
+  terminated: 'danger',
+}[status] || 'muted')
+
+const usagePercent = (server) => {
+  if (!server.max_accounts) return 0
+  return Math.min(100, Math.round((server.current_accounts / server.max_accounts) * 100))
+}
+
+const usageBarClass = (server) => {
+  const pct = usagePercent(server)
+  if (pct >= 100) return 'bg-y-danger'
+  if (pct >= 85) return 'bg-y-warn'
+  return 'bg-y-mint'
+}
 const formatDate = (d) => {
   if (!d) return '-'
   return new Date(d).toLocaleDateString()

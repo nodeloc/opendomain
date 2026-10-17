@@ -1,27 +1,33 @@
 <template>
-  <div class="min-h-[70vh] flex items-center justify-center px-4">
-    <div class="text-center">
-      <div v-if="error" class="space-y-4">
-        <div class="alert alert-error max-w-md">
-          <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <span>{{ $t('auth.callbackError') }}</span>
-        </div>
-        <router-link to="/login" class="btn btn-primary">{{ $t('auth.backToLogin') }}</router-link>
-      </div>
-      <div v-else>
-        <span class="loading loading-spinner loading-lg"></span>
-        <p class="mt-4 text-base-content/70">{{ $t('auth.loggingIn') }}</p>
-      </div>
+  <AuthCard
+    v-if="error"
+    :eyebrow="$t('uiPublic.auth.eyebrow')"
+    :title="$t('uiPublic.auth.errorTitle')"
+  >
+    <div class="y-danger-soft flex items-start gap-3 rounded-lg border px-4 py-3">
+      <CircleX :size="18" :stroke-width="1.5" class="mt-0.5 shrink-0 text-y-danger-text" />
+      <p class="text-sm leading-6 text-y-danger-text">{{ $t('auth.callbackError') }}</p>
     </div>
-  </div>
+    <router-link to="/login" class="btn btn-primary mt-5 w-full">{{ $t('auth.backToLogin') }}</router-link>
+  </AuthCard>
+
+  <AuthCard
+    v-else
+    :eyebrow="$t('uiPublic.auth.eyebrow')"
+    :title="$t('auth.loggingIn')"
+    :description="$t('uiPublic.auth.loggingInDesc')"
+  >
+    <YLoader :size="44" class="!py-6" />
+  </AuthCard>
 </template>
 
 <script setup>
 import { onMounted, ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { CircleX } from 'lucide-vue-next'
 import { useAuthStore } from '../stores/auth'
+import AuthCard from '../components/ui/AuthCard.vue'
+import YLoader from '../components/brand/YLoader.vue'
 
 const router = useRouter()
 const route = useRoute()

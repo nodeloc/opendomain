@@ -1,440 +1,447 @@
 <template>
-  <div class="container mx-auto px-4 py-8">
-    <div class="flex justify-between items-center mb-6">
-      <h1 class="text-3xl font-bold">{{ $t('adminDomains.title') }}</h1>
-      <div class="flex items-center gap-4">
+  <div class="y-page">
+    <PageHeader
+      :eyebrow="$t('shell.adminArea')"
+      :title="$t('uiAdmin1.domains.title')"
+      :description="$t('uiAdmin1.domains.description')"
+    >
+      <template #actions>
         <button
           v-if="fossbillingEnabled"
-          @click="syncFOSSBilling"
+          type="button"
+          class="btn btn-outline gap-2"
           :disabled="syncing"
-          class="btn btn-primary btn-sm"
+          @click="syncFOSSBilling"
         >
           <span v-if="syncing" class="loading loading-spinner loading-sm"></span>
+          <RefreshCw v-else :size="16" :stroke-width="1.5" />
           {{ syncing ? $t('adminDomains.syncing') : $t('adminDomains.syncFOSSBilling') }}
         </button>
-        <button @click="openCreateModal" class="btn btn-success btn-sm">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-          </svg>
+        <button type="button" class="btn btn-primary gap-2" @click="openCreateModal">
+          <Plus :size="16" :stroke-width="1.5" />
           {{ $t('adminDomains.addDomain') }}
         </button>
-        <div class="text-sm opacity-70">{{ $t('adminDomains.totalCount', { count: pagination.total }) }}</div>
-      </div>
-    </div>
+      </template>
+    </PageHeader>
 
-    <!-- Stats - 按域名状态统计（可点击筛选） -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-      <div 
-        class="stat bg-base-100 rounded-lg shadow cursor-pointer hover:shadow-lg transition-shadow"
-        :class="{ 'ring-2 ring-primary': statusFilter === '' }"
-        @click="filterByStatus('')"
+    <!-- Status stats double as filters -->
+    <section class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      <button
+        v-for="item in statusFilters"
+        :key="item.key || 'all'"
+        type="button"
+        class="y-panel p-4 text-left transition-colors hover:border-y-line-strong hover:bg-y-surface-2"
+        :class="statusFilter === item.key ? '!border-y-mint/60 bg-y-surface-2' : ''"
+        :aria-pressed="statusFilter === item.key"
+        @click="filterByStatus(item.key)"
       >
-        <div class="stat-title">总域名数</div>
-        <div class="stat-value text-primary">{{ stats.total || 0 }}</div>
-      </div>
-      <div 
-        class="stat bg-base-100 rounded-lg shadow cursor-pointer hover:shadow-lg transition-shadow"
-        :class="{ 'ring-2 ring-success': statusFilter === 'active' }"
-        @click="filterByStatus('active')"
-      >
-        <div class="stat-title">正常域名</div>
-        <div class="stat-value text-success">{{ stats.active || 0 }}</div>
-      </div>
-      <div 
-        class="stat bg-base-100 rounded-lg shadow cursor-pointer hover:shadow-lg transition-shadow"
-        :class="{ 'ring-2 ring-error': statusFilter === 'expired' }"
-        @click="filterByStatus('expired')"
-      >
-        <div class="stat-title">已过期</div>
-        <div class="stat-value text-error">{{ stats.expired || 0 }}</div>
-      </div>
-      <div 
-        class="stat bg-base-100 rounded-lg shadow cursor-pointer hover:shadow-lg transition-shadow"
-        :class="{ 'ring-2 ring-warning': statusFilter === 'suspended' }"
-        @click="filterByStatus('suspended')"
-      >
-        <div class="stat-title">已暂停</div>
-        <div class="stat-value text-warning">{{ stats.suspended || 0 }}</div>
-      </div>
-      <div 
-        class="stat bg-base-100 rounded-lg shadow cursor-pointer hover:shadow-lg transition-shadow"
-        :class="{ 'ring-2 ring-error': statusFilter === 'abuse' }"
-        @click="filterByStatus('abuse')"
-      >
-        <div class="stat-title">滥用</div>
-        <div class="stat-value text-error">{{ stats.abuse || 0 }}</div>
-      </div>
-    </div>
+        <span class="y-label flex items-center gap-2">
+          <span v-if="item.dot" class="y-dot" :class="item.dot" aria-hidden="true"></span>
+          {{ item.label }}
+        </span>
+        <span class="mt-2 block font-mono text-3xl font-medium tracking-tight text-y-text">{{ item.value || 0 }}</span>
+      </button>
+    </section>
 
-    <!-- Search Bar -->
-    <div class="mb-6">
-      <div class="relative">
-        <div class="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-        </div>
-        <input
-          v-model="searchQuery"
-          type="text"
-          :placeholder="$t('adminDomains.searchPlaceholder')"
-          class="input input-bordered w-full pl-12 pr-10"
-          @input="debouncedSearch"
-        />
-        <button
-          v-if="searchQuery"
-          @click="clearSearch"
-          class="absolute inset-y-0 right-0 flex items-center pr-4 text-gray-400 hover:text-gray-600"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
-      <p v-if="searchQuery" class="text-sm text-gray-500 mt-2">
-        {{ $t('adminDomains.searchResults', { count: domains.length, query: searchQuery }) }}
-      </p>
-    </div>
-
-    <!-- Loading -->
-    <div v-if="loading" class="flex justify-center py-12">
-      <span class="loading loading-spinner loading-lg"></span>
-    </div>
-
-    <!-- Domains Table -->
-    <div v-else class="overflow-x-auto bg-base-100 rounded-lg shadow">
-      <table class="table w-full">
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>{{ $t('adminDomains.domain') }}</th>
-            <th>{{ $t('adminDomains.owner') }}</th>
-            <th>{{ $t('adminDomains.rootDomain') }}</th>
-            <th>{{ $t('adminDomains.status') }}</th>
-            <th>{{ $t('adminDomains.registeredAt') }}</th>
-            <th>{{ $t('adminDomains.expiresAt') }}</th>
-            <th>{{ $t('adminDomains.autoRenew') }}</th>
-            <th>{{ $t('adminDomains.actions') }}</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="domain in domains" :key="domain.id">
-            <td>{{ domain.id }}</td>
-            <td>
-              <div class="font-bold font-mono">{{ domain.full_domain }}</div>
-              <div v-if="!domain.use_default_nameservers" class="text-xs opacity-50">
-                {{ $t('adminDomains.customNS') }}
-              </div>
-            </td>
-            <td>
-              <div v-if="domain.user">
-                <div class="font-semibold">{{ domain.user.username }}</div>
-                <div class="text-xs opacity-50">{{ domain.user.email }}</div>
-              </div>
-              <span v-else class="text-gray-500">-</span>
-            </td>
-            <td>
-              <span v-if="domain.root_domain" class="font-mono text-sm">
-                {{ domain.root_domain.domain }}
-              </span>
-            </td>
-            <td>
-              <span :class="['px-2 py-0.5 rounded text-xs font-medium',
-                domain.status === 'active' ? 'bg-green-100 text-green-800' :
-                domain.status === 'suspended' ? 'bg-orange-100 text-orange-800' :
-                domain.status === 'expired' ? 'bg-red-100 text-red-800' :
-                domain.status === 'abuse' ? 'bg-red-700 text-white' : 'bg-gray-100 text-gray-800']">
-                {{ domain.status }}
-              </span>
-            </td>
-            <td>{{ formatDate(domain.registered_at) }}</td>
-            <td>
-              <div class="flex flex-col gap-1">
-                <span :class="getExpiryClass(domain.expires_at)">
-                  {{ formatDate(domain.expires_at) }}
-                </span>
-                <span v-if="getExpiryStatus(domain.expires_at)" :class="getExpiryBadgeClass(domain.expires_at)" class="badge badge-sm">
-                  {{ getExpiryStatus(domain.expires_at) }}
-                </span>
-              </div>
-            </td>
-            <td>
-              <span v-if="domain.auto_renew" class="text-success">✓</span>
-              <span v-else class="text-gray-400">-</span>
-            </td>
-            <td>
-              <div class="flex gap-1">
-                <button @click="viewDomainDetails(domain)" class="btn btn-sm btn-ghost" :title="$t('adminDomains.detailsTooltip')">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                    <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" />
-                  </svg>
-                </button>
-                <button
-                  @click="toggleDomainStatus(domain)"
-                  class="btn btn-sm btn-ghost"
-                  :title="domain.status === 'suspended' ? $t('adminDomains.activateTooltip') : $t('adminDomains.suspendTooltip')"
-                >
-                  <svg v-if="domain.status === 'suspended'" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-warning" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </button>
-                <button @click="confirmDelete(domain)" class="btn btn-sm btn-ghost text-error" :title="$t('adminDomains.deleteTooltip')">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </button>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-      <div v-if="domains.length === 0" class="text-center py-8 text-gray-500">
-        {{ searchQuery ? $t('adminDomains.noSearchResults') : $t('adminDomains.noData') }}
-      </div>
-    </div>
-
-    <!-- Pagination -->
-    <div v-if="!loading && pagination.total_pages > 1" class="flex justify-center mt-6">
-      <div class="join">
-        <button
-          class="join-item btn"
-          :disabled="pagination.page === 1"
-          @click="goToPage(pagination.page - 1)"
-        >
-          «
-        </button>
-        <template v-for="(page, index) in visiblePages" :key="index">
+    <section class="y-panel overflow-hidden">
+      <div class="y-panel-header">
+        <label class="relative block w-full sm:max-w-md">
+          <span class="sr-only">{{ $t('common.search') }}</span>
+          <Search :size="16" :stroke-width="1.5" class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-y-faint" />
+          <input
+            v-model="searchQuery"
+            type="text"
+            :placeholder="$t('adminDomains.searchPlaceholder')"
+            class="input input-bordered h-10 min-h-0 w-full pl-9 pr-10 text-sm"
+            @input="debouncedSearch"
+          />
           <button
-            v-if="typeof page === 'number'"
-            class="join-item btn"
-            :class="{ 'btn-active': page === pagination.page }"
-            @click="goToPage(page)"
+            v-if="searchQuery"
+            type="button"
+            class="btn btn-ghost btn-xs btn-square absolute right-2 top-1/2 -translate-y-1/2 text-y-faint"
+            :aria-label="$t('uiAdmin1.clearSearch')"
+            @click="clearSearch"
           >
-            {{ page }}
+            <X :size="14" :stroke-width="1.5" />
           </button>
-          <button v-else class="join-item btn btn-disabled">
-            ...
+        </label>
+        <div class="flex flex-wrap items-center gap-2 text-sm text-y-muted">
+          <button
+            v-if="statusFilter"
+            type="button"
+            class="y-chip-mint"
+            :aria-label="$t('uiAdmin1.clearFilter')"
+            @click="filterByStatus('')"
+          >
+            {{ $t('adminDomains.filtering') }}: {{ domainStatusLabel(statusFilter) }}
+            <X :size="12" :stroke-width="1.5" />
           </button>
-        </template>
-        <button
-          class="join-item btn"
-          :disabled="pagination.page === pagination.total_pages"
-          @click="goToPage(pagination.page + 1)"
-        >
-          »
-        </button>
+          <span v-if="searchQuery" class="text-xs text-y-faint">
+            {{ $t('adminDomains.searchResults', { count: domains.length, query: searchQuery }) }}
+          </span>
+          <span v-else class="font-mono text-xs text-y-faint">{{ $t('adminDomains.totalCount', { count: pagination.total }) }}</span>
+        </div>
       </div>
-    </div>
+
+      <YLoader v-if="loading" :label="$t('common.loading')" />
+
+      <EmptyState
+        v-else-if="domains.length === 0"
+        :title="searchQuery ? $t('adminDomains.noSearchResults') : $t('adminDomains.noData')"
+      >
+        <button v-if="searchQuery" type="button" class="btn btn-outline btn-sm" @click="clearSearch">
+          {{ $t('uiAdmin1.clearSearch') }}
+        </button>
+      </EmptyState>
+
+      <div v-else class="overflow-x-auto">
+        <table class="y-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>{{ $t('adminDomains.domain') }}</th>
+              <th>{{ $t('adminDomains.owner') }}</th>
+              <th>{{ $t('adminDomains.rootDomain') }}</th>
+              <th>{{ $t('adminDomains.status') }}</th>
+              <th>{{ $t('adminDomains.registeredAt') }}</th>
+              <th>{{ $t('adminDomains.expiresAt') }}</th>
+              <th>{{ $t('adminDomains.autoRenew') }}</th>
+              <th class="text-right">{{ $t('adminDomains.actions') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="domain in domains" :key="domain.id">
+              <td class="font-mono text-xs text-y-faint">{{ domain.id }}</td>
+              <td>
+                <span class="y-domain block">{{ domain.full_domain }}</span>
+                <span v-if="!domain.use_default_nameservers" class="y-tag mt-1">{{ $t('adminDomains.customNS') }}</span>
+              </td>
+              <td>
+                <div v-if="domain.user" class="min-w-0">
+                  <span class="block text-sm font-medium text-y-text">{{ domain.user.username }}</span>
+                  <span class="block text-xs text-y-faint">{{ domain.user.email }}</span>
+                </div>
+                <span v-else class="text-y-faint">—</span>
+              </td>
+              <td>
+                <span v-if="domain.root_domain" class="font-mono text-sm text-y-muted">{{ domain.root_domain.domain }}</span>
+                <span v-else class="text-y-faint">—</span>
+              </td>
+              <td class="whitespace-nowrap">
+                <StatusDot :tone="domainStatusTone(domain.status)" :label="domainStatusLabel(domain.status)" />
+              </td>
+              <td class="whitespace-nowrap text-sm text-y-muted">{{ formatDate(domain.registered_at) }}</td>
+              <td class="whitespace-nowrap">
+                <div class="flex flex-col items-start gap-1">
+                  <span class="text-sm text-y-muted" :class="getExpiryClass(domain.expires_at)">
+                    {{ formatDate(domain.expires_at) }}
+                  </span>
+                  <span v-if="getExpiryStatus(domain.expires_at)" :class="getExpiryBadgeClass(domain.expires_at)">
+                    {{ getExpiryStatus(domain.expires_at) }}
+                  </span>
+                </div>
+              </td>
+              <td>
+                <span v-if="domain.auto_renew" class="inline-flex text-y-mint-text" :title="$t('common.yes')">
+                  <Check :size="16" :stroke-width="1.5" />
+                  <span class="sr-only">{{ $t('common.yes') }}</span>
+                </span>
+                <span v-else class="text-y-faint">—</span>
+              </td>
+              <td>
+                <div class="flex justify-end gap-1">
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-sm btn-square"
+                    :title="$t('adminDomains.detailsTooltip')"
+                    :aria-label="$t('adminDomains.detailsTooltip')"
+                    @click="viewDomainDetails(domain)"
+                  >
+                    <Eye :size="16" :stroke-width="1.5" />
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-sm btn-square"
+                    :class="domain.status === 'suspended' ? 'text-y-mint-text' : 'text-y-warn'"
+                    :title="domain.status === 'suspended' ? $t('adminDomains.activateTooltip') : $t('adminDomains.suspendTooltip')"
+                    :aria-label="domain.status === 'suspended' ? $t('adminDomains.activateTooltip') : $t('adminDomains.suspendTooltip')"
+                    @click="toggleDomainStatus(domain)"
+                  >
+                    <CirclePlay v-if="domain.status === 'suspended'" :size="16" :stroke-width="1.5" />
+                    <CirclePause v-else :size="16" :stroke-width="1.5" />
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-sm btn-square text-y-danger-text"
+                    :title="$t('adminDomains.deleteTooltip')"
+                    :aria-label="$t('adminDomains.deleteTooltip')"
+                    @click="confirmDelete(domain)"
+                  >
+                    <Trash2 :size="16" :stroke-width="1.5" />
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div
+        v-if="!loading && pagination.total_pages > 1"
+        class="flex flex-col items-center justify-between gap-3 border-t border-y-line px-5 py-3 sm:flex-row"
+      >
+        <p class="font-mono text-xs text-y-faint">{{ $t('uiAdmin1.pageOf', { page: pagination.page, total: pagination.total_pages }) }}</p>
+        <div class="join">
+          <button
+            type="button"
+            class="join-item btn btn-ghost btn-sm btn-square"
+            :disabled="pagination.page === 1"
+            :aria-label="$t('common.previous')"
+            @click="goToPage(pagination.page - 1)"
+          >
+            <ChevronLeft :size="16" :stroke-width="1.5" />
+          </button>
+          <template v-for="(page, index) in visiblePages" :key="index">
+            <button
+              v-if="typeof page === 'number'"
+              type="button"
+              class="join-item btn btn-ghost btn-sm min-w-[2.125rem] px-2 font-mono font-medium"
+              :class="page === pagination.page ? 'bg-y-surface-2 text-y-mint-text' : 'text-y-muted'"
+              :aria-current="page === pagination.page ? 'page' : undefined"
+              @click="goToPage(page)"
+            >
+              {{ page }}
+            </button>
+            <span v-else class="join-item flex h-[2.125rem] items-center px-2 font-mono text-xs text-y-faint">…</span>
+          </template>
+          <button
+            type="button"
+            class="join-item btn btn-ghost btn-sm btn-square"
+            :disabled="pagination.page === pagination.total_pages"
+            :aria-label="$t('common.next')"
+            @click="goToPage(pagination.page + 1)"
+          >
+            <ChevronRight :size="16" :stroke-width="1.5" />
+          </button>
+        </div>
+      </div>
+    </section>
 
     <!-- Domain Details Modal -->
     <dialog class="modal" :class="{ 'modal-open': showDetailsModal }">
-      <div class="modal-box max-w-3xl">
-        <h3 class="font-bold text-lg mb-4">{{ $t('adminDomains.domainDetails') }}</h3>
-        <div v-if="selectedDomain" class="space-y-4">
-          <div class="grid grid-cols-2 gap-4">
-            <div>
-              <label class="label"><span class="label-text font-semibold">{{ $t('adminDomains.domainId') }}</span></label>
-              <div class="text-lg">{{ selectedDomain.id }}</div>
-            </div>
-            <div>
-              <label class="label"><span class="label-text font-semibold">{{ $t('adminDomains.fullDomain') }}</span></label>
-              <div class="text-lg font-mono">{{ selectedDomain.full_domain }}</div>
-            </div>
-            <div>
-              <label class="label"><span class="label-text font-semibold">{{ $t('adminDomains.subdomain') }}</span></label>
-              <div class="text-lg font-mono">{{ selectedDomain.subdomain }}</div>
-            </div>
-            <div>
-              <label class="label"><span class="label-text font-semibold">{{ $t('adminDomains.rootDomain') }}</span></label>
-              <div class="text-lg font-mono">{{ selectedDomain.root_domain?.domain }}</div>
-            </div>
-            <div>
-              <label class="label"><span class="label-text font-semibold">{{ $t('adminDomains.status') }}</span></label>
-              <div class="text-lg">{{ selectedDomain.status }}</div>
-            </div>
-            <div>
-              <label class="label"><span class="label-text font-semibold">{{ $t('adminDomains.owner') }}</span></label>
-              <div class="text-lg">
-                {{ selectedDomain.user?.username }} ({{ selectedDomain.user?.email }})
-              </div>
-            </div>
-            <div>
-              <label class="label"><span class="label-text font-semibold">{{ $t('adminDomains.registeredAt') }}</span></label>
-              <div class="text-lg">{{ formatDate(selectedDomain.registered_at) }}</div>
-            </div>
-            <div>
-              <label class="label"><span class="label-text font-semibold">{{ $t('adminDomains.expiresAt') }}</span></label>
-              <div class="text-lg">{{ formatDate(selectedDomain.expires_at) }}</div>
-            </div>
-            <div>
-              <label class="label"><span class="label-text font-semibold">{{ $t('adminDomains.autoRenew') }}</span></label>
-              <div class="text-lg">{{ selectedDomain.auto_renew ? $t('common.yes') : $t('common.no') }}</div>
-            </div>
-            <div>
-              <label class="label"><span class="label-text font-semibold">{{ $t('adminDomains.dnsSynced') }}</span></label>
-              <div class="text-lg">{{ selectedDomain.dns_synced ? $t('common.yes') : $t('common.no') }}</div>
-            </div>
-            <div class="col-span-2" v-if="selectedDomain.nameservers">
-              <label class="label"><span class="label-text font-semibold">{{ $t('adminDomains.nameservers') }}</span></label>
-              <div class="text-sm font-mono bg-base-200 p-2 rounded">
-                {{ formatNameservers(selectedDomain.nameservers) }}
-              </div>
-            </div>
+      <div class="modal-box w-11/12 max-w-3xl">
+        <h3 class="text-lg font-semibold text-y-text">{{ $t('adminDomains.domainDetails') }}</h3>
+        <dl v-if="selectedDomain" class="mt-5 grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
+          <div>
+            <dt class="y-label">{{ $t('adminDomains.domainId') }}</dt>
+            <dd class="mt-1 font-mono text-sm text-y-text">{{ selectedDomain.id }}</dd>
           </div>
-        </div>
+          <div>
+            <dt class="y-label">{{ $t('adminDomains.fullDomain') }}</dt>
+            <dd class="y-domain mt-1 text-sm">{{ selectedDomain.full_domain }}</dd>
+          </div>
+          <div>
+            <dt class="y-label">{{ $t('adminDomains.subdomain') }}</dt>
+            <dd class="mt-1 break-all font-mono text-sm text-y-text">{{ selectedDomain.subdomain }}</dd>
+          </div>
+          <div>
+            <dt class="y-label">{{ $t('adminDomains.rootDomain') }}</dt>
+            <dd class="mt-1 break-all font-mono text-sm text-y-text">{{ selectedDomain.root_domain?.domain }}</dd>
+          </div>
+          <div>
+            <dt class="y-label">{{ $t('adminDomains.status') }}</dt>
+            <dd class="mt-1">
+              <StatusDot :tone="domainStatusTone(selectedDomain.status)" :label="domainStatusLabel(selectedDomain.status)" />
+            </dd>
+          </div>
+          <div>
+            <dt class="y-label">{{ $t('adminDomains.owner') }}</dt>
+            <dd class="mt-1 text-sm text-y-text">
+              {{ selectedDomain.user?.username }}
+              <span class="break-all text-y-muted">({{ selectedDomain.user?.email }})</span>
+            </dd>
+          </div>
+          <div>
+            <dt class="y-label">{{ $t('adminDomains.registeredAt') }}</dt>
+            <dd class="mt-1 text-sm text-y-text">{{ formatDate(selectedDomain.registered_at) }}</dd>
+          </div>
+          <div>
+            <dt class="y-label">{{ $t('adminDomains.expiresAt') }}</dt>
+            <dd class="mt-1 text-sm text-y-text">{{ formatDate(selectedDomain.expires_at) }}</dd>
+          </div>
+          <div>
+            <dt class="y-label">{{ $t('adminDomains.autoRenew') }}</dt>
+            <dd class="mt-1 text-sm text-y-text">{{ selectedDomain.auto_renew ? $t('common.yes') : $t('common.no') }}</dd>
+          </div>
+          <div>
+            <dt class="y-label">{{ $t('adminDomains.dnsSynced') }}</dt>
+            <dd class="mt-1">
+              <StatusDot :tone="selectedDomain.dns_synced ? 'ok' : 'warn'" :label="selectedDomain.dns_synced ? $t('common.yes') : $t('common.no')" />
+            </dd>
+          </div>
+          <div v-if="selectedDomain.nameservers" class="sm:col-span-2">
+            <dt class="y-label">{{ $t('adminDomains.nameservers') }}</dt>
+            <dd class="y-inset mt-1.5 break-all px-3 py-2 font-mono text-xs text-y-text">
+              {{ formatNameservers(selectedDomain.nameservers) }}
+            </dd>
+          </div>
+        </dl>
         <div class="modal-action">
-          <button @click="showDetailsModal = false" class="btn">{{ $t('common.close') }}</button>
+          <button type="button" class="btn btn-ghost" @click="showDetailsModal = false">{{ $t('common.close') }}</button>
         </div>
       </div>
       <form method="dialog" class="modal-backdrop" @click="showDetailsModal = false">
-        <button>close</button>
+        <button>{{ $t('common.close') }}</button>
       </form>
     </dialog>
 
     <!-- Delete Confirmation Modal -->
     <dialog class="modal" :class="{ 'modal-open': showDeleteModal }">
       <div class="modal-box">
-        <h3 class="font-bold text-lg mb-4">{{ $t('adminDomains.confirmDelete') }}</h3>
-        <p class="py-4">
+        <h3 class="text-lg font-semibold text-y-text">{{ $t('adminDomains.confirmDelete') }}</h3>
+        <p class="mt-3 text-sm leading-6 text-y-muted">
           {{ $t('adminDomains.confirmDeleteMessage', { domain: domainToDelete?.full_domain }) }}
         </p>
         <div class="modal-action">
-          <button @click="showDeleteModal = false" class="btn">{{ $t('common.cancel') }}</button>
-          <button @click="handleDelete" class="btn btn-error" :disabled="deleting">
+          <button type="button" class="btn btn-ghost" @click="showDeleteModal = false">{{ $t('common.cancel') }}</button>
+          <button type="button" class="btn btn-error" :disabled="deleting" @click="handleDelete">
             <span v-if="deleting" class="loading loading-spinner loading-sm"></span>
             <span v-else>{{ $t('common.delete') }}</span>
           </button>
         </div>
       </div>
       <form method="dialog" class="modal-backdrop" @click="showDeleteModal = false">
-        <button>close</button>
+        <button>{{ $t('common.close') }}</button>
       </form>
     </dialog>
 
     <!-- Create Domain Modal -->
     <dialog class="modal" :class="{ 'modal-open': showCreateModal }">
       <div class="modal-box">
-        <h3 class="font-bold text-lg mb-4">{{ $t('adminDomains.addDomainTitle') }}</h3>
-        <div class="space-y-4">
-          <!-- 用户搜索 -->
-          <div class="form-control">
-            <label class="label"><span class="label-text">{{ $t('adminDomains.userSearch') }}</span></label>
+        <h3 class="text-lg font-semibold text-y-text">{{ $t('adminDomains.addDomainTitle') }}</h3>
+        <div class="mt-5 space-y-4">
+          <div class="y-field">
+            <label class="y-field-label" for="admin-domain-user">{{ $t('adminDomains.userSearch') }}</label>
             <div class="relative">
               <input
+                id="admin-domain-user"
                 v-model="userSearchQuery"
                 type="text"
                 :placeholder="$t('adminDomains.userSearchPlaceholder')"
-                class="input input-bordered w-full"
-                @input="debouncedUserSearch"
+                class="input input-bordered w-full pr-10"
                 autocomplete="off"
+                @input="debouncedUserSearch"
               />
-              <span v-if="userSearchLoading" class="absolute right-3 top-3">
+              <span v-if="userSearchLoading" class="absolute right-3 top-1/2 flex -translate-y-1/2">
                 <span class="loading loading-spinner loading-sm"></span>
               </span>
-              <!-- 下拉候选列表 -->
               <div
                 v-if="userSuggestions.length > 0"
-                class="absolute z-50 w-full mt-1 bg-base-100 border border-base-300 rounded-lg shadow-lg max-h-48 overflow-y-auto"
+                class="absolute z-50 mt-1 max-h-48 w-full overflow-y-auto rounded-md border border-y-line bg-y-surface py-1"
               >
                 <div
                   v-for="u in userSuggestions"
                   :key="u.id"
-                  class="flex items-center gap-3 px-4 py-2 cursor-pointer hover:bg-base-200"
+                  class="cursor-pointer px-4 py-2 transition-colors hover:bg-y-surface-2"
                   @mousedown.prevent="selectUser(u)"
                 >
-                  <div>
-                    <div class="font-semibold text-sm">{{ u.username }}</div>
-                    <div class="text-xs opacity-60">{{ u.email }} · ID: {{ u.id }}</div>
-                  </div>
+                  <span class="block text-sm font-medium text-y-text">{{ u.username }}</span>
+                  <span class="block text-xs text-y-faint">{{ u.email }} · ID {{ u.id }}</span>
                 </div>
               </div>
             </div>
-            <!-- 已选用户展示 -->
-            <div v-if="createForm.selected_user" class="mt-2 flex items-center gap-2 bg-base-200 rounded-lg px-3 py-2">
-              <div class="flex-1 text-sm">
-                <span class="font-semibold">{{ createForm.selected_user.username }}</span>
-                <span class="opacity-60 ml-2">{{ createForm.selected_user.email }}</span>
-                <span class="opacity-40 ml-2">ID: {{ createForm.selected_user.id }}</span>
+            <div v-if="createForm.selected_user" class="y-inset flex items-center gap-2 px-3 py-2">
+              <UserRound :size="16" :stroke-width="1.5" class="shrink-0 text-y-mint-text" />
+              <div class="min-w-0 flex-1 text-sm">
+                <span class="font-medium text-y-text">{{ createForm.selected_user.username }}</span>
+                <span class="ml-2 break-all text-y-muted">{{ createForm.selected_user.email }}</span>
+                <span class="ml-2 font-mono text-xs text-y-faint">ID {{ createForm.selected_user.id }}</span>
               </div>
-              <button class="btn btn-xs btn-ghost" @click="clearSelectedUser">✕</button>
+              <button
+                type="button"
+                class="btn btn-ghost btn-xs btn-square"
+                :aria-label="$t('common.clear')"
+                @click="clearSelectedUser"
+              >
+                <X :size="14" :stroke-width="1.5" />
+              </button>
             </div>
           </div>
-          <div class="form-control">
-            <label class="label"><span class="label-text">{{ $t('adminDomains.subdomainLabel') }}</span></label>
+          <div class="y-field">
+            <label class="y-field-label" for="admin-domain-subdomain">{{ $t('adminDomains.subdomainLabel') }}</label>
             <input
+              id="admin-domain-subdomain"
               v-model="createForm.subdomain"
               type="text"
               :placeholder="$t('adminDomains.subdomainPlaceholder')"
               class="input input-bordered w-full font-mono"
             />
           </div>
-          <div class="form-control">
-            <label class="label"><span class="label-text">{{ $t('adminDomains.rootDomainLabel') }}</span></label>
-            <select v-model="createForm.root_domain_id" class="select select-bordered w-full">
-              <option value="" disabled>{{ $t('adminDomains.rootDomainSelect') }}</option>
-              <option v-for="rd in rootDomains" :key="rd.id" :value="rd.id">
-                .{{ rd.domain }}
-              </option>
-            </select>
-          </div>
-          <div class="form-control">
-            <label class="label"><span class="label-text">{{ $t('adminDomains.yearsLabel') }}</span></label>
-            <input
-              v-model.number="createForm.years"
-              type="number"
-              min="1"
-              max="10"
-              class="input input-bordered w-full"
-            />
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_8rem]">
+            <div class="y-field">
+              <label class="y-field-label" for="admin-domain-root">{{ $t('adminDomains.rootDomainLabel') }}</label>
+              <select id="admin-domain-root" v-model="createForm.root_domain_id" class="select select-bordered w-full font-mono">
+                <option value="" disabled>{{ $t('adminDomains.rootDomainSelect') }}</option>
+                <option v-for="rd in rootDomains" :key="rd.id" :value="rd.id">
+                  .{{ rd.domain }}
+                </option>
+              </select>
+            </div>
+            <div class="y-field">
+              <label class="y-field-label" for="admin-domain-years">{{ $t('adminDomains.yearsLabel') }}</label>
+              <input
+                id="admin-domain-years"
+                v-model.number="createForm.years"
+                type="number"
+                min="1"
+                max="10"
+                class="input input-bordered w-full font-mono"
+              />
+            </div>
           </div>
         </div>
         <div class="modal-action">
-          <button @click="closeCreateModal" class="btn">{{ $t('common.cancel') }}</button>
+          <button type="button" class="btn btn-ghost" @click="closeCreateModal">{{ $t('common.cancel') }}</button>
           <button
-            @click="handleCreateDomain"
-            class="btn btn-success"
+            type="button"
+            class="btn btn-primary"
             :disabled="creating || !createForm.selected_user || !createForm.subdomain || !createForm.root_domain_id"
+            @click="handleCreateDomain"
           >
             <span v-if="creating" class="loading loading-spinner loading-sm"></span>
             <span v-else>{{ $t('adminDomains.addDomain') }}</span>
           </button>
         </div>
       </div>
-      <form method="dialog" class="modal-backdrop" @click="closeCreateModal"><button>close</button></form>
+      <form method="dialog" class="modal-backdrop" @click="closeCreateModal"><button>{{ $t('common.close') }}</button></form>
     </dialog>
 
     <!-- Suspend Reason Modal -->
     <dialog class="modal" :class="{ 'modal-open': showSuspendModal }">
       <div class="modal-box">
-        <h3 class="font-bold text-lg mb-4">{{ $t('adminDomains.suspendDomain') }}</h3>
-        <p class="py-4">
+        <h3 class="text-lg font-semibold text-y-text">{{ $t('adminDomains.suspendDomain') }}</h3>
+        <p class="mt-3 text-sm leading-6 text-y-muted">
           {{ $t('adminDomains.suspendDomainMessage', { domain: domainToSuspend?.full_domain }) }}
         </p>
-        <div class="form-control">
-          <label class="label">
-            <span class="label-text">{{ $t('adminDomains.suspendReason') }}</span>
-          </label>
-          <textarea 
-            v-model="suspendReason" 
-            class="textarea textarea-bordered h-24" 
+        <div class="y-field mt-4">
+          <label class="y-field-label" for="admin-domain-suspend-reason">{{ $t('adminDomains.suspendReason') }}</label>
+          <textarea
+            id="admin-domain-suspend-reason"
+            v-model="suspendReason"
+            class="textarea textarea-bordered h-24 w-full"
             :placeholder="$t('adminDomains.suspendReasonPlaceholder')"
           ></textarea>
         </div>
         <div class="modal-action">
-          <button @click="closeSuspendModal" class="btn">{{ $t('common.cancel') }}</button>
-          <button @click="handleSuspend" class="btn btn-warning" :disabled="suspending || !suspendReason.trim()">
+          <button type="button" class="btn btn-ghost" @click="closeSuspendModal">{{ $t('common.cancel') }}</button>
+          <button type="button" class="btn btn-error" :disabled="suspending || !suspendReason.trim()" @click="handleSuspend">
             <span v-if="suspending" class="loading loading-spinner loading-sm"></span>
             <span v-else>{{ $t('adminDomains.suspend') }}</span>
           </button>
         </div>
       </div>
       <form method="dialog" class="modal-backdrop" @click="closeSuspendModal">
-        <button>close</button>
+        <button>{{ $t('common.close') }}</button>
       </form>
     </dialog>
   </div>
@@ -446,6 +453,13 @@ import { useI18n } from 'vue-i18n'
 import { useSiteConfigStore } from '../stores/siteConfig'
 import axios from '../utils/axios'
 import { useToast } from '../composables/useToast'
+import {
+  Plus, RefreshCw, Search, X, Check, Eye, CirclePlay, CirclePause, Trash2, ChevronLeft, ChevronRight, UserRound,
+} from 'lucide-vue-next'
+import PageHeader from '../components/ui/PageHeader.vue'
+import StatusDot from '../components/ui/StatusDot.vue'
+import EmptyState from '../components/ui/EmptyState.vue'
+import YLoader from '../components/brand/YLoader.vue'
 
 const { t } = useI18n()
 const toast = useToast()
@@ -495,6 +509,31 @@ const pagination = ref({
 let searchTimeout = null
 
 const fossbillingEnabled = computed(() => siteConfig.fossbilling.enabled)
+
+const statusFilters = computed(() => [
+  { key: '', dot: '', label: t('uiAdmin1.filters.all'), value: stats.value.total },
+  { key: 'active', dot: 'bg-y-mint', label: t('uiAdmin1.filters.active'), value: stats.value.active },
+  { key: 'expired', dot: 'bg-y-danger', label: t('uiAdmin1.filters.expired'), value: stats.value.expired },
+  { key: 'suspended', dot: 'bg-y-warn', label: t('uiAdmin1.filters.suspended'), value: stats.value.suspended },
+  { key: 'abuse', dot: 'bg-y-danger', label: t('uiAdmin1.filters.abuse'), value: stats.value.abuse },
+])
+
+const domainStatusTone = (status) => ({
+  active: 'ok',
+  suspended: 'warn',
+  expired: 'danger',
+  abuse: 'danger',
+}[status] || 'muted')
+
+const domainStatusLabel = (status) => {
+  const labels = {
+    active: t('uiAdmin1.status.active'),
+    suspended: t('uiAdmin1.status.suspended'),
+    expired: t('uiAdmin1.status.expired'),
+    abuse: t('uiAdmin1.status.abuse'),
+  }
+  return labels[status] || status
+}
 
 const fetchStats = async () => {
   try {
@@ -753,13 +792,13 @@ const getExpiryBadgeClass = (expiresAt) => {
   const daysUntilExpiry = Math.ceil((expiryDate - now) / (1000 * 60 * 60 * 24))
 
   if (daysUntilExpiry > 7 && daysUntilExpiry <= 30) {
-    return 'badge-warning' // 即将过期 (7-30 天)
+    return 'y-chip-warn' // 即将过期 (7-30 天)
   } else if (daysUntilExpiry > 0 && daysUntilExpiry <= 7) {
-    return 'badge-error' // 即将过期 (0-7 天)
+    return 'y-chip-danger' // 即将过期 (0-7 天)
   } else if (daysUntilExpiry <= 0 && daysUntilExpiry >= -20) {
-    return 'badge-error' // 已过期 (0-20 天)
+    return 'y-chip-danger' // 已过期 (0-20 天)
   } else if (daysUntilExpiry < -20) {
-    return 'badge-error animate-pulse' // 即将删除 (>20 天)
+    return 'y-chip-danger' // 即将删除 (>20 天)
   }
   return ''
 }
@@ -771,11 +810,11 @@ const getExpiryClass = (expiresAt) => {
   const daysUntilExpiry = Math.ceil((expiryDate - now) / (1000 * 60 * 60 * 24))
 
   if (daysUntilExpiry <= 7 && daysUntilExpiry > 0) {
-    return 'text-error font-semibold' // 7 天内过期
+    return '!text-y-danger-text font-medium' // 7 天内过期
   } else if (daysUntilExpiry <= 30 && daysUntilExpiry > 7) {
-    return 'text-warning font-semibold' // 30 天内过期
+    return '!text-y-warn font-medium' // 30 天内过期
   } else if (daysUntilExpiry <= 0) {
-    return 'text-error font-bold' // 已过期
+    return '!text-y-danger-text font-medium' // 已过期
   }
   return ''
 }

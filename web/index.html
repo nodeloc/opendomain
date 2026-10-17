@@ -1,14 +1,34 @@
 <!doctype html>
-<html lang="en" data-theme="light">
+<html lang="zh-CN" data-theme="yunamo">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Loading...</title>
-    <meta name="description" content="Register your free subdomain today. Fast, reliable, and easy to manage." />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <title>Yunamo · Free subdomains for builders</title>
+    <meta name="description" content="Claim a free subdomain like myproject.yunamo.com and point it at any host. No credit card, no lock-in." />
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta name="theme-color" content="#0a0b0d" />
+    <link rel="canonical" href="https://yunamo.com/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Yunamo" />
+    <meta property="og:title" content="Yunamo · Your name, in the cloud" />
+    <meta property="og:description" content="Free subdomains for builders. Claim myproject.yunamo.com and point it anywhere." />
+    <meta property="og:url" content="https://yunamo.com/" />
+    <meta property="og:image" content="https://yunamo.com/og-image-1200x630.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="https://yunamo.com/og-image-1200x630.png" />
+    <link rel="preload" href="/fonts/Geist-Regular.ttf" as="font" type="font/ttf" crossorigin />
+    <script>
+      (function () {
+        try {
+          var light = localStorage.getItem('theme') === 'light'
+          document.documentElement.setAttribute('data-theme', light ? 'yunamo-light' : 'yunamo')
+          if (light) document.querySelector('meta[name="theme-color"]').setAttribute('content', '#f6f6f4')
+        } catch (e) {}
+      })()
+    </script>
   </head>
   <body>
     <div id="app"></div>

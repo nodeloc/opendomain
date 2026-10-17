@@ -1,133 +1,139 @@
 <template>
-  <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-    <h1 class="text-4xl font-bold">{{ $t('user.profileSettings') }}</h1>
+  <div class="y-page">
+    <PageHeader :eyebrow="$t('uiUser.profile.eyebrow')" :title="$t('uiUser.profile.title')" :description="$t('uiUser.profile.description')" />
 
-    <div class="card bg-base-200 shadow-xl">
-      <div class="card-body">
-        <h2 class="card-title">{{ $t('user.personalInfo') }}</h2>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div class="form-control">
-            <label class="label">
-              <span class="label-text">{{ $t('user.username') }}</span>
-            </label>
-            <input type="text" :value="user?.username" class="input input-bordered" disabled />
-          </div>
-
-          <div class="form-control">
-            <label class="label">
-              <span class="label-text">{{ $t('user.email') }}</span>
-            </label>
-            <input type="email" :value="user?.email" class="input input-bordered" disabled />
-          </div>
-
-          <div class="form-control">
-            <label class="label">
-              <span class="label-text">{{ $t('user.accountLevel') }}</span>
-            </label>
-            <input type="text" :value="user?.user_level" class="input input-bordered" disabled />
-          </div>
-
-          <div class="form-control">
-            <label class="label">
-              <span class="label-text">{{ $t('user.domainQuota') }}</span>
-            </label>
-            <input type="text" :value="user?.domain_quota" class="input input-bordered" disabled />
+    <div class="grid gap-6 lg:grid-cols-[1.1fr_1fr] lg:items-start">
+      <!-- Account -->
+      <section class="y-panel">
+        <div class="flex items-center gap-4 border-b border-y-line px-5 py-5">
+          <UserAvatar :src="user?.avatar" :name="user?.username" :size="48" />
+          <div class="min-w-0">
+            <p class="truncate text-[17px] font-semibold text-y-text">{{ user?.username || '—' }}</p>
+            <p class="truncate text-sm text-y-muted">{{ user?.email || '—' }}</p>
           </div>
         </div>
 
-        <div class="divider"></div>
+        <dl class="grid gap-px bg-y-line sm:grid-cols-2">
+          <div class="bg-y-surface px-5 py-4">
+            <dt class="y-label">{{ $t('uiUser.profile.username') }}</dt>
+            <dd class="mt-2 truncate text-[15px] text-y-text">{{ user?.username || '—' }}</dd>
+          </div>
+          <div class="bg-y-surface px-5 py-4">
+            <dt class="y-label">{{ $t('uiUser.profile.email') }}</dt>
+            <dd class="mt-2 space-y-1.5">
+              <span class="block truncate text-[15px] text-y-text" :title="user?.email">{{ user?.email || '—' }}</span>
+              <StatusDot
+                v-if="user"
+                :tone="user.email_verified ? 'ok' : 'warn'"
+                :label="user.email_verified ? $t('uiUser.dashboard.verified') : $t('uiUser.dashboard.notVerified')"
+              />
+            </dd>
+          </div>
+          <div class="bg-y-surface px-5 py-4">
+            <dt class="y-label">{{ $t('uiUser.profile.level') }}</dt>
+            <dd class="mt-2 text-[15px] text-y-text">{{ levelLabel }}</dd>
+          </div>
+          <div class="bg-y-surface px-5 py-4">
+            <dt class="y-label">{{ $t('uiUser.profile.quota') }}</dt>
+            <dd class="mt-2 font-mono text-[15px] text-y-text">{{ user?.domain_quota ?? '—' }}</dd>
+          </div>
+        </dl>
 
-        <h3 class="text-xl font-semibold">{{ $t('user.inviteCode') }}</h3>
-        <div class="flex gap-2">
-          <input
-            type="text"
-            :value="user?.invite_code"
-            class="input input-bordered flex-1"
-            readonly
-          />
-          <button class="btn btn-primary" @click="copyInviteCode">{{ $t('user.copyInviteCode') }}</button>
+        <div class="space-y-3 border-t border-y-line px-5 py-5">
+          <p class="y-label">{{ $t('uiUser.profile.inviteCode') }}</p>
+          <div class="flex items-center gap-2">
+            <div class="y-inset min-w-0 flex-1 truncate px-4 py-2.5 font-mono text-[15px] text-y-text">{{ user?.invite_code || '—' }}</div>
+            <button type="button" class="btn btn-outline gap-1.5" :disabled="!user?.invite_code" @click="copyInviteCode">
+              <Copy :size="16" :stroke-width="1.5" />
+              {{ $t('uiUser.common.copy') }}
+            </button>
+          </div>
+          <p class="y-field-hint">{{ $t('uiUser.profile.inviteHint') }}</p>
         </div>
-        <p class="text-sm opacity-70">
-          {{ $t('user.inviteCodeDesc') }}
-        </p>
-      </div>
-    </div>
+      </section>
 
-    <!-- Change Password Section -->
-    <div class="card bg-base-200 shadow-xl">
-      <div class="card-body">
-        <h2 class="card-title">{{ $t('user.changePassword') }}</h2>
-        <p class="text-sm opacity-70 mb-4">{{ $t('user.changePasswordDesc') }}</p>
+      <!-- Change password -->
+      <section class="y-panel">
+        <div class="border-b border-y-line px-5 py-4">
+          <h2 class="y-h3">{{ $t('uiUser.profile.passwordTitle') }}</h2>
+          <p class="mt-1 text-sm text-y-muted">{{ $t('uiUser.profile.passwordDesc') }}</p>
+        </div>
 
-        <form @submit.prevent="changePassword" class="space-y-4">
-          <div class="form-control">
-            <label class="label">
-              <span class="label-text">{{ $t('user.currentPassword') }}</span>
-            </label>
+        <form class="space-y-5 px-5 py-5" @submit.prevent="changePassword">
+          <label class="y-field">
+            <span class="y-field-label">{{ $t('uiUser.profile.currentPassword') }}</span>
             <input
               v-model="passwordForm.currentPassword"
               type="password"
-              class="input input-bordered"
-              :placeholder="$t('user.enterCurrentPassword')"
+              class="input input-bordered w-full"
+              :placeholder="$t('uiUser.profile.currentPasswordPlaceholder')"
+              autocomplete="current-password"
               required
             />
-          </div>
+          </label>
 
-          <div class="form-control">
-            <label class="label">
-              <span class="label-text">{{ $t('user.newPassword') }}</span>
-            </label>
+          <label class="y-field">
+            <span class="y-field-label">{{ $t('uiUser.profile.newPassword') }}</span>
             <input
               v-model="passwordForm.newPassword"
               type="password"
-              class="input input-bordered"
-              :placeholder="$t('user.enterNewPassword')"
+              class="input input-bordered w-full"
+              :placeholder="$t('uiUser.profile.newPasswordPlaceholder')"
+              autocomplete="new-password"
               minlength="6"
               required
             />
-          </div>
+            <span class="y-field-hint">{{ $t('uiUser.profile.newPasswordHint') }}</span>
+          </label>
 
-          <div class="form-control">
-            <label class="label">
-              <span class="label-text">{{ $t('user.confirmNewPassword') }}</span>
-            </label>
+          <label class="y-field">
+            <span class="y-field-label">{{ $t('uiUser.profile.confirmPassword') }}</span>
             <input
               v-model="passwordForm.confirmPassword"
               type="password"
-              class="input input-bordered"
-              :placeholder="$t('user.enterConfirmPassword')"
+              class="input input-bordered w-full"
+              :placeholder="$t('uiUser.profile.confirmPasswordPlaceholder')"
+              autocomplete="new-password"
               minlength="6"
               required
             />
-          </div>
+          </label>
 
-          <div class="flex gap-2">
+          <div class="flex flex-wrap gap-2 pt-1">
             <button type="submit" class="btn btn-primary" :disabled="changingPassword">
-              <span v-if="changingPassword" class="loading loading-spinner"></span>
-              {{ changingPassword ? $t('user.changing') : $t('user.changePasswordBtn') }}
+              <span v-if="changingPassword" class="loading loading-spinner loading-sm"></span>
+              {{ changingPassword ? $t('uiUser.profile.updating') : $t('uiUser.profile.updatePassword') }}
             </button>
             <button type="button" class="btn btn-ghost" @click="resetPasswordForm">
               {{ $t('common.cancel') }}
             </button>
           </div>
         </form>
-      </div>
+      </section>
     </div>
   </div>
 </template>
-
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '../stores/auth'
 import { useToast } from '../composables/useToast'
 import axios from '../utils/axios'
+import { Copy } from 'lucide-vue-next'
+import PageHeader from '../components/ui/PageHeader.vue'
+import StatusDot from '../components/ui/StatusDot.vue'
+import UserAvatar from '../components/ui/UserAvatar.vue'
 
-const { t } = useI18n()
+const { t, te } = useI18n()
 const authStore = useAuthStore()
 const user = computed(() => authStore.user)
 const toast = useToast()
+
+const levelLabel = computed(() => {
+  const level = user.value?.user_level
+  if (!level) return '—'
+  return te(`home.levelNames.${level}`) ? t(`home.levelNames.${level}`) : level
+})
 
 const changingPassword = ref(false)
 const passwordForm = reactive({

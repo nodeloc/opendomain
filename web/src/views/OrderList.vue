@@ -1,231 +1,208 @@
 <template>
-  <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8 max-w-7xl">
-    <!-- 标题 -->
-    <div class="flex justify-between items-center mb-6">
-      <div>
-        <h1 class="text-3xl font-bold">{{ $t('order.myOrders') }}</h1>
-        <p class="text-lg opacity-70 mt-2">{{ $t('order.viewManage') }}</p>
-      </div>
-    </div>
+  <div class="y-page">
+    <PageHeader :eyebrow="$t('uiUser.orders.eyebrow')" :title="$t('uiUser.orders.title')" :description="$t('uiUser.orders.description')" />
 
-    <!-- 状态筛选 -->
-    <div class="tabs tabs-boxed mb-6">
-      <a
-        class="tab"
-        :class="{ 'tab-active': statusFilter === '' }"
-        @click="statusFilter = ''; fetchOrders()"
-      >
-        {{ $t('order.all') }}
-      </a>
-      <a
-        class="tab"
-        :class="{ 'tab-active': statusFilter === 'pending' }"
-        @click="statusFilter = 'pending'; fetchOrders()"
-      >
-        {{ $t('order.pending') }}
-      </a>
-      <a
-        class="tab"
-        :class="{ 'tab-active': statusFilter === 'paid' }"
-        @click="statusFilter = 'paid'; fetchOrders()"
-      >
-        {{ $t('order.paid') }}
-      </a>
-      <a
-        class="tab"
-        :class="{ 'tab-active': statusFilter === 'cancelled' }"
-        @click="statusFilter = 'cancelled'; fetchOrders()"
-      >
-        {{ $t('order.cancelled') }}
-      </a>
-      <a
-        class="tab"
-        :class="{ 'tab-active': statusFilter === 'expired' }"
-        @click="statusFilter = 'expired'; fetchOrders()"
-      >
-        {{ $t('order.expired') }}
-      </a>
-    </div>
-
-    <!-- 加载状态 -->
-    <div v-if="loading" class="flex justify-center py-12">
-      <span class="loading loading-spinner loading-lg"></span>
-    </div>
-
-    <!-- 空状态 -->
-    <div v-else-if="orders.length === 0" class="card bg-base-200 shadow-xl">
-      <div class="card-body items-center text-center py-12">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-24 w-24 opacity-40 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-        </svg>
-        <h3 class="card-title text-2xl mb-2">{{ $t('order.noOrders') }}</h3>
-        <p class="mb-4 opacity-70">{{ $t('order.noOrdersDesc') }}</p>
-        <button class="btn btn-primary" @click="$router.push('/')">
-          {{ $t('order.registerDomain') }}
+    <!-- Status filter -->
+    <div class="-mx-5 overflow-x-auto px-5 sm:mx-0 sm:px-0">
+      <div role="tablist" class="tabs tabs-boxed inline-flex w-max">
+        <button
+          v-for="f in statusFilters"
+          :key="f.value || 'all'"
+          type="button"
+          role="tab"
+          class="tab whitespace-nowrap"
+          :class="{ 'tab-active': statusFilter === f.value }"
+          :aria-selected="statusFilter === f.value"
+          @click="statusFilter = f.value; fetchOrders()"
+        >
+          {{ f.label }}
         </button>
       </div>
     </div>
 
-    <!-- 订单列表 -->
-    <div v-else class="space-y-4">
-      <div
-        v-for="order in orders"
-        :key="order.id"
-        class="card bg-base-100 shadow-xl border border-base-300 hover:shadow-2xl transition-all"
-      >
-        <div class="card-body">
-          <div class="flex justify-between items-start flex-wrap gap-4">
-            <!-- 订单信息 -->
-            <div class="flex-1 min-w-[250px]">
-              <div class="flex items-center gap-3 mb-2">
-                <h2 class="card-title text-xl font-mono">{{ order.full_domain }}</h2>
-                <span class="px-2 py-0.5 rounded text-xs font-medium" :class="getStatusBadgeClass(order.status)">
-                  {{ $t('order.' + order.status) }}
-                </span>
-              </div>
-              <div class="text-sm opacity-70 space-y-1">
-                <div>{{ $t('order.orderNumber') }}{{ order.order_number }}</div>
-                <div>{{ $t('order.created') }}: {{ formatDate(order.created_at) }}</div>
-                <div v-if="order.expires_at && order.status === 'pending'">
-                  {{ $t('order.expires') }}: {{ formatDate(order.expires_at) }}
-                </div>
-                <div v-if="order.paid_at">
-                  {{ $t('order.paidAt') }}: {{ formatDate(order.paid_at) }}
-                </div>
-              </div>
-            </div>
+    <section class="y-panel">
+      <YLoader v-if="loading" :label="$t('uiUser.common.loading')" />
 
-            <!-- 价格信息 -->
-            <div class="text-right">
-              <div class="text-2xl font-bold font-mono text-primary">
-                {{ formatPrice(order.final_price) }}
-              </div>
-              <div v-if="order.discount_amount > 0" class="text-sm text-success mt-1">
-                {{ $t('order.discount') }} {{ formatPrice(order.discount_amount) }}
-              </div>
-              <div class="text-sm opacity-70 mt-1">
-                {{ order.is_lifetime ? $t('order.lifetime') : `${order.years} ${$t('order.year')}` }}
-              </div>
-            </div>
-          </div>
+      <EmptyState v-else-if="orders.length === 0" :title="$t('uiUser.orders.emptyTitle')" :description="$t('uiUser.orders.emptyDesc')">
+        <button type="button" class="btn btn-primary" @click="$router.push('/')">{{ $t('uiUser.orders.claim') }}</button>
+      </EmptyState>
 
-          <!-- 操作按钮 -->
-          <div class="card-actions justify-end mt-4">
-            <button
-              v-if="order.status === 'pending' && !isExpired(order)"
-              class="btn btn-primary btn-sm"
-              @click="payOrder(order)"
-              :disabled="paying === order.id"
-            >
-              <span v-if="paying === order.id" class="loading loading-spinner loading-xs"></span>
-              <span v-else>{{ $t('order.payNow') }}</span>
-            </button>
-            <button
-              v-if="order.status === 'pending' || order.status === 'expired'"
-              class="btn btn-error btn-sm btn-outline"
-              @click="cancelOrder(order)"
-              :disabled="cancelling === order.id"
-            >
-              <span v-if="cancelling === order.id" class="loading loading-spinner loading-xs"></span>
-              <span v-else>{{ $t('common.cancel') }}</span>
-            </button>
-            <button class="btn btn-ghost btn-sm" @click="viewDetails(order)">
-              {{ $t('order.viewDetails') }}
-            </button>
-          </div>
+      <template v-else>
+        <!-- Desktop table -->
+        <div class="hidden overflow-x-auto md:block">
+          <table class="y-table">
+            <thead>
+              <tr>
+                <th>{{ $t('uiUser.orders.domain') }}</th>
+                <th>{{ $t('uiUser.orders.number') }}</th>
+                <th>{{ $t('uiUser.orders.status') }}</th>
+                <th>{{ $t('uiUser.orders.term') }}</th>
+                <th>{{ $t('uiUser.orders.created') }}</th>
+                <th class="text-right">{{ $t('uiUser.orders.total') }}</th>
+                <th class="text-right"><span class="sr-only">{{ $t('uiUser.orders.actions') }}</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="order in orders" :key="order.id">
+                <td class="whitespace-nowrap font-mono text-[13px] font-medium text-y-text">{{ order.full_domain }}</td>
+                <td class="whitespace-nowrap font-mono text-[13px] text-y-muted">{{ order.order_number }}</td>
+                <td class="whitespace-nowrap">
+                  <span :class="getStatusBadgeClass(order.status)">{{ $t('order.' + order.status) }}</span>
+                  <p v-if="order.expires_at && order.status === 'pending'" class="mt-1 font-mono text-[11px] text-y-faint">
+                    {{ $t('uiUser.orders.expiresOn', { date: formatDate(order.expires_at) }) }}
+                  </p>
+                </td>
+                <td class="whitespace-nowrap text-y-muted">{{ termLabel(order) }}</td>
+                <td class="whitespace-nowrap font-mono text-[13px] text-y-muted">{{ formatDate(order.created_at) }}</td>
+                <td class="whitespace-nowrap text-right">
+                  <span class="font-mono font-medium text-y-text">{{ formatPrice(order.final_price) }}</span>
+                  <p v-if="order.discount_amount > 0" class="mt-0.5 font-mono text-[11px] text-y-mint-text">−{{ formatPrice(order.discount_amount) }}</p>
+                </td>
+                <td>
+                  <div class="flex justify-end gap-1 whitespace-nowrap">
+                    <button
+                      v-if="order.status === 'pending' && !isExpired(order)"
+                      type="button"
+                      class="btn btn-primary btn-sm"
+                      :disabled="paying === order.id"
+                      @click="payOrder(order)"
+                    >
+                      <span v-if="paying === order.id" class="loading loading-spinner loading-xs"></span>
+                      <span v-else>{{ $t('uiUser.orders.pay') }}</span>
+                    </button>
+                    <button
+                      v-if="order.status === 'pending' || order.status === 'expired'"
+                      type="button"
+                      class="btn btn-ghost btn-sm text-y-danger-text"
+                      :disabled="cancelling === order.id"
+                      @click="cancelOrder(order)"
+                    >
+                      <span v-if="cancelling === order.id" class="loading loading-spinner loading-xs"></span>
+                      <span v-else>{{ $t('uiUser.orders.cancel') }}</span>
+                    </button>
+                    <button type="button" class="btn btn-ghost btn-sm btn-square" :title="$t('uiUser.orders.details')" :aria-label="$t('uiUser.orders.details')" @click="viewDetails(order)">
+                      <ChevronRight :size="16" :stroke-width="1.5" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
-      </div>
+
+        <!-- Mobile list -->
+        <ul class="divide-y divide-y-line md:hidden">
+          <li v-for="order in orders" :key="order.id" class="space-y-3 px-5 py-4">
+            <div class="flex items-start justify-between gap-3">
+              <div class="min-w-0">
+                <p class="y-domain">{{ order.full_domain }}</p>
+                <p class="mt-1 font-mono text-xs text-y-faint">{{ order.order_number }}</p>
+              </div>
+              <span class="shrink-0" :class="getStatusBadgeClass(order.status)">{{ $t('order.' + order.status) }}</span>
+            </div>
+            <div class="flex items-end justify-between gap-3">
+              <div class="space-y-0.5 text-xs text-y-muted">
+                <p>{{ termLabel(order) }} · <span class="font-mono">{{ formatDate(order.created_at) }}</span></p>
+                <p v-if="order.expires_at && order.status === 'pending'" class="font-mono text-y-faint">
+                  {{ $t('uiUser.orders.expiresOn', { date: formatDate(order.expires_at) }) }}
+                </p>
+              </div>
+              <div class="text-right">
+                <p class="font-mono text-lg font-medium text-y-text">{{ formatPrice(order.final_price) }}</p>
+                <p v-if="order.discount_amount > 0" class="font-mono text-[11px] text-y-mint-text">−{{ formatPrice(order.discount_amount) }}</p>
+              </div>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <button
+                v-if="order.status === 'pending' && !isExpired(order)"
+                type="button"
+                class="btn btn-primary btn-sm"
+                :disabled="paying === order.id"
+                @click="payOrder(order)"
+              >
+                <span v-if="paying === order.id" class="loading loading-spinner loading-xs"></span>
+                <span v-else>{{ $t('uiUser.orders.pay') }}</span>
+              </button>
+              <button
+                v-if="order.status === 'pending' || order.status === 'expired'"
+                type="button"
+                class="btn btn-ghost btn-sm text-y-danger-text"
+                :disabled="cancelling === order.id"
+                @click="cancelOrder(order)"
+              >
+                <span v-if="cancelling === order.id" class="loading loading-spinner loading-xs"></span>
+                <span v-else>{{ $t('uiUser.orders.cancel') }}</span>
+              </button>
+              <button type="button" class="btn btn-ghost btn-sm ml-auto" @click="viewDetails(order)">{{ $t('uiUser.orders.details') }}</button>
+            </div>
+          </li>
+        </ul>
+      </template>
+    </section>
+
+    <!-- Pagination -->
+    <div v-if="total > pageSize" class="flex items-center justify-center gap-2">
+      <button type="button" class="btn btn-outline btn-sm btn-square" :disabled="page === 1" :aria-label="$t('common.previous')" @click="changePage(page - 1)">
+        <ChevronLeft :size="16" :stroke-width="1.5" />
+      </button>
+      <span class="px-3 font-mono text-sm text-y-muted">{{ $t('uiUser.orders.page', { page }) }}</span>
+      <button type="button" class="btn btn-outline btn-sm btn-square" :disabled="page * pageSize >= total" :aria-label="$t('common.next')" @click="changePage(page + 1)">
+        <ChevronRight :size="16" :stroke-width="1.5" />
+      </button>
     </div>
 
-    <!-- 分页 -->
-    <div v-if="total > pageSize" class="flex justify-center mt-8">
-      <div class="join">
-        <button
-          class="join-item btn"
-          :disabled="page === 1"
-          @click="changePage(page - 1)"
-        >
-          «
-        </button>
-        <button class="join-item btn">Page {{ page }}</button>
-        <button
-          class="join-item btn"
-          :disabled="page * pageSize >= total"
-          @click="changePage(page + 1)"
-        >
-          »
-        </button>
-      </div>
-    </div>
-
-    <!-- 订单详情弹窗 -->
+    <!-- Order details -->
     <dialog :class="{ 'modal': true, 'modal-open': showDetailsModal }">
-      <div class="modal-box w-11/12 max-w-2xl" v-if="selectedOrder">
-        <h3 class="font-bold text-2xl mb-4">Order Details</h3>
-
-        <div class="space-y-4">
-          <div class="grid grid-cols-2 gap-4">
-            <div>
-              <div class="text-sm opacity-70">Order Number</div>
-              <div class="font-mono">{{ selectedOrder.order_number }}</div>
-            </div>
-            <div>
-              <div class="text-sm opacity-70">Status</div>
-              <span class="px-2 py-0.5 rounded text-xs font-medium" :class="getStatusBadgeClass(selectedOrder.status)">
-                {{ selectedOrder.status }}
-              </span>
-            </div>
-            <div>
-              <div class="text-sm opacity-70">Domain</div>
-              <div class="font-mono font-bold">{{ selectedOrder.full_domain }}</div>
-            </div>
-            <div>
-              <div class="text-sm opacity-70">Duration</div>
-              <div>{{ selectedOrder.is_lifetime ? 'Lifetime' : `${selectedOrder.years} Years` }}</div>
-            </div>
+      <div v-if="selectedOrder" class="modal-box w-11/12 max-w-xl">
+        <div class="flex items-start justify-between gap-4">
+          <div class="min-w-0">
+            <h3 class="text-lg font-semibold text-y-text">{{ $t('uiUser.orders.detailsTitle') }}</h3>
+            <p class="mt-1 font-mono text-sm text-y-muted">{{ selectedOrder.order_number }}</p>
           </div>
+          <span class="shrink-0" :class="getStatusBadgeClass(selectedOrder.status)">{{ $t('order.' + selectedOrder.status) }}</span>
+        </div>
 
-          <div class="divider"></div>
-
+        <dl class="mt-6 grid grid-cols-2 gap-x-6 gap-y-4">
+          <div class="col-span-2">
+            <dt class="y-label">{{ $t('uiUser.orders.domain') }}</dt>
+            <dd class="y-domain mt-1.5">{{ selectedOrder.full_domain }}</dd>
+          </div>
           <div>
-            <div class="text-sm opacity-70 mb-2">Price Breakdown</div>
-            <div class="space-y-2">
-              <div class="flex justify-between">
-                <span>Base Price:</span>
-                <span class="font-mono">{{ formatPrice(selectedOrder.base_price) }}</span>
-              </div>
-              <div v-if="selectedOrder.discount_amount > 0" class="flex justify-between text-success">
-                <span>Discount:</span>
-                <span class="font-mono">-{{ formatPrice(selectedOrder.discount_amount) }}</span>
-              </div>
-              <div class="divider my-2"></div>
-              <div class="flex justify-between text-lg font-bold">
-                <span>Total:</span>
-                <span class="font-mono text-primary">{{ formatPrice(selectedOrder.final_price) }}</span>
-              </div>
-            </div>
+            <dt class="y-label">{{ $t('uiUser.orders.term') }}</dt>
+            <dd class="mt-1.5 text-sm text-y-text">{{ termLabel(selectedOrder) }}</dd>
           </div>
+          <div>
+            <dt class="y-label">{{ $t('uiUser.orders.created') }}</dt>
+            <dd class="mt-1.5 font-mono text-[13px] text-y-text">{{ formatDateTime(selectedOrder.created_at) }}</dd>
+          </div>
+          <div v-if="selectedOrder.paid_at">
+            <dt class="y-label">{{ $t('uiUser.orders.paidAt') }}</dt>
+            <dd class="mt-1.5 font-mono text-[13px] text-y-text">{{ formatDateTime(selectedOrder.paid_at) }}</dd>
+          </div>
+          <div v-if="selectedOrder.expires_at && selectedOrder.status === 'pending'">
+            <dt class="y-label">{{ $t('uiUser.orders.expiresAt') }}</dt>
+            <dd class="mt-1.5 font-mono text-[13px] text-y-text">{{ formatDateTime(selectedOrder.expires_at) }}</dd>
+          </div>
+        </dl>
 
-          <div class="divider"></div>
-
-          <div class="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <div class="opacity-70">Created At</div>
-              <div>{{ formatDateTime(selectedOrder.created_at) }}</div>
-            </div>
-            <div v-if="selectedOrder.paid_at">
-              <div class="opacity-70">Paid At</div>
-              <div>{{ formatDateTime(selectedOrder.paid_at) }}</div>
-            </div>
-            <div v-if="selectedOrder.expires_at && selectedOrder.status === 'pending'">
-              <div class="opacity-70">Expires At</div>
-              <div>{{ formatDateTime(selectedOrder.expires_at) }}</div>
-            </div>
+        <div class="y-inset mt-6 space-y-2 px-4 py-4 text-sm">
+          <div class="flex justify-between gap-4">
+            <span class="text-y-muted">{{ $t('uiUser.orders.basePrice') }}</span>
+            <span class="font-mono text-y-text">{{ formatPrice(selectedOrder.base_price) }}</span>
+          </div>
+          <div v-if="selectedOrder.discount_amount > 0" class="flex justify-between gap-4">
+            <span class="text-y-muted">{{ $t('uiUser.orders.discount') }}</span>
+            <span class="font-mono text-y-mint-text">−{{ formatPrice(selectedOrder.discount_amount) }}</span>
+          </div>
+          <div class="y-divider !my-3"></div>
+          <div class="flex items-baseline justify-between gap-4">
+            <span class="font-medium text-y-text">{{ $t('uiUser.orders.total') }}</span>
+            <span class="font-mono text-xl font-medium text-y-text">{{ formatPrice(selectedOrder.final_price) }}</span>
           </div>
         </div>
 
         <div class="modal-action">
-          <button class="btn btn-ghost" @click="showDetailsModal = false">Close</button>
+          <button type="button" class="btn btn-ghost" @click="showDetailsModal = false">{{ $t('common.close') }}</button>
         </div>
       </div>
       <form method="dialog" class="modal-backdrop">
@@ -234,17 +211,32 @@
     </dialog>
   </div>
 </template>
-
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from '../utils/axios'
 import { useToast } from '../composables/useToast'
 import { useCurrency } from '../composables/useCurrency'
+import { useI18n } from 'vue-i18n'
+import { ChevronLeft, ChevronRight } from 'lucide-vue-next'
+import PageHeader from '../components/ui/PageHeader.vue'
+import EmptyState from '../components/ui/EmptyState.vue'
+import YLoader from '../components/brand/YLoader.vue'
 
 const router = useRouter()
 const toast = useToast()
 const { formatPrice } = useCurrency()
+const { t } = useI18n()
+
+const statusFilters = computed(() => [
+  { value: '', label: t('order.all') },
+  { value: 'pending', label: t('order.pending') },
+  { value: 'paid', label: t('order.paid') },
+  { value: 'cancelled', label: t('order.cancelled') },
+  { value: 'expired', label: t('order.expired') },
+])
+
+const termLabel = (order) => (order.is_lifetime ? t('uiUser.orders.lifetime') : t('uiUser.orders.years', order.years))
 
 const loading = ref(true)
 const paying = ref(null)
@@ -327,13 +319,13 @@ const changePage = (newPage) => {
 
 const getStatusBadgeClass = (status) => {
   const classes = {
-    pending: 'bg-amber-100 text-amber-800',
-    paid: 'bg-green-100 text-green-800',
-    cancelled: 'bg-red-100 text-red-800',
-    expired: 'bg-gray-100 text-gray-800',
-    refunded: 'bg-blue-100 text-blue-800'
+    pending: 'y-chip-warn',
+    paid: 'y-chip-mint',
+    cancelled: 'y-chip',
+    expired: 'y-chip',
+    refunded: 'y-chip-info'
   }
-  return classes[status] || 'bg-gray-100 text-gray-800'
+  return classes[status] || 'y-chip'
 }
 
 const formatDate = (dateStr) => {

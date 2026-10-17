@@ -1,112 +1,114 @@
 <template>
-  <div class="container mx-auto px-4 py-8">
-    <h1 class="text-3xl font-bold mb-6">{{ $t('scanStatus.title') }}</h1>
+  <div class="y-page">
+    <PageHeader
+      :eyebrow="$t('shell.adminArea')"
+      :title="$t('uiAdmin3.scan.title')"
+      :description="$t('uiAdmin3.scan.description')"
+    >
+      <template #actions>
+        <button type="button" class="btn btn-outline btn-sm gap-1.5" :disabled="loadingQuota" @click="fetchQuota">
+          <RefreshCw :size="16" :stroke-width="1.5" :class="{ 'animate-spin': loadingQuota }" />
+          {{ $t('uiAdmin3.scan.refreshQuota') }}
+        </button>
+      </template>
+    </PageHeader>
 
-    <!-- API 配额状态 -->
-    <div class="card bg-base-100 shadow-xl mb-6">
-      <div class="card-body">
-        <h2 class="card-title">{{ $t('scanStatus.quotaStatus') }}</h2>
-        
-        <div v-if="loadingQuota" class="flex justify-center py-4">
-          <span class="loading loading-spinner loading-lg"></span>
-        </div>
-        
-        <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-          <!-- Google Safe Browsing -->
-          <div class="stat bg-base-200 rounded-lg">
-            <div class="stat-title">Google Safe Browsing</div>
-            <div class="stat-value text-2xl">{{ quota.google_safe_browsing?.used || 0 }} / {{ quota.google_safe_browsing?.limit || 10000 }}</div>
-            <div class="stat-desc">
-              {{ $t('scanStatus.remaining') }}: {{ quota.google_safe_browsing?.remaining || 10000 }}
-            </div>
-            <progress 
-              class="progress progress-primary w-full mt-2" 
-              :value="quota.google_safe_browsing?.used || 0" 
-              :max="quota.google_safe_browsing?.limit || 10000"
-            ></progress>
-          </div>
+    <!-- API quotas -->
+    <section class="y-panel">
+      <div class="y-panel-header">
+        <h2 class="text-base font-semibold text-y-text">{{ $t('uiAdmin3.scan.quotaTitle') }}</h2>
+      </div>
 
-          <!-- VirusTotal -->
-          <div class="stat bg-base-200 rounded-lg">
-            <div class="stat-title">VirusTotal</div>
-            <div class="stat-value text-2xl">{{ quota.virustotal?.used || 0 }} / {{ quota.virustotal?.limit || 500 }}</div>
-            <div class="stat-desc">
-              {{ $t('scanStatus.remaining') }}: {{ quota.virustotal?.remaining || 500 }}
-            </div>
-            <progress 
-              class="progress progress-secondary w-full mt-2" 
-              :value="quota.virustotal?.used || 0" 
-              :max="quota.virustotal?.limit || 500"
-            ></progress>
+      <YLoader v-if="loadingQuota" :size="32" />
+
+      <div v-else class="grid grid-cols-1 md:grid-cols-2">
+        <div
+          v-for="(meter, index) in quotaMeters"
+          :key="meter.key"
+          class="space-y-3 px-5 py-5"
+          :class="{ 'border-t border-y-line md:border-l md:border-t-0': index > 0 }"
+        >
+          <div class="flex items-center justify-between gap-3">
+            <p class="y-label">{{ meter.name }}</p>
+            <span class="font-mono text-xs text-y-faint">{{ meter.pct }}%</span>
           </div>
+          <p class="font-mono text-3xl font-medium tracking-tight text-y-text">
+            {{ meter.used }}<span class="text-lg text-y-faint"> / {{ meter.limit }}</span>
+          </p>
+          <div class="h-1 w-full overflow-hidden rounded-full bg-y-surface-2" role="progressbar" :aria-valuenow="meter.used" aria-valuemin="0" :aria-valuemax="meter.limit">
+            <div class="h-full rounded-full transition-[width] duration-300" :class="meter.barClass" :style="{ width: meter.pct + '%' }"></div>
+          </div>
+          <p class="text-sm text-y-muted">
+            {{ $t('scanStatus.remaining') }}: <span class="font-mono text-y-text">{{ meter.remaining }}</span>
+          </p>
         </div>
-        
-        <div class="flex justify-end mt-4">
-          <button @click="fetchQuota" class="btn btn-sm btn-ghost">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-            {{ $t('scanStatus.refresh') }}
+      </div>
+    </section>
+
+    <!-- Summaries and suspend history -->
+    <section class="y-panel">
+      <div class="y-panel-header">
+        <div role="tablist" class="tabs tabs-boxed w-full sm:w-fit">
+          <button
+            type="button"
+            role="tab"
+            class="tab flex-1 sm:flex-none"
+            :class="{ 'tab-active': activeTab === 'summaries' }"
+            :aria-selected="activeTab === 'summaries'"
+            @click="activeTab = 'summaries'"
+          >
+            {{ $t('uiAdmin3.scan.summariesTab') }}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            class="tab flex-1 sm:flex-none"
+            :class="{ 'tab-active': activeTab === 'history' }"
+            :aria-selected="activeTab === 'history'"
+            @click="activeTab = 'history'"
+          >
+            {{ $t('uiAdmin3.scan.historyTab') }}
           </button>
         </div>
       </div>
-    </div>
 
-    <!-- Tabs -->
-    <div class="card bg-base-100 shadow-xl">
-      <div class="card-body">
-        <!-- Tab Headers -->
-        <div role="tablist" class="tabs tabs-boxed mb-4">
-          <a 
-            role="tab" 
-            class="tab" 
-            :class="{ 'tab-active': activeTab === 'summaries' }"
-            @click="activeTab = 'summaries'"
-          >
-            {{ $t('scanStatus.scanSummaries') }}
-          </a>
-          <a 
-            role="tab" 
-            class="tab" 
-            :class="{ 'tab-active': activeTab === 'history' }"
-            @click="activeTab = 'history'"
-          >
-            {{ $t('scanStatus.suspendHistory') }}
-          </a>
-        </div>
-
-        <!-- Tab: Domain Scan Summaries -->
-        <div v-show="activeTab === 'summaries'">
-          <!-- 搜索和筛选 -->
-          <div class="flex gap-4 mb-4">
+      <!-- Tab: domain scan summaries -->
+      <div v-show="activeTab === 'summaries'">
+        <div class="flex flex-col gap-3 border-b border-y-line px-5 py-4 sm:flex-row sm:items-center">
+          <label class="input input-bordered flex min-w-0 flex-1 items-center gap-2">
+            <Search :size="16" :stroke-width="1.5" class="shrink-0 text-y-faint" />
             <input
               v-model="searchQuery"
               type="text"
               :placeholder="$t('scanStatus.searchPlaceholder')"
-              class="input input-bordered flex-1"
+              class="min-w-0 grow bg-transparent font-mono text-sm"
+              autocomplete="off"
+              spellcheck="false"
               @keyup.enter="fetchSummaries"
             />
-            <select v-model="statusFilter" class="select select-bordered" @change="fetchSummaries">
-              <option value="">{{ $t('scanStatus.allStatus') }}</option>
-              <option value="healthy">{{ $t('scanStatus.healthy') }}</option>
-              <option value="degraded">{{ $t('scanStatus.degraded') }}</option>
-              <option value="down">{{ $t('scanStatus.down') }}</option>
-            </select>
-            <button @click="fetchSummaries" class="btn btn-primary">
-              {{ $t('scanStatus.search') }}
-            </button>
-          </div>
+          </label>
+          <select v-model="statusFilter" class="select select-bordered sm:w-44" @change="fetchSummaries">
+            <option value="">{{ $t('scanStatus.allStatus') }}</option>
+            <option value="healthy">{{ $t('scanStatus.healthy') }}</option>
+            <option value="degraded">{{ $t('scanStatus.degraded') }}</option>
+            <option value="down">{{ $t('scanStatus.down') }}</option>
+          </select>
+          <button type="button" class="btn btn-primary" @click="fetchSummaries">
+            {{ $t('scanStatus.search') }}
+          </button>
+        </div>
 
-          <div v-if="loadingSummaries" class="flex justify-center py-8">
-            <span class="loading loading-spinner loading-lg"></span>
-          </div>
+        <YLoader v-if="loadingSummaries" :label="$t('common.loading')" />
 
-          <div v-else-if="summaries.length === 0" class="text-center py-8 opacity-60">
-            {{ $t('scanStatus.noData') }}
-          </div>
+        <EmptyState
+          v-else-if="summaries.length === 0"
+          :title="$t('scanStatus.noData')"
+          :description="$t('uiAdmin3.scan.noDataDesc')"
+        />
 
-          <div v-else class="overflow-x-auto">
-            <table class="table table-zebra w-full">
+        <div v-else>
+          <div class="overflow-x-auto">
+            <table class="y-table">
               <thead>
                 <tr>
                   <th>{{ $t('scanStatus.domain') }}</th>
@@ -118,108 +120,106 @@
                   <th>{{ $t('scanStatus.virusTotal') }}</th>
                   <th>{{ $t('scanStatus.uptime') }}</th>
                   <th>{{ $t('scanStatus.lastScanned') }}</th>
-                  <th>{{ $t('scanStatus.actions') }}</th>
+                  <th class="text-right">{{ $t('scanStatus.actions') }}</th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-for="summary in summaries" :key="summary.domain_id">
-                  <td class="font-mono">{{ summary.domain_name }}</td>
-                  <td>
-                    <div class="px-2 py-0.5 rounded text-xs font-medium inline-flex items-center" :class="getHealthBadgeClass(summary.overall_health)">
-                      {{ summary.overall_health }}
-                    </div>
+                  <td><span class="y-domain whitespace-nowrap">{{ summary.domain_name }}</span></td>
+                  <td class="whitespace-nowrap">
+                    <StatusDot :tone="getHealthTone(summary.overall_health)" :label="healthLabel(summary.overall_health)" />
                   </td>
-                  <td>
-                    <div class="px-2 py-0.5 rounded text-xs font-medium inline-flex items-center" :class="getStatusBadgeClass(summary.http_status)">
-                      {{ summary.http_status }}
-                    </div>
+                  <td class="whitespace-nowrap">
+                    <StatusDot :tone="getStatusTone(summary.http_status)" :label="summary.http_status || '-'" />
                   </td>
-                  <td>
-                    <div class="px-2 py-0.5 rounded text-xs font-medium inline-flex items-center" :class="getStatusBadgeClass(summary.dns_status)">
-                      {{ summary.dns_status }}
-                    </div>
+                  <td class="whitespace-nowrap">
+                    <StatusDot :tone="getStatusTone(summary.dns_status)" :label="summary.dns_status || '-'" />
                   </td>
-                  <td>
-                    <div class="px-2 py-0.5 rounded text-xs font-medium inline-flex items-center" :class="getStatusBadgeClass(summary.ssl_status)">
-                      {{ summary.ssl_status }}
-                    </div>
+                  <td class="whitespace-nowrap">
+                    <StatusDot :tone="getStatusTone(summary.ssl_status)" :label="summary.ssl_status || '-'" />
                   </td>
-                  <td>
-                    <div class="px-2 py-0.5 rounded text-xs font-medium inline-flex items-center" :class="getSafeBrowsingBadgeClass(summary.safe_browsing_status)">
-                      {{ summary.safe_browsing_status }}
-                    </div>
+                  <td class="whitespace-nowrap">
+                    <StatusDot :tone="getSafeBrowsingTone(summary.safe_browsing_status)" :label="summary.safe_browsing_status || '-'" />
                   </td>
-                  <td>
-                    <div class="px-2 py-0.5 rounded text-xs font-medium inline-flex items-center" :class="getVirusTotalBadgeClass(summary.virustotal_status)">
-                      {{ summary.virustotal_status }}
-                    </div>
+                  <td class="whitespace-nowrap">
+                    <StatusDot :tone="getVirusTotalTone(summary.virustotal_status)" :label="summary.virustotal_status || '-'" />
                   </td>
-                  <td>
+                  <td class="whitespace-nowrap font-mono text-sm">
                     <span :class="getUptimeClass(summary.uptime_percentage)">
                       {{ summary.uptime_percentage ? summary.uptime_percentage.toFixed(2) + '%' : '-' }}
                     </span>
                   </td>
-                  <td>{{ formatDate(summary.last_scanned_at) }}</td>
-                  <td>
-                    <button @click="viewDetails(summary)" class="btn btn-sm btn-ghost">
+                  <td class="whitespace-nowrap font-mono text-xs text-y-muted">{{ formatDate(summary.last_scanned_at) }}</td>
+                  <td class="text-right">
+                    <button type="button" class="btn btn-ghost btn-xs gap-1" @click="viewDetails(summary)">
                       {{ $t('scanStatus.viewDetails') }}
+                      <ChevronRight :size="14" :stroke-width="1.5" />
                     </button>
                   </td>
                 </tr>
               </tbody>
             </table>
+          </div>
 
-            <!-- 分页 -->
-            <div v-if="summaryPagination.total_pages > 1" class="flex justify-center mt-6">
-              <div class="join">
-                <button
-                  class="join-item btn btn-sm"
-                  :disabled="summaryPagination.page === 1"
-                  @click="goToSummaryPage(summaryPagination.page - 1)"
-                >
-                  «
-                </button>
-                <button class="join-item btn btn-sm">
-                  {{ $t('scanStatus.page') }} {{ summaryPagination.page }} / {{ summaryPagination.total_pages }}
-                </button>
-                <button
-                  class="join-item btn btn-sm"
-                  :disabled="summaryPagination.page === summaryPagination.total_pages"
-                  @click="goToSummaryPage(summaryPagination.page + 1)"
-                >
-                  »
-                </button>
-              </div>
+          <div v-if="summaryPagination.total_pages > 1" class="flex items-center justify-between gap-3 border-t border-y-line px-5 py-3">
+            <span class="font-mono text-xs text-y-faint">
+              {{ $t('uiAdmin3.pageOf', { page: summaryPagination.page, total: summaryPagination.total_pages }) }}
+            </span>
+            <div class="flex items-center gap-1">
+              <button
+                type="button"
+                class="btn btn-ghost btn-sm btn-square"
+                :disabled="summaryPagination.page === 1"
+                :aria-label="$t('uiAdmin3.prevPage')"
+                @click="goToSummaryPage(summaryPagination.page - 1)"
+              >
+                <ChevronLeft :size="16" :stroke-width="1.5" />
+              </button>
+              <button
+                type="button"
+                class="btn btn-ghost btn-sm btn-square"
+                :disabled="summaryPagination.page === summaryPagination.total_pages"
+                :aria-label="$t('uiAdmin3.nextPage')"
+                @click="goToSummaryPage(summaryPagination.page + 1)"
+              >
+                <ChevronRight :size="16" :stroke-width="1.5" />
+              </button>
             </div>
           </div>
         </div>
+      </div>
 
-        <!-- Tab: Suspend History -->
-        <div v-show="activeTab === 'history'">
-          <!-- 搜索 -->
-          <div class="flex gap-4 mb-4">
+      <!-- Tab: suspend history -->
+      <div v-show="activeTab === 'history'">
+        <div class="flex flex-col gap-3 border-b border-y-line px-5 py-4 sm:flex-row sm:items-center">
+          <label class="input input-bordered flex min-w-0 flex-1 items-center gap-2">
+            <Search :size="16" :stroke-width="1.5" class="shrink-0 text-y-faint" />
             <input
               v-model="historySearchQuery"
               type="text"
               :placeholder="$t('scanStatus.searchDomain')"
-              class="input input-bordered flex-1"
+              class="min-w-0 grow bg-transparent font-mono text-sm"
+              autocomplete="off"
+              spellcheck="false"
               @keyup.enter="fetchSuspendHistory"
             />
-            <button @click="fetchSuspendHistory" class="btn btn-primary">
-              {{ $t('scanStatus.search') }}
-            </button>
-          </div>
+          </label>
+          <button type="button" class="btn btn-primary" @click="fetchSuspendHistory">
+            {{ $t('scanStatus.search') }}
+          </button>
+        </div>
 
-          <div v-if="loadingHistory" class="flex justify-center py-8">
-            <span class="loading loading-spinner loading-lg"></span>
-          </div>
+        <YLoader v-if="loadingHistory" :label="$t('common.loading')" />
 
-          <div v-else-if="suspendHistories.length === 0" class="text-center py-8 opacity-60">
-            {{ $t('scanStatus.noHistory') }}
-          </div>
+        <EmptyState
+          v-else-if="suspendHistories.length === 0"
+          :title="$t('scanStatus.noHistory')"
+          :description="$t('uiAdmin3.scan.noHistoryDesc')"
+        />
 
-          <div v-else class="overflow-x-auto">
-            <table class="table table-zebra w-full">
+        <div v-else>
+          <div class="overflow-x-auto">
+            <table class="y-table">
               <thead>
                 <tr>
                   <th>{{ $t('scanStatus.domain') }}</th>
@@ -230,67 +230,72 @@
               </thead>
               <tbody>
                 <tr v-for="history in suspendHistories" :key="history.id">
-                  <td class="font-mono">{{ history.domain_name }}</td>
-                  <td>
-                    <span class="px-2 py-0.5 rounded text-xs font-medium bg-error/10 text-error">
-                      {{ history.reason }}
-                    </span>
+                  <td><span class="y-domain whitespace-nowrap">{{ history.domain_name }}</span></td>
+                  <td class="whitespace-nowrap">
+                    <span class="y-chip-danger">{{ history.reason }}</span>
                   </td>
                   <td>
-                    <div class="max-w-md text-sm opacity-70">
-                      {{ history.details }}
-                    </div>
+                    <p class="min-w-[16rem] max-w-md text-sm text-y-muted">{{ history.details }}</p>
                   </td>
-                  <td>{{ formatDateTime(history.created_at) }}</td>
+                  <td class="whitespace-nowrap font-mono text-xs text-y-muted">{{ formatDateTime(history.created_at) }}</td>
                 </tr>
               </tbody>
             </table>
+          </div>
 
-            <!-- 分页 -->
-            <div v-if="historyPagination.total_pages > 1" class="flex justify-center mt-6">
-              <div class="join">
-                <button
-                  class="join-item btn btn-sm"
-                  :disabled="historyPagination.page === 1"
-                  @click="goToHistoryPage(historyPagination.page - 1)"
-                >
-                  «
-                </button>
-                <button class="join-item btn btn-sm">
-                  {{ $t('scanStatus.page') }} {{ historyPagination.page }} / {{ historyPagination.total_pages }}
-                </button>
-                <button
-                  class="join-item btn btn-sm"
-                  :disabled="historyPagination.page === historyPagination.total_pages"
-                  @click="goToHistoryPage(historyPagination.page + 1)"
-                >
-                  »
-                </button>
-              </div>
+          <div v-if="historyPagination.total_pages > 1" class="flex items-center justify-between gap-3 border-t border-y-line px-5 py-3">
+            <span class="font-mono text-xs text-y-faint">
+              {{ $t('uiAdmin3.pageOf', { page: historyPagination.page, total: historyPagination.total_pages }) }}
+            </span>
+            <div class="flex items-center gap-1">
+              <button
+                type="button"
+                class="btn btn-ghost btn-sm btn-square"
+                :disabled="historyPagination.page === 1"
+                :aria-label="$t('uiAdmin3.prevPage')"
+                @click="goToHistoryPage(historyPagination.page - 1)"
+              >
+                <ChevronLeft :size="16" :stroke-width="1.5" />
+              </button>
+              <button
+                type="button"
+                class="btn btn-ghost btn-sm btn-square"
+                :disabled="historyPagination.page === historyPagination.total_pages"
+                :aria-label="$t('uiAdmin3.nextPage')"
+                @click="goToHistoryPage(historyPagination.page + 1)"
+              >
+                <ChevronRight :size="16" :stroke-width="1.5" />
+              </button>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </section>
 
-    <!-- 扫描记录详情 Modal -->
+    <!-- Scan records modal -->
     <dialog class="modal" :class="{ 'modal-open': selectedDomain }">
       <div class="modal-box w-11/12 max-w-5xl">
-        <h3 class="font-bold text-2xl mb-4">
-          {{ $t('scanStatus.scanRecords') }}: {{ selectedDomain?.domain_name }}
-        </h3>
-
-        <div v-if="loadingRecords" class="flex justify-center py-8">
-          <span class="loading loading-spinner loading-lg"></span>
+        <div class="flex items-start justify-between gap-4">
+          <div class="min-w-0 space-y-1">
+            <h3 class="text-lg font-semibold text-y-text">{{ $t('uiAdmin3.scan.recordsTitle') }}</h3>
+            <p class="y-domain text-sm">{{ selectedDomain?.domain_name }}</p>
+          </div>
+          <button type="button" class="btn btn-ghost btn-sm btn-square" :aria-label="$t('scanStatus.close')" @click="closeDetails">
+            <X :size="18" :stroke-width="1.5" />
+          </button>
         </div>
 
-        <div v-else-if="scanRecords.length === 0" class="text-center py-8 opacity-60">
-          {{ $t('scanStatus.noRecords') }}
-        </div>
+        <YLoader v-if="loadingRecords" :label="$t('common.loading')" />
 
-        <div v-else>
+        <EmptyState
+          v-else-if="scanRecords.length === 0"
+          :title="$t('scanStatus.noRecords')"
+          :description="$t('uiAdmin3.scan.noRecordsDesc')"
+        />
+
+        <div v-else class="y-panel mt-5">
           <div class="overflow-x-auto">
-            <table class="table table-sm">
+            <table class="y-table">
               <thead>
                 <tr>
                   <th>{{ $t('scanStatus.scanType') }}</th>
@@ -302,77 +307,85 @@
               </thead>
               <tbody>
                 <tr v-for="record in scanRecords" :key="record.id">
-                  <td>
-                    <span class="px-2 py-0.5 rounded text-xs font-medium inline-flex items-center border border-gray-300">{{ record.scan_type.toUpperCase() }}</span>
+                  <td><span class="y-tag">{{ record.scan_type }}</span></td>
+                  <td class="whitespace-nowrap">
+                    <StatusDot :tone="getScanStatusTone(record.status)" :label="record.status" />
                   </td>
+                  <td class="whitespace-nowrap font-mono text-sm text-y-muted">{{ record.response_time ? record.response_time + 'ms' : '-' }}</td>
                   <td>
-                    <div class="px-2 py-0.5 rounded text-xs font-medium inline-flex items-center" :class="getScanStatusClass(record.status)">
-                      {{ record.status }}
-                    </div>
-                  </td>
-                  <td>{{ record.response_time ? record.response_time + 'ms' : '-' }}</td>
-                  <td>
-                    <div class="max-w-xs">
-                      <div v-if="record.http_status_code" class="text-xs">
-                        HTTP: {{ record.http_status_code }}
-                      </div>
-                      <div v-if="record.ssl_valid !== null" class="text-xs">
-                        SSL: {{ record.ssl_valid ? '✓ Valid' : '✗ Invalid' }}
-                      </div>
-                      <div v-if="record.error_message" class="text-xs text-error truncate" :title="record.error_message">
+                    <div class="max-w-xs space-y-0.5 text-xs">
+                      <p v-if="record.http_status_code" class="font-mono text-y-muted">
+                        HTTP <span class="text-y-text">{{ record.http_status_code }}</span>
+                      </p>
+                      <p v-if="record.ssl_valid !== null" class="inline-flex items-center gap-1 font-mono text-y-muted">
+                        SSL
+                        <span :class="record.ssl_valid ? 'text-y-mint-text' : 'text-y-danger-text'" class="inline-flex items-center gap-0.5">
+                          <Check v-if="record.ssl_valid" :size="12" :stroke-width="2" />
+                          <X v-else :size="12" :stroke-width="2" />
+                          {{ record.ssl_valid ? $t('uiAdmin3.scan.sslValid') : $t('uiAdmin3.scan.sslInvalid') }}
+                        </span>
+                      </p>
+                      <p v-if="record.error_message" class="truncate text-y-danger-text" :title="record.error_message">
                         {{ record.error_message }}
-                      </div>
-                      <div v-if="record.scan_details" class="text-xs truncate" :title="record.scan_details">
+                      </p>
+                      <p v-if="record.scan_details" class="truncate font-mono text-y-muted" :title="record.scan_details">
                         {{ formatScanDetails(record.scan_details) }}
-                      </div>
+                      </p>
                     </div>
                   </td>
-                  <td class="text-xs">{{ formatDateTime(record.scanned_at) }}</td>
+                  <td class="whitespace-nowrap font-mono text-xs text-y-muted">{{ formatDateTime(record.scanned_at) }}</td>
                 </tr>
               </tbody>
             </table>
           </div>
 
-          <!-- 记录分页 -->
-          <div v-if="recordPagination.total_pages > 1" class="flex justify-center mt-4">
-            <div class="join">
+          <div v-if="recordPagination.total_pages > 1" class="flex items-center justify-between gap-3 border-t border-y-line px-5 py-3">
+            <span class="font-mono text-xs text-y-faint">
+              {{ $t('uiAdmin3.pageOf', { page: recordPagination.page, total: recordPagination.total_pages }) }}
+            </span>
+            <div class="flex items-center gap-1">
               <button
-                class="join-item btn btn-sm"
+                type="button"
+                class="btn btn-ghost btn-sm btn-square"
                 :disabled="recordPagination.page === 1"
+                :aria-label="$t('uiAdmin3.prevPage')"
                 @click="goToRecordPage(recordPagination.page - 1)"
               >
-                «
-              </button>
-              <button class="join-item btn btn-sm">
-                {{ recordPagination.page }} / {{ recordPagination.total_pages }}
+                <ChevronLeft :size="16" :stroke-width="1.5" />
               </button>
               <button
-                class="join-item btn btn-sm"
+                type="button"
+                class="btn btn-ghost btn-sm btn-square"
                 :disabled="recordPagination.page === recordPagination.total_pages"
+                :aria-label="$t('uiAdmin3.nextPage')"
                 @click="goToRecordPage(recordPagination.page + 1)"
               >
-                »
+                <ChevronRight :size="16" :stroke-width="1.5" />
               </button>
             </div>
           </div>
         </div>
 
         <div class="modal-action">
-          <button @click="closeDetails" class="btn">{{ $t('scanStatus.close') }}</button>
+          <button type="button" class="btn btn-ghost" @click="closeDetails">{{ $t('scanStatus.close') }}</button>
         </div>
       </div>
       <form method="dialog" class="modal-backdrop" @click="closeDetails">
-        <button>close</button>
+        <button>{{ $t('scanStatus.close') }}</button>
       </form>
     </dialog>
   </div>
 </template>
-
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { RefreshCw, Search, ChevronLeft, ChevronRight, Check, X } from 'lucide-vue-next'
 import axios from '../utils/axios'
 import { useToast } from '../composables/useToast'
+import PageHeader from '../components/ui/PageHeader.vue'
+import StatusDot from '../components/ui/StatusDot.vue'
+import EmptyState from '../components/ui/EmptyState.vue'
+import YLoader from '../components/brand/YLoader.vue'
 
 const { t } = useI18n()
 const toast = useToast()
@@ -531,54 +544,72 @@ const closeDetails = () => {
   scanRecords.value = []
 }
 
-const getHealthBadgeClass = (health) => {
-  const classes = {
-    healthy: 'bg-green-100 text-green-800',
-    degraded: 'bg-yellow-100 text-yellow-800',
-    down: 'bg-red-100 text-red-800',
-  }
-  return classes[health] || 'bg-gray-100 text-gray-800'
+const quotaMeter = (key, name, data, fallbackLimit) => {
+  const used = data?.used || 0
+  const limit = data?.limit || fallbackLimit
+  const remaining = data?.remaining ?? Math.max(limit - used, 0)
+  const pct = limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : 0
+  const barClass = pct >= 100 ? 'bg-y-danger' : pct >= 85 ? 'bg-y-warn' : 'bg-y-mint'
+  return { key, name, used, limit, remaining, pct, barClass }
 }
 
-const getStatusBadgeClass = (status) => {
+const quotaMeters = computed(() => [
+  quotaMeter('google_safe_browsing', 'Google Safe Browsing', quota.value.google_safe_browsing, 10000),
+  quotaMeter('virustotal', 'VirusTotal', quota.value.virustotal, 500),
+])
+
+const healthLabel = (health) => {
+  if (['healthy', 'degraded', 'down'].includes(health)) return t(`scanStatus.${health}`)
+  return health || '-'
+}
+
+const getHealthTone = (health) => {
+  const tones = {
+    healthy: 'ok',
+    degraded: 'warn',
+    down: 'danger',
+  }
+  return tones[health] || 'muted'
+}
+
+const getStatusTone = (status) => {
   if (status === 'success' || status === 'online' || status === 'resolved' || status === 'valid' || status === 'safe' || status === 'clean') {
-    return 'bg-green-100 text-green-800'
+    return 'ok'
   }
   if (status === 'failed' || status === 'offline' || status === 'invalid' || status === 'unsafe' || status === 'malicious') {
-    return 'bg-red-100 text-red-800'
+    return 'danger'
   }
-  return 'bg-gray-100 text-gray-800'
+  return 'muted'
 }
 
-const getScanStatusClass = (status) => {
-  if (status === 'success') return 'bg-green-100 text-green-800'
-  if (status === 'threat_detected') return 'bg-red-100 text-red-800'
-  if (status === 'failed') return 'bg-yellow-100 text-yellow-800'
-  if (status === 'quota_exceeded') return 'bg-blue-100 text-blue-800'
-  return 'bg-gray-100 text-gray-800'
+const getScanStatusTone = (status) => {
+  if (status === 'success') return 'ok'
+  if (status === 'threat_detected') return 'danger'
+  if (status === 'failed') return 'warn'
+  if (status === 'quota_exceeded') return 'info'
+  return 'muted'
 }
 
-const getSafeBrowsingBadgeClass = (status) => {
-  if (status === 'safe') return 'bg-green-100 text-green-800'
-  if (status === 'unsafe') return 'bg-red-100 text-red-800'
-  return 'bg-gray-100 text-gray-800'
+const getSafeBrowsingTone = (status) => {
+  if (status === 'safe') return 'ok'
+  if (status === 'unsafe') return 'danger'
+  return 'muted'
 }
 
-const getVirusTotalBadgeClass = (status) => {
-  if (status === 'clean') return 'bg-green-100 text-green-800'
-  if (status === 'malicious') return 'bg-red-100 text-red-800'
-  if (status === 'suspicious') return 'bg-yellow-100 text-yellow-800'
-  return 'bg-gray-100 text-gray-800'
+const getVirusTotalTone = (status) => {
+  if (status === 'clean') return 'ok'
+  if (status === 'malicious') return 'danger'
+  if (status === 'suspicious') return 'warn'
+  return 'muted'
 }
 
 const getUptimeClass = (uptime) => {
-  if (!uptime) return 'text-gray-400'
-  if (uptime >= 99) return 'text-green-600 font-semibold'
-  if (uptime >= 95) return 'text-green-500'
-  if (uptime >= 90) return 'text-yellow-600'
-  return 'text-red-600 font-semibold'
+  if (!uptime) return 'text-y-faint'
+  if (uptime >= 99) return 'text-y-mint-text font-medium'
+  if (uptime >= 95) return 'text-y-text'
+  if (uptime >= 90) return 'text-y-warn'
+  return 'text-y-danger-text font-medium'
 }
-
 const formatDate = (dateString) => {
   if (!dateString) return '-'
   return new Date(dateString).toLocaleString('en-US', {

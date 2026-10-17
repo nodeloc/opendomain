@@ -1,177 +1,205 @@
 <template>
-  <div class="container mx-auto px-4 py-8">
-    <div class="flex justify-between items-center mb-6">
-      <h1 class="text-3xl font-bold">{{ $t('admin.pageManagement.title') }}</h1>
-      <button @click="openCreateModal" class="btn btn-primary">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-          <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
-        </svg>
-        {{ $t('admin.pageManagement.createPage') }}
-      </button>
-    </div>
+  <div class="y-page">
+    <PageHeader
+      :eyebrow="$t('uiAdmin2.eyebrow')"
+      :title="$t('uiAdmin2.pages.title')"
+      :description="$t('uiAdmin2.pages.description')"
+    >
+      <template #actions>
+        <button type="button" class="btn btn-primary gap-1.5" @click="openCreateModal">
+          <Plus :size="16" :stroke-width="1.5" />
+          {{ $t('uiAdmin2.pages.create') }}
+        </button>
+      </template>
+    </PageHeader>
 
-    <!-- Filter -->
-    <div class="mb-4 flex gap-2">
-      <button 
-        @click="filterCategory = ''"
-        :class="['px-4 py-2 rounded', filterCategory === '' ? 'bg-primary text-white' : 'bg-base-200']"
-      >
-        {{ $t('admin.pageManagement.filters.all') }}
-      </button>
-      <button 
-        @click="filterCategory = 'company'"
-        :class="['px-4 py-2 rounded', filterCategory === 'company' ? 'bg-primary text-white' : 'bg-base-200']"
-      >
-        {{ $t('admin.pageManagement.filters.company') }}
-      </button>
-      <button 
-        @click="filterCategory = 'resources'"
-        :class="['px-4 py-2 rounded', filterCategory === 'resources' ? 'bg-primary text-white' : 'bg-base-200']"
-      >
-        {{ $t('admin.pageManagement.filters.resources') }}
-      </button>
-    </div>
-
-    <!-- Pages List -->
-    <div class="overflow-x-auto bg-base-100 rounded-lg shadow">
-      <table class="table w-full">
-        <thead>
-          <tr>
-            <th>{{ $t('admin.pageManagement.table.id') }}</th>
-            <th>{{ $t('admin.pageManagement.table.title') }}</th>
-            <th>{{ $t('admin.pageManagement.table.slug') }}</th>
-            <th>{{ $t('admin.pageManagement.table.category') }}</th>
-            <th>{{ $t('admin.pageManagement.table.status') }}</th>
-            <th>{{ $t('admin.pageManagement.table.displayOrder') }}</th>
-            <th>{{ $t('admin.pageManagement.table.updatedAt') }}</th>
-            <th>{{ $t('admin.pageManagement.table.actions') }}</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="page in filteredPages" :key="page.id">
-            <td>{{ page.id }}</td>
-            <td>{{ page.title }}</td>
-            <td><code class="text-sm">{{ page.slug }}</code></td>
-            <td>
-              <span :class="['px-2 py-0.5 rounded text-xs font-medium', 
-                page.category === 'company' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800']">
-                {{ $t(`admin.pageManagement.category.${page.category}`) }}
-              </span>
-            </td>
-            <td>
-              <span :class="['px-2 py-0.5 rounded text-xs font-medium',
-                page.is_published ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800']">
-                {{ page.is_published ? $t('admin.pageManagement.status.published') : $t('admin.pageManagement.status.draft') }}
-              </span>
-            </td>
-            <td>{{ page.display_order }}</td>
-            <td>{{ formatDate(page.updated_at) }}</td>
-            <td>
-              <div class="flex gap-2">
-                <button @click="openEditModal(page)" class="btn btn-sm btn-ghost">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                  </svg>
-                </button>
-                <button @click="confirmDelete(page)" class="btn btn-sm btn-ghost text-error">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
-                  </svg>
-                </button>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-      <div v-if="filteredPages.length === 0" class="text-center py-8 text-gray-500">
-        {{ $t('admin.pageManagement.noData') }}
+    <section class="y-panel">
+      <div class="y-panel-header">
+        <div class="max-w-full overflow-x-auto">
+          <div class="tabs tabs-boxed tabs-sm w-max" role="tablist" :aria-label="$t('uiAdmin2.pages.filterLabel')">
+            <button
+              v-for="option in categoryFilters"
+              :key="option.value || 'all'"
+              type="button"
+              role="tab"
+              class="tab"
+              :class="{ 'tab-active': filterCategory === option.value }"
+              :aria-selected="filterCategory === option.value"
+              @click="filterCategory = option.value"
+            >
+              {{ option.label }}
+            </button>
+          </div>
+        </div>
+        <span class="font-mono text-xs text-y-faint">{{ filteredPages.length }} / {{ pages.length }}</span>
       </div>
-    </div>
+
+      <YLoader v-if="loading" :label="$t('uiAdmin2.loading')" />
+
+      <EmptyState
+        v-else-if="filteredPages.length === 0"
+        :title="$t('uiAdmin2.pages.emptyTitle')"
+        :description="filterCategory ? $t('uiAdmin2.pages.emptyFilteredDescription') : $t('uiAdmin2.pages.emptyDescription')"
+      >
+        <button type="button" class="btn btn-outline btn-sm gap-1.5" @click="openCreateModal">
+          <Plus :size="14" :stroke-width="1.5" />
+          {{ $t('uiAdmin2.pages.create') }}
+        </button>
+      </EmptyState>
+
+      <div v-else class="overflow-x-auto">
+        <table class="y-table">
+          <thead>
+            <tr>
+              <th>{{ $t('admin.pageManagement.table.id') }}</th>
+              <th>{{ $t('admin.pageManagement.table.title') }}</th>
+              <th>{{ $t('admin.pageManagement.table.slug') }}</th>
+              <th>{{ $t('admin.pageManagement.table.category') }}</th>
+              <th>{{ $t('admin.pageManagement.table.status') }}</th>
+              <th class="text-right">{{ $t('admin.pageManagement.table.displayOrder') }}</th>
+              <th>{{ $t('admin.pageManagement.table.updatedAt') }}</th>
+              <th class="text-right">{{ $t('admin.pageManagement.table.actions') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="page in filteredPages" :key="page.id">
+              <td class="font-mono text-xs text-y-faint">{{ page.id }}</td>
+              <td class="font-medium text-y-text">{{ page.title }}</td>
+              <td class="whitespace-nowrap font-mono text-sm text-y-muted">/pages/{{ page.slug }}</td>
+              <td class="whitespace-nowrap">
+                <span class="y-chip">{{ $t(`admin.pageManagement.category.${page.category}`) }}</span>
+              </td>
+              <td class="whitespace-nowrap">
+                <StatusDot
+                  :tone="page.is_published ? 'ok' : 'muted'"
+                  :label="page.is_published ? $t('admin.pageManagement.status.published') : $t('admin.pageManagement.status.draft')"
+                />
+              </td>
+              <td class="text-right font-mono">{{ page.display_order }}</td>
+              <td class="whitespace-nowrap text-y-muted">{{ formatDate(page.updated_at) }}</td>
+              <td>
+                <div class="flex justify-end gap-1">
+                  <a
+                    v-if="page.is_published"
+                    :href="`/pages/${page.slug}`"
+                    target="_blank"
+                    rel="noopener"
+                    class="btn btn-ghost btn-sm btn-square"
+                    :title="`/pages/${page.slug}`"
+                    :aria-label="`/pages/${page.slug}`"
+                  >
+                    <ExternalLink :size="16" :stroke-width="1.5" />
+                  </a>
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-sm btn-square"
+                    :title="$t('uiAdmin2.edit')"
+                    :aria-label="$t('uiAdmin2.edit')"
+                    @click="openEditModal(page)"
+                  >
+                    <Pencil :size="16" :stroke-width="1.5" />
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-sm btn-square text-y-danger-text"
+                    :title="$t('uiAdmin2.delete')"
+                    :aria-label="$t('uiAdmin2.delete')"
+                    @click="confirmDelete(page)"
+                  >
+                    <Trash2 :size="16" :stroke-width="1.5" />
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
 
     <!-- Create/Edit Modal -->
     <div v-if="showModal" class="modal modal-open">
-      <div class="modal-box max-w-2xl">
-        <h3 class="font-bold text-lg mb-4">{{ isEditing ? $t('admin.pageManagement.modal.editTitle') : $t('admin.pageManagement.modal.createTitle') }}</h3>
-        <form @submit.prevent="handleSubmit">
-          <div class="form-control mb-4">
-            <label class="label">
-              <span class="label-text">{{ $t('admin.pageManagement.modal.fields.title') }}</span>
+      <div class="modal-box relative w-11/12 max-w-3xl">
+        <button
+          type="button"
+          class="btn btn-ghost btn-sm btn-square absolute right-3 top-3"
+          :aria-label="$t('uiAdmin2.close')"
+          @click="closeModal"
+        >
+          <X :size="16" :stroke-width="1.5" />
+        </button>
+        <h3 class="text-lg font-semibold text-y-text">
+          {{ isEditing ? $t('uiAdmin2.pages.editTitle') : $t('uiAdmin2.pages.createTitle') }}
+        </h3>
+
+        <form class="mt-6 space-y-4" @submit.prevent="handleSubmit">
+          <label class="y-field">
+            <span class="y-field-label">{{ $t('uiAdmin2.pages.fields.title') }}</span>
+            <input v-model="formData.title" type="text" class="input input-bordered w-full" required />
+          </label>
+
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <label class="y-field">
+              <span class="y-field-label">{{ $t('uiAdmin2.pages.fields.slug') }}</span>
+              <input
+                v-model="formData.slug"
+                type="text"
+                class="input input-bordered w-full font-mono"
+                :placeholder="$t('admin.pageManagement.modal.fields.slugPlaceholder')"
+                autocomplete="off"
+                autocapitalize="off"
+                spellcheck="false"
+                required
+              />
+              <span class="y-field-hint font-mono">{{ $t('uiAdmin2.pages.fields.slugHint', { slug: formData.slug || 'slug' }) }}</span>
             </label>
-            <input 
-              v-model="formData.title" 
-              type="text" 
-              class="input input-bordered" 
-              required 
-            />
+
+            <label class="y-field">
+              <span class="y-field-label">{{ $t('uiAdmin2.pages.fields.category') }}</span>
+              <select v-model="formData.category" class="select select-bordered w-full" required>
+                <option value="company">{{ $t('admin.pageManagement.category.company') }}</option>
+                <option value="resources">{{ $t('admin.pageManagement.category.resources') }}</option>
+              </select>
+            </label>
           </div>
 
-          <div class="form-control mb-4">
-            <label class="label">
-              <span class="label-text">{{ $t('admin.pageManagement.modal.fields.slug') }}</span>
-            </label>
-            <input 
-              v-model="formData.slug" 
-              type="text" 
-              class="input input-bordered" 
-              :placeholder="$t('admin.pageManagement.modal.fields.slugPlaceholder')" 
-              required 
-            />
-            <label class="label">
-              <span class="label-text-alt">{{ $t('admin.pageManagement.modal.fields.slugHint') }}</span>
-            </label>
-          </div>
-
-          <div class="form-control mb-4">
-            <label class="label">
-              <span class="label-text">{{ $t('admin.pageManagement.modal.fields.category') }}</span>
-            </label>
-            <select v-model="formData.category" class="select select-bordered" required>
-              <option value="company">{{ $t('admin.pageManagement.category.company') }}</option>
-              <option value="resources">{{ $t('admin.pageManagement.category.resources') }}</option>
-            </select>
-          </div>
-
-          <div class="form-control mb-4">
-            <label class="label">
-              <span class="label-text">{{ $t('admin.pageManagement.modal.fields.content') }}</span>
-            </label>
-            <textarea 
-              v-model="formData.content" 
-              class="textarea textarea-bordered h-64" 
+          <label class="y-field">
+            <span class="y-field-label">{{ $t('uiAdmin2.pages.fields.content') }}</span>
+            <textarea
+              v-model="formData.content"
+              class="textarea textarea-bordered h-72 w-full font-mono text-sm leading-6"
               :placeholder="$t('admin.pageManagement.modal.fields.contentPlaceholder')"
+              spellcheck="false"
               required
             ></textarea>
-          </div>
+            <span class="y-field-hint">{{ $t('uiAdmin2.pages.fields.contentHint') }}</span>
+          </label>
 
-          <div class="form-control mb-4">
-            <label class="label">
-              <span class="label-text">{{ $t('admin.pageManagement.modal.fields.displayOrder') }}</span>
-            </label>
-            <input 
-              v-model.number="formData.display_order" 
-              type="number" 
-              class="input input-bordered" 
-              min="0"
-            />
-            <label class="label">
-              <span class="label-text-alt">{{ $t('admin.pageManagement.modal.fields.displayOrderHint') }}</span>
-            </label>
-          </div>
-
-          <div class="form-control mb-4">
-            <label class="label cursor-pointer justify-start gap-2">
-              <input 
-                v-model="formData.is_published" 
-                type="checkbox" 
-                class="checkbox checkbox-primary" 
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <label class="y-field">
+              <span class="y-field-label">{{ $t('uiAdmin2.pages.fields.displayOrder') }}</span>
+              <input
+                v-model.number="formData.display_order"
+                type="number"
+                class="input input-bordered w-full font-mono"
+                min="0"
               />
-              <span class="label-text">{{ $t('admin.pageManagement.modal.fields.isPublished') }}</span>
+              <span class="y-field-hint">{{ $t('uiAdmin2.pages.fields.displayOrderHint') }}</span>
+            </label>
+
+            <label class="flex cursor-pointer items-start gap-3 self-start rounded-md border border-y-line px-4 py-3 sm:mt-7">
+              <input v-model="formData.is_published" type="checkbox" class="checkbox checkbox-sm mt-0.5" />
+              <span class="flex flex-col gap-0.5">
+                <span class="y-field-label">{{ $t('uiAdmin2.pages.fields.isPublished') }}</span>
+                <span class="y-field-hint">{{ $t('uiAdmin2.pages.fields.isPublishedHint') }}</span>
+              </span>
             </label>
           </div>
 
           <div class="modal-action">
-            <button type="button" @click="closeModal" class="btn btn-ghost">{{ $t('admin.pageManagement.modal.actions.cancel') }}</button>
-            <button type="submit" class="btn btn-primary">{{ isEditing ? $t('admin.pageManagement.modal.actions.save') : $t('admin.pageManagement.modal.actions.create') }}</button>
+            <button type="button" class="btn btn-ghost" @click="closeModal">{{ $t('uiAdmin2.cancel') }}</button>
+            <button type="submit" class="btn btn-primary">
+              {{ isEditing ? $t('uiAdmin2.saveChanges') : $t('uiAdmin2.pages.create') }}
+            </button>
           </div>
         </form>
       </div>
@@ -180,27 +208,34 @@
     <!-- Delete Confirmation Modal -->
     <div v-if="showDeleteModal" class="modal modal-open">
       <div class="modal-box">
-        <h3 class="font-bold text-lg">{{ $t('admin.pageManagement.delete.confirmTitle') }}</h3>
-        <p class="py-4">{{ $t('admin.pageManagement.delete.confirmMessage', { title: pageToDelete?.title }) }}</p>
+        <h3 class="text-lg font-semibold text-y-text">{{ $t('uiAdmin2.pages.deleteTitle') }}</h3>
+        <p class="mt-2 text-sm leading-6 text-y-muted">
+          {{ $t('admin.pageManagement.delete.confirmMessage', { title: pageToDelete?.title }) }}
+        </p>
         <div class="modal-action">
-          <button @click="showDeleteModal = false" class="btn btn-ghost">{{ $t('admin.pageManagement.delete.cancel') }}</button>
-          <button @click="handleDelete" class="btn btn-error">{{ $t('admin.pageManagement.delete.confirm') }}</button>
+          <button type="button" class="btn btn-ghost" @click="showDeleteModal = false">{{ $t('uiAdmin2.cancel') }}</button>
+          <button type="button" class="btn btn-error" @click="handleDelete">{{ $t('uiAdmin2.delete') }}</button>
         </div>
       </div>
     </div>
   </div>
 </template>
-
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import axios from '../utils/axios'
 import { useToast } from '../composables/useToast'
+import { Plus, Pencil, Trash2, X, ExternalLink } from 'lucide-vue-next'
+import PageHeader from '../components/ui/PageHeader.vue'
+import StatusDot from '../components/ui/StatusDot.vue'
+import EmptyState from '../components/ui/EmptyState.vue'
+import YLoader from '../components/brand/YLoader.vue'
 
 const { t } = useI18n()
 const toast = useToast()
 
 const pages = ref([])
+const loading = ref(true)
 const filterCategory = ref('')
 const showModal = ref(false)
 const showDeleteModal = ref(false)
@@ -216,6 +251,12 @@ const formData = ref({
   display_order: 0
 })
 
+const categoryFilters = computed(() => [
+  { value: '', label: t('admin.pageManagement.filters.all') },
+  { value: 'company', label: t('admin.pageManagement.filters.company') },
+  { value: 'resources', label: t('admin.pageManagement.filters.resources') }
+])
+
 const filteredPages = computed(() => {
   if (!filterCategory.value) return pages.value
   return pages.value.filter(page => page.category === filterCategory.value)
@@ -227,6 +268,8 @@ const fetchPages = async () => {
     pages.value = response.data.pages || []
   } catch (error) {
     toast.error(t('admin.pageManagement.fetchError'))
+  } finally {
+    loading.value = false
   }
 }
 

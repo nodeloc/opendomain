@@ -1,207 +1,185 @@
 <template>
-  <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8 max-w-7xl space-y-6">
-    <div>
-      <h1 class="text-3xl font-bold">{{ $t('health.title') }}</h1>
-      <p class="text-lg opacity-70 mt-2">{{ $t('health.subtitle') }}</p>
+  <div class="y-container py-14 sm:py-16">
+    <div class="max-w-2xl">
+      <p class="y-eyebrow">{{ $t('uiPublic.health.eyebrow') }}</p>
+      <h1 class="y-h1 mt-4">{{ $t('health.title') }}</h1>
+      <p class="y-lead mt-4">{{ $t('health.subtitle') }}</p>
     </div>
 
     <!-- Statistics -->
-    <div class="stats stats-vertical lg:stats-horizontal shadow w-full">
-      <div class="stat">
-        <div class="stat-title">{{ $t('health.totalDomains') }}</div>
-        <div class="stat-value">{{ stats.total_domains || 0 }}</div>
-        <div class="stat-desc">{{ $t('health.beingMonitored') }}</div>
-      </div>
-      <div class="stat">
-        <div class="stat-title">{{ $t('health.healthy') }}</div>
-        <div class="stat-value text-success">{{ stats.healthy_domains || 0 }}</div>
-        <div class="stat-desc">{{ $t('health.allOperational') }}</div>
-      </div>
-      <div class="stat">
-        <div class="stat-title">{{ $t('health.degraded') }}</div>
-        <div class="stat-value text-warning">{{ stats.degraded_domains || 0 }}</div>
-        <div class="stat-desc">{{ $t('health.partialIssues') }}</div>
-      </div>
-      <div class="stat">
-        <div class="stat-title">{{ $t('health.down') }}</div>
-        <div class="stat-value text-error">{{ stats.down_domains || 0 }}</div>
-        <div class="stat-desc">{{ $t('health.serviceUnavailable') }}</div>
+    <div class="mt-10 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-y-line bg-y-line lg:grid-cols-4">
+      <div v-for="stat in statCards" :key="stat.key" class="bg-y-surface px-5 py-5 sm:px-6 sm:py-6">
+        <p class="y-label flex items-center gap-2">
+          <span v-if="stat.dot" class="y-dot" :class="stat.dot" aria-hidden="true"></span>
+          {{ stat.label }}
+        </p>
+        <p class="mt-3 font-mono text-3xl font-medium tracking-tight text-y-text">{{ stat.value }}</p>
+        <p class="mt-1 text-sm text-y-faint">{{ stat.desc }}</p>
       </div>
     </div>
 
     <!-- Health Reports -->
-    <div v-if="loading" class="flex justify-center py-12">
-      <span class="loading loading-spinner loading-lg"></span>
-    </div>
-
-    <div v-else-if="healthReports.length === 0" class="card bg-base-200 shadow-xl">
-      <div class="card-body items-center text-center py-12">
-        <div class="text-6xl mb-4">🏥</div>
-        <h3 class="card-title text-2xl mb-2">{{ $t('health.noHealthData') }}</h3>
-        <p>{{ $t('health.noHealthDataDesc') }}</p>
+    <div class="y-panel mt-6 overflow-hidden">
+      <div class="y-panel-header">
+        <h2 class="y-h3">{{ $t('uiPublic.health.reportsTitle') }}</h2>
+        <span v-if="!loading && pagination.total_pages > 1" class="font-mono text-xs text-y-faint">
+          {{ $t('uiPublic.health.pageOf', { page: pagination.page, total: pagination.total_pages }) }}
+        </span>
       </div>
-    </div>
 
-    <div v-else class="space-y-6">
-      <div class="overflow-x-auto">
-      <table class="table table-zebra w-full">
-        <thead>
-          <tr>
-            <th>{{ $t('health.domain') }}</th>
-            <th>{{ $t('health.overallHealth') }}</th>
-            <th>{{ $t('health.http') }}</th>
-            <th>{{ $t('health.dns') }}</th>
-            <th>{{ $t('health.ssl') }}</th>
-            <th>{{ $t('health.safeBrowsing') }}</th>
-            <th>{{ $t('health.virusTotal') }}</th>
-            <th>{{ $t('health.uptime') }}</th>
-            <th>{{ $t('health.lastScanned') }}</th>
-            <th>{{ $t('health.actionPending') }}</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="report in healthReports" :key="report.domain_id">
-            <td class="font-mono font-semibold">{{ maskDomain(report.domain_name) }}</td>
-            <td>
-              <div class="px-2 py-0.5 rounded text-xs font-medium inline-flex items-center" :class="getHealthBadgeClass(report.overall_health)">
-                {{ formatHealth(report.overall_health) }}
-              </div>
-            </td>
-            <td>
-              <div class="px-2 py-0.5 rounded text-xs font-medium inline-flex items-center" :class="getStatusBadgeClass(report.http_status)">
-                {{ formatHttpStatus(report.http_status) }}
-              </div>
-            </td>
-            <td>
-              <div class="px-2 py-0.5 rounded text-xs font-medium inline-flex items-center" :class="getStatusBadgeClass(report.dns_status)">
-                {{ formatDnsStatus(report.dns_status) }}
-              </div>
-            </td>
-            <td>
-              <div class="px-2 py-0.5 rounded text-xs font-medium inline-flex items-center" :class="getSSLBadgeClass(report.ssl_status)">
-                {{ formatSslStatus(report.ssl_status) }}
-              </div>
-            </td>
-            <td>
-              <div class="px-2 py-0.5 rounded text-xs font-medium inline-flex items-center" :class="getSafeBrowsingBadgeClass(report.safe_browsing_status)">
-                {{ formatSafeBrowsing(report.safe_browsing_status) }}
-              </div>
-            </td>
-            <td>
-              <div class="px-2 py-0.5 rounded text-xs font-medium inline-flex items-center" :class="getVirusTotalBadgeClass(report.virustotal_status)">
-                {{ formatVirusTotal(report.virustotal_status) }}
-              </div>
-            </td>
-            <td>
-              <div class="flex items-center gap-2">
-                <progress
-                  class="progress w-20"
-                  :class="getUptimeClass(report.uptime_percentage)"
-                  :value="report.uptime_percentage"
-                  max="100"
-                ></progress>
-                <span class="text-sm">{{ report.uptime_percentage?.toFixed(1) }}%</span>
-              </div>
-            </td>
-            <td>{{ formatDate(report.last_scanned_at) }}</td>
-            <td>
-              <div v-if="getPendingAction(report)" class="text-xs">
-                <div
-                  class="px-2 py-0.5 rounded font-medium inline-flex items-center"
+      <YLoader v-if="loading" :label="$t('common.loading')" />
+
+      <EmptyState
+        v-else-if="healthReports.length === 0"
+        :title="$t('health.noHealthData')"
+        :description="$t('health.noHealthDataDesc')"
+      />
+
+      <div v-else class="overflow-x-auto">
+        <table class="y-table">
+          <thead>
+            <tr>
+              <th>{{ $t('health.domain') }}</th>
+              <th>{{ $t('health.overallHealth') }}</th>
+              <th>{{ $t('health.http') }}</th>
+              <th>{{ $t('health.dns') }}</th>
+              <th>{{ $t('health.ssl') }}</th>
+              <th>{{ $t('health.safeBrowsing') }}</th>
+              <th>{{ $t('health.virusTotal') }}</th>
+              <th>{{ $t('health.uptime') }}</th>
+              <th>{{ $t('health.lastScanned') }}</th>
+              <th>{{ $t('health.actionPending') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="report in healthReports" :key="report.domain_id">
+              <td class="whitespace-nowrap font-mono font-medium">{{ maskDomain(report.domain_name) }}</td>
+              <td class="whitespace-nowrap">
+                <StatusDot :tone="healthTone(report.overall_health)" :label="formatHealth(report.overall_health)" />
+              </td>
+              <td class="whitespace-nowrap">
+                <StatusDot :tone="statusTone(report.http_status)" :label="formatHttpStatus(report.http_status)" />
+              </td>
+              <td class="whitespace-nowrap">
+                <StatusDot :tone="statusTone(report.dns_status)" :label="formatDnsStatus(report.dns_status)" />
+              </td>
+              <td class="whitespace-nowrap">
+                <StatusDot :tone="sslTone(report.ssl_status)" :label="formatSslStatus(report.ssl_status)" />
+              </td>
+              <td class="whitespace-nowrap">
+                <StatusDot :tone="safeBrowsingTone(report.safe_browsing_status)" :label="formatSafeBrowsing(report.safe_browsing_status)" />
+              </td>
+              <td class="whitespace-nowrap">
+                <StatusDot :tone="virusTotalTone(report.virustotal_status)" :label="formatVirusTotal(report.virustotal_status)" />
+              </td>
+              <td>
+                <div class="flex items-center gap-2.5">
+                  <div
+                    class="h-1.5 w-20 overflow-hidden rounded-full bg-y-surface-2"
+                    role="progressbar"
+                    :aria-valuenow="report.uptime_percentage"
+                    aria-valuemin="0"
+                    aria-valuemax="100"
+                  >
+                    <div class="h-full rounded-full" :class="getUptimeClass(report.uptime_percentage)" :style="{ width: `${report.uptime_percentage ?? 0}%` }"></div>
+                  </div>
+                  <span class="font-mono text-xs text-y-muted">{{ report.uptime_percentage?.toFixed(1) }}%</span>
+                </div>
+              </td>
+              <td class="whitespace-nowrap text-y-muted">{{ formatDate(report.last_scanned_at) }}</td>
+              <td>
+                <span
+                  v-if="getPendingAction(report)"
+                  class="whitespace-nowrap"
                   :class="getPendingActionClass(report)"
                   :title="getPendingActionTooltip(report)"
                 >
                   {{ getPendingActionText(report) }}
-                </div>
-              </div>
-              <span v-else class="text-xs text-gray-500">-</span>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-      </div>
-
-      <!-- Pagination -->
-      <div v-if="pagination.total_pages > 1" class="flex justify-center mt-6">
-        <div class="join">
-          <button
-            class="join-item btn"
-            :disabled="pagination.page === 1"
-            @click="goToPage(pagination.page - 1)"
-          >
-            «
-          </button>
-          <template v-for="(page, index) in visiblePages" :key="index">
-            <button
-              v-if="typeof page === 'number'"
-              class="join-item btn"
-              :class="{ 'btn-active': page === pagination.page }"
-              @click="goToPage(page)"
-            >
-              {{ page }}
-            </button>
-            <button v-else class="join-item btn btn-disabled">
-              ...
-            </button>
-          </template>
-          <button
-            class="join-item btn"
-            :disabled="pagination.page === pagination.total_pages"
-            @click="goToPage(pagination.page + 1)"
-          >
-            »
-          </button>
-        </div>
+                </span>
+                <span v-else class="text-y-faint">—</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
+
+    <!-- Pagination -->
+    <nav v-if="!loading && pagination.total_pages > 1" class="mt-6 flex justify-center" :aria-label="$t('uiPublic.health.reportsTitle')">
+      <div class="flex flex-wrap items-center gap-1">
+        <button
+          type="button"
+          class="btn btn-ghost btn-sm px-2 disabled:border-transparent disabled:bg-transparent"
+          :disabled="pagination.page === 1"
+          :aria-label="$t('common.previous')"
+          @click="goToPage(pagination.page - 1)"
+        >
+          <ChevronLeft :size="16" :stroke-width="1.5" />
+        </button>
+        <template v-for="(page, index) in visiblePages" :key="index">
+          <button
+            v-if="typeof page === 'number'"
+            type="button"
+            class="btn btn-sm min-w-[2.125rem] px-2 font-mono"
+            :class="page === pagination.page ? 'btn-outline bg-y-surface-2' : 'btn-ghost text-y-muted'"
+            :aria-current="page === pagination.page ? 'page' : undefined"
+            @click="goToPage(page)"
+          >
+            {{ page }}
+          </button>
+          <span v-else class="px-2 font-mono text-sm text-y-faint">…</span>
+        </template>
+        <button
+          type="button"
+          class="btn btn-ghost btn-sm px-2 disabled:border-transparent disabled:bg-transparent"
+          :disabled="pagination.page === pagination.total_pages"
+          :aria-label="$t('common.next')"
+          @click="goToPage(pagination.page + 1)"
+        >
+          <ChevronRight :size="16" :stroke-width="1.5" />
+        </button>
+      </div>
+    </nav>
 
     <!-- Details Modal -->
     <dialog class="modal" :class="{ 'modal-open': selectedReport }">
       <div class="modal-box w-11/12 max-w-4xl">
         <div v-if="selectedReport">
-          <h3 class="font-bold text-2xl mb-4">{{ maskDomain(selectedReport.domain_name) }}</h3>
+          <h3 class="break-all font-mono text-lg font-semibold text-y-text">{{ maskDomain(selectedReport.domain_name) }}</h3>
 
-          <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
-            <div class="stat bg-base-200 rounded-lg">
-              <div class="stat-title">{{ $t('health.overallHealth') }}</div>
-              <div class="stat-value text-2xl" :class="getHealthTextClass(selectedReport.overall_health)">
-                {{ formatHealth(selectedReport.overall_health) }}
-              </div>
+          <div class="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
+            <div class="y-inset px-4 py-3">
+              <p class="y-label">{{ $t('health.overallHealth') }}</p>
+              <StatusDot class="mt-2" :tone="healthTone(selectedReport.overall_health)" :label="formatHealth(selectedReport.overall_health)" />
             </div>
-            <div class="stat bg-base-200 rounded-lg">
-              <div class="stat-title">{{ $t('health.httpStatus') }}</div>
-              <div class="stat-value text-2xl">{{ selectedReport.http_status }}</div>
+            <div class="y-inset px-4 py-3">
+              <p class="y-label">{{ $t('health.httpStatus') }}</p>
+              <StatusDot class="mt-2" :tone="statusTone(selectedReport.http_status)" :label="formatHttpStatus(selectedReport.http_status)" />
             </div>
-            <div class="stat bg-base-200 rounded-lg">
-              <div class="stat-title">{{ $t('health.dnsStatus') }}</div>
-              <div class="stat-value text-2xl">{{ selectedReport.dns_status }}</div>
+            <div class="y-inset px-4 py-3">
+              <p class="y-label">{{ $t('health.dnsStatus') }}</p>
+              <StatusDot class="mt-2" :tone="statusTone(selectedReport.dns_status)" :label="formatDnsStatus(selectedReport.dns_status)" />
             </div>
-            <div class="stat bg-base-200 rounded-lg">
-              <div class="stat-title">{{ $t('health.safeBrowsing') }}</div>
-              <div class="stat-value text-2xl" :class="getSafeBrowsingTextClass(selectedReport.safe_browsing_status)">
-                {{ formatSafeBrowsing(selectedReport.safe_browsing_status) }}
-              </div>
+            <div class="y-inset px-4 py-3">
+              <p class="y-label">{{ $t('health.safeBrowsing') }}</p>
+              <StatusDot class="mt-2" :tone="safeBrowsingTone(selectedReport.safe_browsing_status)" :label="formatSafeBrowsing(selectedReport.safe_browsing_status)" />
             </div>
-            <div class="stat bg-base-200 rounded-lg">
-              <div class="stat-title">{{ $t('health.virusTotal') }}</div>
-              <div class="stat-value text-2xl" :class="getVirusTotalTextClass(selectedReport.virustotal_status)">
-                {{ formatVirusTotal(selectedReport.virustotal_status) }}
-              </div>
+            <div class="y-inset px-4 py-3">
+              <p class="y-label">{{ $t('health.virusTotal') }}</p>
+              <StatusDot class="mt-2" :tone="virusTotalTone(selectedReport.virustotal_status)" :label="formatVirusTotal(selectedReport.virustotal_status)" />
             </div>
-            <div class="stat bg-base-200 rounded-lg">
-              <div class="stat-title">{{ $t('health.uptime') }}</div>
-              <div class="stat-value text-2xl">{{ selectedReport.uptime_percentage?.toFixed(1) }}%</div>
+            <div class="y-inset px-4 py-3">
+              <p class="y-label">{{ $t('health.uptime') }}</p>
+              <p class="mt-1.5 font-mono text-lg font-medium text-y-text">{{ selectedReport.uptime_percentage?.toFixed(1) }}%</p>
             </div>
           </div>
 
-          <div v-if="loadingScans" class="flex justify-center py-8">
-            <span class="loading loading-spinner loading-lg"></span>
-          </div>
+          <YLoader v-if="loadingScans" class="!py-8" />
 
-          <div v-else-if="scans.length > 0">
-            <h4 class="font-bold text-lg mb-3">{{ $t('health.recentScans') }}</h4>
-            <div class="overflow-x-auto">
-              <table class="table table-sm">
+          <div v-else-if="scans.length > 0" class="mt-6">
+            <h4 class="text-sm font-semibold text-y-text">{{ $t('health.recentScans') }}</h4>
+            <div class="y-panel mt-3 overflow-x-auto">
+              <table class="y-table">
                 <thead>
                   <tr>
                     <th>{{ $t('health.scanType') }}</th>
@@ -213,23 +191,21 @@
                 </thead>
                 <tbody>
                   <tr v-for="scan in scans" :key="scan.id">
-                    <td>{{ scan.scan_type.toUpperCase() }}</td>
-                    <td>
-                      <div class="px-2 py-0.5 rounded text-xs font-medium inline-flex items-center" :class="scan.status === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'">
-                        {{ scan.status }}
-                      </div>
+                    <td><span class="y-tag">{{ scan.scan_type.toUpperCase() }}</span></td>
+                    <td class="whitespace-nowrap">
+                      <StatusDot :tone="scan.status === 'success' ? 'ok' : 'danger'" :label="scan.status" />
                     </td>
-                    <td>{{ scan.response_time ? scan.response_time + 'ms' : '-' }}</td>
-                    <td class="text-sm max-w-xs">
+                    <td class="whitespace-nowrap font-mono text-xs text-y-muted">{{ scan.response_time ? scan.response_time + 'ms' : '—' }}</td>
+                    <td class="max-w-xs text-sm text-y-muted">
                       <div class="truncate" :title="getScanDetailsTooltip(scan)">
-                        <span v-if="scan.http_status_code">HTTP {{ scan.http_status_code }}</span>
+                        <span v-if="scan.http_status_code" class="font-mono">HTTP {{ scan.http_status_code }}</span>
                         <span v-if="scan.ssl_valid !== null" class="ml-2">SSL: {{ scan.ssl_valid ? $t('health.valid') : $t('health.invalid') }}</span>
                         <span v-if="scan.scan_type === 'safebrowsing' && scan.scan_details" class="ml-2">{{ formatScanDetails(scan.scan_details) }}</span>
-                        <span v-if="scan.scan_type === 'virustotal' && scan.scan_details" class="ml-2">{{ formatScanDetails(scan.scan_details) }}</span>
-                        <span v-if="scan.error_message" class="text-error ml-2">{{ truncate(scan.error_message, 50) }}</span>
+                        <span v-if="scan.scan_type === 'virustotal' && scan.scan_details" class="ml-2 font-mono">{{ formatScanDetails(scan.scan_details) }}</span>
+                        <span v-if="scan.error_message" class="ml-2 text-y-danger-text">{{ truncate(scan.error_message, 50) }}</span>
                       </div>
                     </td>
-                    <td class="text-xs whitespace-nowrap">{{ formatDateTime(scan.scanned_at) }}</td>
+                    <td class="whitespace-nowrap text-xs text-y-muted">{{ formatDateTime(scan.scanned_at) }}</td>
                   </tr>
                 </tbody>
               </table>
@@ -238,7 +214,7 @@
         </div>
 
         <div class="modal-action">
-          <button @click="closeDetails" class="btn">{{ $t('health.close') }}</button>
+          <button type="button" class="btn btn-ghost" @click="closeDetails">{{ $t('health.close') }}</button>
         </div>
       </div>
       <form method="dialog" class="modal-backdrop" @click="closeDetails">
@@ -247,11 +223,14 @@
     </dialog>
   </div>
 </template>
-
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { ChevronLeft, ChevronRight } from 'lucide-vue-next'
 import axios from '../utils/axios'
+import YLoader from '../components/brand/YLoader.vue'
+import StatusDot from '../components/ui/StatusDot.vue'
+import EmptyState from '../components/ui/EmptyState.vue'
 
 const { t } = useI18n()
 
@@ -358,58 +337,47 @@ const viewDetails = async (report) => {
   }
 }
 
+const statCards = computed(() => [
+  { key: 'total', label: t('health.totalDomains'), value: stats.value.total_domains || 0, desc: t('health.beingMonitored') },
+  { key: 'healthy', label: t('health.healthy'), value: stats.value.healthy_domains || 0, desc: t('health.allOperational'), dot: 'bg-y-mint' },
+  { key: 'degraded', label: t('health.degraded'), value: stats.value.degraded_domains || 0, desc: t('health.partialIssues'), dot: 'bg-y-warn' },
+  { key: 'down', label: t('health.down'), value: stats.value.down_domains || 0, desc: t('health.serviceUnavailable'), dot: 'bg-y-danger' },
+])
+
 const closeDetails = () => {
   selectedReport.value = null
   scans.value = []
 }
 
-const getHealthBadgeClass = (health) => {
-  const classes = {
-    healthy: 'bg-green-100 text-green-800',
-    degraded: 'bg-yellow-100 text-yellow-800',
-    down: 'bg-red-100 text-red-800',
-  }
-  return classes[health] || 'bg-gray-100 text-gray-800'
+const healthTone = (health) => {
+  const tones = { healthy: 'ok', degraded: 'warn', down: 'danger' }
+  return tones[health] || 'muted'
 }
 
-const getStatusBadgeClass = (status) => {
-  if (status === 'online' || status === 'resolved') return 'bg-green-100 text-green-800'
-  if (status === 'offline' || status === 'failed') return 'bg-red-100 text-red-800'
-  return 'bg-gray-100 text-gray-800'
+const statusTone = (status) => {
+  if (status === 'online' || status === 'resolved') return 'ok'
+  if (status === 'offline' || status === 'failed') return 'danger'
+  return 'muted'
 }
 
-const getSSLBadgeClass = (status) => {
-  if (status === 'valid') return 'bg-green-100 text-green-800'
-  if (status === 'invalid') return 'bg-red-100 text-red-800'
-  return 'bg-gray-100 text-gray-800'
+const sslTone = (status) => {
+  if (status === 'valid') return 'ok'
+  if (status === 'invalid') return 'danger'
+  return 'muted'
 }
 
-const getSafeBrowsingBadgeClass = (status) => {
-  if (status === 'safe') return 'bg-green-100 text-green-800'
-  if (status === 'unsafe') return 'bg-red-100 text-red-800'
-  return 'bg-gray-100 text-gray-800'
+const safeBrowsingTone = (status) => {
+  if (status === 'safe') return 'ok'
+  if (status === 'unsafe') return 'danger'
+  return 'muted'
 }
 
-const getVirusTotalBadgeClass = (status) => {
-  if (status === 'clean') return 'bg-green-100 text-green-800'
-  if (status === 'malicious') return 'bg-red-100 text-red-800'
-  if (status === 'suspicious') return 'bg-yellow-100 text-yellow-800'
-  return 'bg-gray-100 text-gray-800'
+const virusTotalTone = (status) => {
+  if (status === 'clean') return 'ok'
+  if (status === 'malicious') return 'danger'
+  if (status === 'suspicious') return 'warn'
+  return 'muted'
 }
-
-const getSafeBrowsingTextClass = (status) => {
-  if (status === 'safe') return 'text-success'
-  if (status === 'unsafe') return 'text-error'
-  return ''
-}
-
-const getVirusTotalTextClass = (status) => {
-  if (status === 'clean') return 'text-success'
-  if (status === 'malicious') return 'text-error'
-  if (status === 'suspicious') return 'text-warning'
-  return ''
-}
-
 const formatSafeBrowsing = (status) => {
   const key = `health.${status || 'unknown'}`
   return t(key) !== key ? t(key) : (status || t('health.unknown'))
@@ -450,21 +418,11 @@ const formatScanDetails = (details) => {
   }
 }
 
-const getHealthTextClass = (health) => {
-  const classes = {
-    healthy: 'text-success',
-    degraded: 'text-warning',
-    down: 'text-error',
-  }
-  return classes[health] || ''
-}
-
 const getUptimeClass = (uptime) => {
-  if (uptime >= 99) return 'progress-success'
-  if (uptime >= 95) return 'progress-warning'
-  return 'progress-error'
+  if (uptime >= 99) return 'bg-y-mint'
+  if (uptime >= 95) return 'bg-y-warn'
+  return 'bg-y-danger'
 }
-
 const formatHealth = (health) => {
   const key = `health.${health}`
   return t(key) !== key ? t(key) : health
@@ -593,13 +551,11 @@ const getPendingAction = (report) => {
 
 const getPendingActionClass = (report) => {
   const action = getPendingAction(report)
-  if (action === 'delete') return 'bg-red-100 text-red-800'
-  if (action === 'suspend' || action === 'auto-suspend') return 'bg-orange-100 text-orange-800'
-  if (action === 'warning' || action === 'monitoring') return 'bg-yellow-100 text-yellow-800'
-  if (action === 'suspended') return 'bg-gray-100 text-gray-800'
+  if (action === 'delete' || action === 'auto-suspend') return 'y-chip-danger'
+  if (action === 'suspend' || action === 'warning' || action === 'monitoring') return 'y-chip-warn'
+  if (action === 'suspended') return 'y-chip'
   return ''
 }
-
 const getPendingActionText = (report) => {
   const action = getPendingAction(report)
 

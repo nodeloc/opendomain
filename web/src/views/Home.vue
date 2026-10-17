@@ -1,349 +1,249 @@
 <template>
-  <div class="min-h-screen">
-    <!-- Hero Section -->
-    <section class="w-full min-h-[80vh] bg-gradient-to-b from-base-100 via-base-200 to-base-100 relative overflow-hidden flex items-center justify-center">
-      <!-- Animated background elements -->
-      <div class="absolute inset-0 opacity-10">
-        <div class="absolute top-20 left-10 w-72 h-72 bg-primary rounded-full blur-3xl animate-blob"></div>
-        <div class="absolute top-40 right-10 w-72 h-72 bg-secondary rounded-full blur-3xl animate-blob animation-delay-2000"></div>
-        <div class="absolute -bottom-20 left-1/2 w-72 h-72 bg-accent rounded-full blur-3xl animate-blob animation-delay-4000"></div>
-      </div>
+  <div>
+    <!-- Hero -->
+    <section class="relative isolate overflow-hidden border-b border-y-line">
+      <div class="y-dot-grid absolute inset-0 -z-20" aria-hidden="true"></div>
+      <img
+        v-if="isDark"
+        src="/brand/planet-horizon-2880x1800.jpg"
+        alt=""
+        aria-hidden="true"
+        class="pointer-events-none absolute inset-x-0 bottom-0 -z-10 h-[62%] w-full object-cover object-bottom opacity-90"
+      />
+      <div v-else class="planet-light pointer-events-none absolute left-1/2 top-[76%] -z-10 aspect-square w-[200%] -translate-x-1/2 rounded-full sm:w-[160%]" aria-hidden="true"></div>
 
-      <div class="w-full text-center relative z-10 py-20">
-        <div class="max-w-5xl mx-auto px-4">
-          <div class="mb-10 space-y-6 animate-fade-in">
-            <h1 class="text-5xl md:text-7xl font-extrabold leading-tight">
-              {{ $t('home.heroTitle') }}
-              <span class="block mt-2 bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent animate-gradient">
-                {{ $t('home.heroSubtitle') }}
-              </span>
-              {{ $t('home.heroToday') }}
-            </h1>
-            <p class="text-xl md:text-2xl opacity-70 max-w-3xl mx-auto">
-              {{ $t('home.heroDescription') }}
-            </p>
-            <div class="flex flex-wrap items-center justify-center gap-4 text-sm md:text-base opacity-60">
-              <span class="flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                </svg>
-                {{ $t('home.featureNoCredit') }}
-              </span>
-              <span class="flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                </svg>
-                {{ $t('home.featureInstant') }}
-              </span>
-              <span class="flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                </svg>
-                {{ $t('home.featureFree') }}
-              </span>
-            </div>
-          </div>
+      <div class="y-container pb-44 pt-16 sm:pb-60 sm:pt-24">
+        <p class="y-eyebrow">{{ $t('landing.eyebrow') }}</p>
+        <h1 class="y-headline mt-5 text-[clamp(3rem,9vw,7rem)]">
+          {{ $t('landing.headlineLead') }}<br />
+          {{ $t('landing.headlineMid') }} <em>{{ $t('landing.headlineAccent') }}</em>
+        </h1>
+        <p class="y-lead mt-6 max-w-xl">{{ $t('landing.lead') }}</p>
 
-          <!-- Domain Search Card -->
-          <div class="card bg-base-100 shadow-2xl p-6 md:p-10 border border-base-300 backdrop-blur-sm hover:shadow-3xl transition-all duration-300 animate-slide-up">
-            <form @submit.prevent="searchDomain" class="space-y-6">
-              <div class="flex flex-col md:flex-row gap-3">
-                <div class="flex-1 relative group">
-                  <input
-                    v-model="searchQuery"
-                    type="text"
-                    :placeholder="$t('home.searchPlaceholder')"
-                    class="input input-bordered input-lg w-full pr-12 focus:input-primary focus:scale-[1.02] transition-all duration-200"
-                    required
-                  />
-                  <div class="absolute right-4 top-1/2 transform -translate-y-1/2 opacity-40 group-focus-within:opacity-70 transition-opacity">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
-                    </svg>
-                  </div>
-                </div>
-                <select v-model="selectedRootDomain" class="select select-bordered select-lg md:w-52 focus:select-primary focus:scale-[1.02] transition-all duration-200">
-                  <option value="" disabled>{{ $t('home.chooseExtension') }}</option>
-                  <option v-for="domain in rootDomains" :key="domain.id" :value="domain.id">
-                    .{{ domain.domain }}
-                  </option>
-                </select>
-                <button
-                  type="submit"
-                  class="btn btn-primary btn-lg md:w-40 gap-2 hover:scale-105 active:scale-95 transition-transform"
-                  :disabled="loading"
+        <!-- Search -->
+        <div class="mt-10 max-w-3xl">
+          <form class="y-panel flex flex-col gap-2 p-2 sm:flex-row" @submit.prevent="searchDomain">
+            <label class="flex h-12 min-w-0 flex-1 items-center rounded-md border border-y-line bg-y-bg transition-colors focus-within:border-y-mint/70">
+              <Search :size="18" :stroke-width="1.5" class="ml-4 shrink-0 text-y-faint" />
+              <input
+                v-model="searchQuery"
+                type="text"
+                :placeholder="$t('landing.placeholder')"
+                class="h-full min-w-0 flex-1 bg-transparent px-3 font-mono text-[15px] text-y-text outline-none placeholder:text-y-faint"
+                autocomplete="off"
+                autocapitalize="off"
+                spellcheck="false"
+                required
+              />
+              <span class="relative flex h-full shrink-0 items-center border-l border-y-line">
+                <select
+                  v-model="selectedRootDomain"
+                  class="h-full max-w-[11rem] appearance-none bg-transparent pl-3 pr-8 font-mono text-[15px] text-y-muted outline-none sm:max-w-none"
+                  :aria-label="$t('home.chooseExtension')"
                 >
-                  <span v-if="loading" class="loading loading-spinner"></span>
-                  <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                  {{ $t('home.search') }}
+                  <option value="" disabled>{{ $t('home.chooseExtension') }}</option>
+                  <option v-for="domain in rootDomains" :key="domain.id" :value="domain.id">.{{ domain.domain }}</option>
+                </select>
+                <ChevronDown :size="16" :stroke-width="1.5" class="pointer-events-none absolute right-3 text-y-faint" />
+              </span>
+            </label>
+            <button type="submit" class="btn btn-primary h-12 min-h-12 px-6" :disabled="loading">
+              <span v-if="loading" class="loading loading-spinner loading-sm"></span>
+              {{ loading ? $t('landing.checking') : $t('landing.check') }}
+            </button>
+          </form>
+
+          <transition name="result">
+            <div v-if="searchResult" class="mt-3">
+              <!-- Available -->
+              <div
+                v-if="searchResult.available && !searchResult.levelTooLow"
+                class="y-mint-soft flex flex-col gap-3 rounded-lg border px-5 py-4 sm:flex-row sm:items-center"
+              >
+                <div class="min-w-0 flex-1">
+                  <p class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span class="y-dot bg-y-mint"></span>
+                    <span class="y-domain">{{ searchResult.fullDomain }}</span>
+                    <span class="text-sm text-y-muted">{{ $t('landing.isAvailable') }}</span>
+                  </p>
+                  <p class="mt-1 pl-4 text-sm text-y-muted">
+                    {{ searchResult.isFree ? $t('landing.freeNote') : $t('landing.priceNote', { price: `${currencySymbol}${searchResult.pricePerYear || searchResult.lifetimePrice}` }) }}
+                  </p>
+                </div>
+                <button v-if="!isAuthenticated" type="button" class="btn btn-primary btn-sm gap-1.5" @click="$router.push('/register')">
+                  {{ $t('landing.signUpToClaim') }} <ArrowRight :size="16" :stroke-width="1.5" />
+                </button>
+                <button v-else type="button" class="btn btn-primary btn-sm gap-1.5" @click="registerDomain">
+                  {{ searchResult.isFree ? $t('landing.claimIt') : $t('landing.checkout') }} <ArrowRight :size="16" :stroke-width="1.5" />
                 </button>
               </div>
-            </form>
 
-            <!-- Search Result -->
-            <transition name="slide-fade">
-              <div v-if="searchResult" class="mt-6">
-                <div v-if="searchResult.available && !searchResult.levelTooLow" class="alert alert-success shadow-lg border-2 border-success/20">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <div class="flex-1">
-                    <h3 class="font-bold text-lg flex items-center gap-2">
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      {{ searchResult.message }}
-                    </h3>
-                    <p class="text-sm opacity-80 mt-1">
-                      {{ searchResult.isFree ? $t('home.claimNow') : `${$t('home.startingFrom')} ${currencySymbol}${searchResult.pricePerYear || searchResult.lifetimePrice}/${$t('home.year')}` }}
-                    </p>
-                  </div>
-                  <button
-                    v-if="!isAuthenticated"
-                    @click="$router.push('/register')"
-                    class="btn btn-sm btn-success gap-2 hover:scale-105 transition-transform"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-                    </svg>
-                    {{ $t('home.signupToRegister') }}
-                  </button>
-                  <button
-                    v-else
-                    @click="registerDomain"
-                    class="btn btn-sm btn-success gap-2 hover:scale-105 transition-transform"
-                  >
-                    <svg v-if="searchResult.isFree" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                    </svg>
-                    <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                    </svg>
-                    {{ searchResult.isFree ? $t('home.registerFree') : $t('home.proceedToCheckout') }}
-                  </button>
-                </div>
-                <!-- Level too low warning -->
-                <div v-else-if="searchResult.levelTooLow" class="alert alert-info shadow-lg border-2 border-info/20">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <div class="flex-1">
-                    <h3 class="font-bold">{{ $t('home.levelTooLow') }}</h3>
-                    <p class="text-sm opacity-80 mt-1">
-                      {{ $t('home.requiredLevel') }}：<span class="font-semibold">{{ $t(`home.levelNames.${searchResult.requiredLevel}`) }}</span>
-                      &nbsp;/&nbsp;
-                      {{ $t('home.yourLevel') }}：<span class="font-semibold">{{ $t(`home.levelNames.${searchResult.yourLevel}`) }}</span>
-                    </p>
-                  </div>
-                </div>
-                <div v-else class="alert alert-warning shadow-lg border-2 border-warning/20">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
-                  <div class="flex-1">
-                    <h3 class="font-bold">{{ searchResult.message }}</h3>
-                    <p class="text-sm opacity-80 mt-1">{{ $t('home.tryDifferent') }}</p>
-                  </div>
-                  <button
-                    v-if="searchResult.domainInfo"
-                    @click="$router.push(`/whois/${searchResult.fullDomain}`)"
-                    class="btn btn-sm btn-outline"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    View Detail
-                  </button>
+              <!-- Level too low -->
+              <div v-else-if="searchResult.levelTooLow" class="y-panel flex items-start gap-3 px-5 py-4">
+                <Info :size="18" :stroke-width="1.5" class="mt-0.5 shrink-0 text-y-info" />
+                <div class="text-sm">
+                  <p class="font-medium text-y-text">{{ $t('home.levelTooLow') }}</p>
+                  <p class="mt-1 text-y-muted">
+                    {{ $t('home.requiredLevel') }}: <span class="text-y-text">{{ $t(`home.levelNames.${searchResult.requiredLevel}`) }}</span>
+                    <span class="mx-2 text-y-faint">·</span>
+                    {{ $t('home.yourLevel') }}: <span class="text-y-text">{{ $t(`home.levelNames.${searchResult.yourLevel}`) }}</span>
+                  </p>
                 </div>
               </div>
-            </transition>
+
+              <!-- Taken or error -->
+              <div v-else class="y-panel flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center">
+                <div class="min-w-0 flex-1">
+                  <p class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span class="y-dot bg-y-danger"></span>
+                    <template v-if="searchResult.fullDomain">
+                      <span class="y-domain">{{ searchResult.fullDomain }}</span>
+                      <span class="text-sm text-y-danger-text">{{ $t('landing.isTaken') }}</span>
+                    </template>
+                    <span v-else class="text-sm text-y-danger-text">{{ searchResult.message }}</span>
+                  </p>
+                  <p class="mt-1 pl-4 text-sm text-y-muted">{{ $t('landing.tryAnother') }}</p>
+                </div>
+                <button
+                  v-if="searchResult.domainInfo"
+                  type="button"
+                  class="btn btn-outline btn-sm"
+                  @click="$router.push(`/whois/${searchResult.fullDomain}`)"
+                >
+                  {{ $t('landing.viewWhois') }}
+                </button>
+              </div>
+            </div>
+          </transition>
+
+          <div class="mt-5 flex flex-wrap gap-2">
+            <span class="y-chip"><Check :size="12" :stroke-width="2" class="text-y-mint-text" />{{ $t('landing.chipNoCard') }}</span>
+            <span class="y-chip"><Check :size="12" :stroke-width="2" class="text-y-mint-text" />{{ $t('landing.chipMinutes') }}</span>
+            <span class="y-chip"><Check :size="12" :stroke-width="2" class="text-y-mint-text" />{{ $t('landing.chipNoLock') }}</span>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- Features Section -->
-    <section class="w-full py-20 bg-base-100">
-      <div class="max-w-7xl mx-auto px-4">
-        <div class="text-center mb-16 space-y-4">
-          <h2 class="text-4xl md:text-5xl font-bold">{{ $t('home.whyChoose', { siteName: siteConfigStore.siteName }) }}</h2>
-          <p class="text-xl md:text-2xl opacity-60 max-w-2xl mx-auto">
-            {{ $t('home.whyChooseDesc') }}
-          </p>
+    <!-- How it works -->
+    <section class="y-container py-24">
+      <div class="grid gap-12 lg:grid-cols-[1fr_1.1fr] lg:items-center">
+        <div>
+          <p class="y-eyebrow">{{ $t('landing.howEyebrow') }}</p>
+          <h2 class="y-h1 mt-4 max-w-md">{{ $t('landing.howTitle') }}</h2>
+          <ol class="mt-10 space-y-6">
+            <li v-for="(step, i) in steps" :key="step.title" class="flex gap-5">
+              <span class="font-mono text-sm text-y-mint-text">0{{ i + 1 }}</span>
+              <div>
+                <h3 class="y-h3">{{ step.title }}</h3>
+                <p class="mt-1 text-[15px] leading-6 text-y-muted">{{ step.desc }}</p>
+              </div>
+            </li>
+          </ol>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          <!-- Lightning Fast -->
-          <div class="card bg-base-200/50 shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 border border-base-300 backdrop-blur-sm group">
-            <div class="card-body items-center text-center">
-              <div class="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-              </div>
-              <h3 class="card-title text-2xl mb-2">{{ $t('home.fastTitle') }}</h3>
-              <p class="opacity-70">{{ $t('home.fastDesc') }}</p>
-            </div>
-          </div>
-
-          <!-- Secure & Reliable -->
-          <div class="card bg-base-200/50 shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 border border-base-300 backdrop-blur-sm group">
-            <div class="card-body items-center text-center">
-              <div class="w-20 h-20 rounded-full bg-secondary/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                </svg>
-              </div>
-              <h3 class="card-title text-2xl mb-2">{{ $t('home.secureTitle') }}</h3>
-              <p class="opacity-70">{{ $t('home.secureDesc') }}</p>
-            </div>
-          </div>
-
-          <!-- Easy Management -->
-          <div class="card bg-base-200/50 shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 border border-base-300 backdrop-blur-sm group">
-            <div class="card-body items-center text-center">
-              <div class="w-20 h-20 rounded-full bg-accent/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
-                </svg>
-              </div>
-              <h3 class="card-title text-2xl mb-2">{{ $t('home.easyTitle') }}</h3>
-              <p class="opacity-70">{{ $t('home.easyDesc') }}</p>
-            </div>
-          </div>
-
-          <!-- Multiple Domains -->
-          <div class="card bg-base-200/50 shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 border border-base-300 backdrop-blur-sm group">
-            <div class="card-body items-center text-center">
-              <div class="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <h3 class="card-title text-2xl mb-2">{{ $t('home.multipleTitle') }}</h3>
-              <p class="opacity-70">{{ $t('home.multipleDesc') }}</p>
-            </div>
-          </div>
-
-          <!-- DNS Management -->
-          <div class="card bg-base-200/50 shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 border border-base-300 backdrop-blur-sm group">
-            <div class="card-body items-center text-center">
-              <div class="w-20 h-20 rounded-full bg-secondary/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
-                </svg>
-              </div>
-              <h3 class="card-title text-2xl mb-2">{{ $t('home.dnsTitle') }}</h3>
-              <p class="opacity-70">{{ $t('home.dnsDesc') }}</p>
-            </div>
-          </div>
-
-          <!-- Free Forever -->
-          <div class="card bg-base-200/50 shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 border border-base-300 backdrop-blur-sm group">
-            <div class="card-body items-center text-center">
-              <div class="w-20 h-20 rounded-full bg-accent/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-                </svg>
-              </div>
-              <h3 class="card-title text-2xl mb-2">{{ $t('home.freeTitle') }}</h3>
-              <p class="opacity-70">{{ $t('home.freeDesc') }}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Stats Section -->
-    <section class="w-full py-20 bg-base-200/50">
-      <div class="max-w-7xl mx-auto px-4">
-        <div class="stats stats-vertical lg:stats-horizontal shadow-2xl w-full bg-base-100 border border-base-300">
-          <div class="stat hover:bg-base-200 transition-colors duration-300">
-            <div class="stat-figure text-primary">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-10 h-10 stroke-current">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-              </svg>
-            </div>
-            <div class="stat-title text-lg">{{ $t('home.totalDomains') }}</div>
-            <div class="stat-value text-primary text-5xl">{{ totalDomains !== null ? totalDomains.toLocaleString() : '...' }}</div>
-            <div class="stat-desc text-base">{{ $t('home.growing') }}</div>
-          </div>
-
-          <div class="stat hover:bg-base-200 transition-colors duration-300">
-            <div class="stat-figure text-secondary">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-10 h-10 stroke-current">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
-              </svg>
-            </div>
-            <div class="stat-title text-lg">{{ $t('home.activeUsers') }}</div>
-            <div class="stat-value text-secondary text-5xl">{{ totalUsers !== null ? totalUsers.toLocaleString() : '...' }}</div>
-            <div class="stat-desc text-base">{{ $t('home.newUsers') }}</div>
-          </div>
-
-          <div class="stat hover:bg-base-200 transition-colors duration-300">
-            <div class="stat-figure text-accent">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-10 h-10 stroke-current">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
-              </svg>
-            </div>
-            <div class="stat-title text-lg">{{ $t('home.uptime') }}</div>
-            <div class="stat-value text-accent text-5xl">99.9%</div>
-            <div class="stat-desc text-base">{{ $t('home.industryLeading') }}</div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- CTA Section -->
-    <section class="w-full py-20 bg-gradient-to-r from-primary via-secondary to-accent relative overflow-hidden">
-      <div class="absolute inset-0 opacity-10">
-        <div class="absolute top-0 left-0 w-96 h-96 bg-white rounded-full blur-3xl animate-blob"></div>
-        <div class="absolute bottom-0 right-0 w-96 h-96 bg-white rounded-full blur-3xl animate-blob animation-delay-2000"></div>
-      </div>
-      <div class="max-w-4xl mx-auto px-4 text-center relative z-10">
-        <h2 class="text-4xl md:text-5xl font-bold mb-6 text-white">{{ $t('home.readyTitle') }}</h2>
-        <p class="text-xl md:text-2xl mb-10 text-white/90 max-w-2xl mx-auto">
-          {{ $t('home.readyDesc', { siteName: siteConfigStore.siteName }) }}
-        </p>
-        <div class="flex flex-col sm:flex-row gap-4 justify-center">
-          <router-link
-            to="/register"
-            class="btn btn-lg bg-white text-primary hover:bg-base-100 hover:scale-105 transition-transform shadow-xl border-0"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+        <div class="y-tile overflow-hidden">
+          <div class="relative border-b border-y-line px-6 py-8">
+            <svg viewBox="0 0 420 150" class="h-auto w-full" aria-hidden="true">
+              <path
+                d="M70 75 H150 C190 75 190 25 230 25 H300 M150 75 H300 M150 75 C190 75 190 125 230 125 H300"
+                fill="none"
+                stroke="rgb(var(--y-text))"
+                stroke-width="2"
+                stroke-linecap="round"
+              />
+              <circle cx="70" cy="75" r="6" fill="rgb(var(--y-text))" />
+              <circle cx="302" cy="25" r="6" fill="rgb(var(--y-node))" />
+              <circle cx="302" cy="75" r="6" fill="rgb(var(--y-node))" />
+              <circle cx="302" cy="125" r="6" fill="rgb(var(--y-node))" />
+              <text x="70" y="104" text-anchor="middle" class="node-label">{{ rootLabel }}</text>
+              <text x="318" y="29" class="node-label node-label-strong">blog.</text>
+              <text x="318" y="79" class="node-label node-label-strong">docs.</text>
+              <text x="318" y="129" class="node-label node-label-strong">api.</text>
             </svg>
-            {{ $t('home.getStarted') }}
-          </router-link>
-          <router-link
-            to="/announcements"
-            class="btn btn-lg btn-outline text-white border-white hover:bg-white hover:text-primary hover:border-white hover:scale-105 transition-transform"
-          >
-            {{ $t('home.learnMore') }}
-          </router-link>
+          </div>
+          <table class="y-table font-mono text-[13px]">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Content</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="row in sampleRecords" :key="row.name">
+                <td class="text-y-text">{{ row.name }}</td>
+                <td><span class="y-tag">{{ row.type }}</span></td>
+                <td class="text-y-muted">{{ row.content }}</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </section>
 
+    <!-- Features -->
+    <section class="border-y border-y-line bg-y-surface/40">
+      <div class="y-container py-24">
+        <p class="y-eyebrow">{{ $t('landing.featuresEyebrow') }}</p>
+        <h2 class="y-h1 mt-4 max-w-xl">{{ $t('landing.featuresTitle') }}</h2>
+        <div class="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div v-for="feature in features" :key="feature.title" class="y-tile p-6">
+            <span class="y-icon-tile"><component :is="feature.icon" :size="20" :stroke-width="1.5" /></span>
+            <h3 class="mt-6 text-[17px] font-semibold tracking-[-0.01em] text-y-text">{{ feature.title }}</h3>
+            <p class="mt-2 text-sm leading-6 text-y-muted">{{ feature.desc }}</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Stats -->
+    <section class="y-container py-16">
+      <div class="y-panel grid divide-y divide-y-line sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+        <div v-for="stat in stats" :key="stat.label" class="px-6 py-7">
+          <p class="y-label">{{ stat.label }}</p>
+          <p class="mt-3 font-mono text-4xl font-medium tracking-tight text-y-text">{{ stat.value }}</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="y-container pb-8 pt-8">
+      <div class="y-tile relative isolate overflow-hidden px-6 py-20 text-center">
+        <div class="y-glow absolute left-1/2 top-1/2 -z-10 h-[420px] w-[720px] -translate-x-1/2 -translate-y-1/2" aria-hidden="true"></div>
+        <div class="y-dot-grid absolute inset-0 -z-20" aria-hidden="true"></div>
+        <h2 class="y-headline text-[clamp(2.25rem,6vw,4.5rem)]">{{ $t('landing.ctaTitle') }}</h2>
+        <p class="y-lead mx-auto mt-5 max-w-md">{{ $t('landing.ctaDesc') }}</p>
+        <div class="mt-8 flex flex-wrap justify-center gap-3">
+          <router-link :to="isAuthenticated ? '/domains' : '/register'" class="btn btn-primary gap-1.5 px-6">
+            {{ $t('landing.ctaButton') }} <ArrowRight :size="16" :stroke-width="1.5" />
+          </router-link>
+          <router-link to="/announcements" class="btn btn-outline px-6">{{ $t('landing.ctaSecondary') }}</router-link>
+        </div>
+      </div>
+    </section>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
+import { Search, ChevronDown, ArrowRight, Check, Info, Zap, ListTree, Network, Activity, KeyRound, Sparkles } from 'lucide-vue-next'
 import { useAuthStore } from '../stores/auth'
 import { useSiteConfigStore } from '../stores/siteConfig'
 import axios from '../utils/axios'
 import { useToast } from '../composables/useToast'
 import { useCurrency } from '../composables/useCurrency'
+import { useTheme } from '../composables/useTheme'
 
 const router = useRouter()
+const { t } = useI18n()
 const authStore = useAuthStore()
 const siteConfigStore = useSiteConfigStore()
 const toast = useToast()
 const { currencySymbol } = useCurrency()
+const { isDark } = useTheme()
 
 const searchQuery = ref('')
 const selectedRootDomain = ref('')
@@ -355,6 +255,40 @@ const totalDomains = ref(null)
 const totalUsers = ref(null)
 
 const isAuthenticated = computed(() => authStore.isAuthenticated)
+
+const rootLabel = computed(() => rootDomains.value[0]?.domain || 'yunamo.com')
+
+const sampleRecords = computed(() => {
+  const root = rootLabel.value
+  return [
+    { name: `blog.${root}`, type: 'CNAME', content: 'my-site.pages.dev' },
+    { name: `docs.${root}`, type: 'CNAME', content: 'docs.vercel.app' },
+    { name: `api.${root}`, type: 'A', content: '203.0.113.10' },
+  ]
+})
+
+const steps = computed(() => [
+  { title: t('landing.step1Title'), desc: t('landing.step1Desc') },
+  { title: t('landing.step2Title'), desc: t('landing.step2Desc') },
+  { title: t('landing.step3Title'), desc: t('landing.step3Desc') },
+])
+
+const features = computed(() => [
+  { icon: Zap, title: t('landing.fFastTitle'), desc: t('landing.fFastDesc') },
+  { icon: ListTree, title: t('landing.fRecordsTitle'), desc: t('landing.fRecordsDesc') },
+  { icon: Network, title: t('landing.fRootsTitle'), desc: t('landing.fRootsDesc') },
+  { icon: Activity, title: t('landing.fHealthTitle'), desc: t('landing.fHealthDesc') },
+  { icon: KeyRound, title: t('landing.fSecureTitle'), desc: t('landing.fSecureDesc') },
+  { icon: Sparkles, title: t('landing.fFreeTitle'), desc: t('landing.fFreeDesc') },
+])
+
+const formatCount = (value) => (value === null || value === undefined ? '—' : Number(value).toLocaleString())
+
+const stats = computed(() => [
+  { label: t('landing.statDomains'), value: formatCount(totalDomains.value) },
+  { label: t('landing.statUsers'), value: formatCount(totalUsers.value) },
+  { label: t('landing.statRoots'), value: rootDomains.value.length ? rootDomains.value.length : '—' },
+])
 
 onMounted(async () => {
   await fetchRootDomains()
@@ -374,7 +308,7 @@ const fetchPublicStats = async () => {
 const fetchRootDomains = async () => {
   try {
     const response = await axios.get('/api/public/root-domains')
-    rootDomains.value = response.data.root_domains
+    rootDomains.value = response.data.root_domains || []
     if (rootDomains.value.length > 0) {
       selectedRootDomain.value = rootDomains.value[0].id
     }
@@ -402,10 +336,8 @@ const searchDomain = async () => {
       },
     })
 
-    // 获取选中的根域名信息
-    const rootDomain = rootDomains.value.find(d => d.id === selectedRootDomain.value)
+    const rootDomain = rootDomains.value.find((d) => d.id === selectedRootDomain.value)
 
-    // 检查用户等级是否满足根域名要求
     const minLevel = rootDomain?.min_user_level || 'normal'
     const userLevel = authStore.user?.user_level || 'normal'
     const tooLow = isAuthenticated.value && levelOrder(userLevel) < levelOrder(minLevel)
@@ -441,9 +373,7 @@ const registerDomain = async () => {
     return
   }
 
-  // 检查是否为付费域名
   if (searchResult.value && !searchResult.value.isFree) {
-    // 跳转到结算页面
     router.push({
       path: '/checkout',
       query: {
@@ -454,18 +384,16 @@ const registerDomain = async () => {
     return
   }
 
-  // 免费域名直接注册
   try {
-    const response = await axios.post('/api/domains', {
+    await axios.post('/api/domains', {
       subdomain: searchQuery.value,
       root_domain_id: selectedRootDomain.value,
     })
 
-    toast.success('Domain registered successfully!')
+    toast.success(t('landing.registered'))
     router.push('/domains')
   } catch (error) {
     const errorData = error.response?.data
-    // 如果是付费域名错误，跳转到结算页
     if (errorData?.requires_payment) {
       router.push({
         path: '/checkout',
@@ -475,7 +403,6 @@ const registerDomain = async () => {
         },
       })
     } else if (error.response?.status === 403 && errorData?.required_level) {
-      // 等级不足，更新 searchResult 显示提示
       searchResult.value = {
         ...searchResult.value,
         levelTooLow: true,
@@ -490,98 +417,27 @@ const registerDomain = async () => {
 </script>
 
 <style scoped>
-/* Animations */
-@keyframes fade-in {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.planet-light {
+  background: radial-gradient(closest-side, rgb(var(--y-surface)) 97%, transparent 100%);
+  box-shadow: 0 -1px 0 0 rgb(var(--y-mint-deep) / 0.8), 0 -30px 90px -50px rgb(var(--y-mint-deep) / 0.35);
 }
-
-@keyframes slide-up {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.node-label {
+  font-family: 'Geist Mono', ui-monospace, monospace;
+  font-size: 12px;
+  fill: rgb(var(--y-faint));
 }
-
-@keyframes blob {
-  0% {
-    transform: translate(0px, 0px) scale(1);
-  }
-  33% {
-    transform: translate(30px, -50px) scale(1.1);
-  }
-  66% {
-    transform: translate(-20px, 20px) scale(0.9);
-  }
-  100% {
-    transform: translate(0px, 0px) scale(1);
-  }
+.node-label-strong {
+  fill: rgb(var(--y-text));
 }
-
-@keyframes gradient {
-  0% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-  100% {
-    background-position: 0% 50%;
-  }
+.result-enter-active {
+  transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
-
-.animate-fade-in {
-  animation: fade-in 0.8s ease-out;
+.result-leave-active {
+  transition: all 0.15s ease;
 }
-
-.animate-slide-up {
-  animation: slide-up 0.8s ease-out 0.2s both;
-}
-
-.animate-blob {
-  animation: blob 7s infinite;
-}
-
-.animation-delay-2000 {
-  animation-delay: 2s;
-}
-
-.animation-delay-4000 {
-  animation-delay: 4s;
-}
-
-.animate-gradient {
-  background-size: 200% 200%;
-  animation: gradient 3s ease infinite;
-}
-
-/* Transitions */
-.slide-fade-enter-active {
-  transition: all 0.3s ease-out;
-}
-
-.slide-fade-leave-active {
-  transition: all 0.2s cubic-bezier(1, 0.5, 0.8, 1);
-}
-
-.slide-fade-enter-from,
-.slide-fade-leave-to {
-  transform: translateY(-10px);
+.result-enter-from,
+.result-leave-to {
   opacity: 0;
-}
-
-/* Custom shadows */
-.shadow-3xl {
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  transform: translateY(-6px);
 }
 </style>
