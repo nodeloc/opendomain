@@ -62,6 +62,7 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 		domainHandler.SetCyberPanelHandler(cyberPanelHandler)
 		abuseReportHandler := handler.NewAbuseReportHandler(db, rdb, cfg, mailer)
 		statusHandler := handler.NewStatusHandler(db, rdb, cfg)
+		sponsorHandler := handler.NewSponsorHandler(db, cfg)
 
 		// 公开路由
 		public := api.Group("/public")
@@ -91,6 +92,8 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 			public.GET("/status", statusHandler.GetPublicStatus)
 			// 滥用举报
 			public.POST("/abuse-reports", abuseReportHandler.CreateAbuseReport)
+			// 赞助商
+			public.GET("/sponsors", sponsorHandler.ListPublicSponsors)
 		}
 
 		// 支付回调路由（公开，通过签名验证）
@@ -276,6 +279,14 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 			admin.GET("/abuse-reports", abuseReportHandler.ListAbuseReports)
 			admin.PUT("/abuse-reports/:id", abuseReportHandler.UpdateAbuseReport)
 			admin.DELETE("/abuse-reports/:id", abuseReportHandler.DeleteAbuseReport)
+
+			// 赞助商管理
+			admin.GET("/sponsors", sponsorHandler.AdminListSponsors)
+			admin.POST("/sponsors", sponsorHandler.AdminCreateSponsor)
+			admin.PUT("/sponsors/:id", sponsorHandler.AdminUpdateSponsor)
+			admin.DELETE("/sponsors/:id", sponsorHandler.AdminDeleteSponsor)
+			admin.GET("/sponsor-settings", sponsorHandler.AdminGetSponsorSettings)
+			admin.PUT("/sponsor-settings", sponsorHandler.AdminUpdateSponsorSettings)
 
 			// CyberPanel 服务器管理
 			cpAdmin := admin.Group("/cyberpanel")

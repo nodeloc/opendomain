@@ -10,7 +10,9 @@
       <div class="hidden items-center gap-6 text-sm font-semibold lg:flex">
         <template v-for="item in links" :key="item.label">
           <a v-if="item.href" :href="item.href" target="_blank" rel="noopener" class="text-y-muted transition-colors hover:text-y-text">{{ item.label }}</a>
-          <router-link v-else :to="item.to" class="text-y-muted transition-colors hover:text-y-text" active-class="!text-y-text">{{ item.label }}</router-link>
+          <router-link v-else :to="item.to" class="inline-flex items-center gap-1.5 text-y-muted transition-colors hover:text-y-text" active-class="!text-y-text">
+            <component :is="item.icon" v-if="item.icon" :size="14" :stroke-width="1.75" aria-hidden="true" />{{ item.label }}
+          </router-link>
         </template>
       </div>
 
@@ -57,7 +59,9 @@
       <nav class="flex flex-col px-5 py-3">
         <template v-for="item in links" :key="item.label">
           <a v-if="item.href" :href="item.href" target="_blank" rel="noopener" class="rounded-sm px-2 py-2.5 text-[15px] text-y-muted hover:text-y-text">{{ item.label }}</a>
-          <router-link v-else :to="item.to" class="rounded-sm px-2 py-2.5 text-[15px] text-y-muted hover:text-y-text">{{ item.label }}</router-link>
+          <router-link v-else :to="item.to" class="flex items-center gap-2 rounded-sm px-2 py-2.5 text-[15px] text-y-muted hover:text-y-text">
+            <component :is="item.icon" v-if="item.icon" :size="15" :stroke-width="1.75" aria-hidden="true" />{{ item.label }}
+          </router-link>
         </template>
         <div class="mt-2 flex items-center gap-1 border-t border-y-line pt-3 sm:hidden">
           <LanguageSwitcher />
@@ -72,7 +76,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { Menu, X, Globe, User, ShieldCheck, LogOut } from 'lucide-vue-next'
+import { Menu, X, Globe, User, ShieldCheck, LogOut, Heart } from 'lucide-vue-next'
 import { useAuthStore } from '../stores/auth'
 import { useSiteConfigStore } from '../stores/siteConfig'
 import { DOCS_PATH, GITHUB_URL } from '../config/links'
@@ -97,6 +101,7 @@ const links = computed(() => [
   { to: '/status', label: t('shell.status') },
   { to: '/announcements', label: t('nav.announcements') },
   { to: '/domain-health', label: t('nav.domainHealth') },
+  { to: '/sponsor', label: t('sponsor.nav'), icon: Heart },
   { href: GITHUB_URL, label: t('shell.github') },
 ])
 

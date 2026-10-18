@@ -204,6 +204,11 @@ const routes = [
     component: () => import('../views/Status.vue'),
   },
   {
+    path: '/sponsor',
+    name: 'Sponsor',
+    component: () => import('../views/Sponsor.vue'),
+  },
+  {
     path: '/acceptable-use',
     name: 'AcceptableUse',
     component: () => import('../views/AcceptableUse.vue'),
@@ -221,6 +226,12 @@ const routes = [
     path: '/admin/abuse-reports',
     name: 'AdminAbuseReports',
     component: () => import('../views/AdminAbuseReports.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true, layout: 'console' },
+  },
+  {
+    path: '/admin/sponsors',
+    name: 'AdminSponsors',
+    component: () => import('../views/AdminSponsors.vue'),
     meta: { requiresAuth: true, requiresAdmin: true, layout: 'console' },
   },
   {

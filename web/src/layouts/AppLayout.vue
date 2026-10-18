@@ -23,9 +23,9 @@
             v-for="item in secondary"
             :key="item.to"
             :to="item.to"
-            class="rounded-sm px-2.5 py-1.5 text-sm font-medium text-y-muted transition-colors hover:text-y-text"
+            class="inline-flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-sm font-medium text-y-muted transition-colors hover:text-y-text"
           >
-            {{ item.label }}
+            <component :is="item.icon" v-if="item.icon" :size="14" :stroke-width="1.75" aria-hidden="true" />{{ item.label }}
           </router-link>
         </div>
 
@@ -75,10 +75,10 @@
             v-for="item in [...primary, ...secondary]"
             :key="item.to"
             :to="item.to"
-            class="rounded-sm px-2 py-2.5 text-[15px] text-y-muted hover:text-y-text"
+            class="flex items-center gap-2 rounded-sm px-2 py-2.5 text-[15px] text-y-muted hover:text-y-text"
             :class="{ '!text-y-text': isActive(item) }"
           >
-            {{ item.label }}
+            <component :is="item.icon" v-if="item.icon" :size="15" :stroke-width="1.75" aria-hidden="true" />{{ item.label }}
           </router-link>
           <div class="mt-2 flex items-center gap-1 border-t border-y-line pt-3 sm:hidden">
             <LanguageSwitcher />
@@ -114,7 +114,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { Menu, X, User, ShieldCheck, LogOut, ArrowUpRight, MailWarning } from 'lucide-vue-next'
+import { Menu, X, User, ShieldCheck, LogOut, ArrowUpRight, MailWarning, Heart } from 'lucide-vue-next'
 import { useAuthStore } from '../stores/auth'
 import { useSiteConfigStore } from '../stores/siteConfig'
 import { DOCS_PATH } from '../config/links'
@@ -147,6 +147,7 @@ const primary = computed(() => [
 const secondary = computed(() => [
   { to: DOCS_PATH, label: t('shell.docs') },
   { to: '/status', label: t('shell.status') },
+  { to: '/sponsor', label: t('sponsor.nav'), icon: Heart },
 ])
 
 const isActive = (item) => {

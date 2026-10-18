@@ -17,6 +17,9 @@
         <div class="ml-auto flex items-center gap-1">
           <div class="mr-3 hidden items-center gap-[22px] text-sm font-medium lg:flex">
             <router-link to="/status" class="text-y-muted transition-colors hover:text-y-text">{{ $t('shell.status') }}</router-link>
+            <router-link to="/sponsor" class="inline-flex items-center gap-1.5 text-y-muted transition-colors hover:text-y-text">
+              <Heart :size="14" :stroke-width="1.75" aria-hidden="true" />{{ $t('sponsor.nav') }}
+            </router-link>
             <a :href="GITHUB_URL" target="_blank" rel="noopener" class="text-y-muted transition-colors hover:text-y-text">{{ $t('shell.github') }}</a>
           </div>
           <div class="hidden items-center gap-1 sm:flex">
@@ -48,6 +51,9 @@
           <DocsSidebar :groups="groups" :policies="policies" :loading="loading" :failed="failed" @retry="load(true)" />
           <div class="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-y-line px-3 pt-4 text-sm">
             <router-link to="/status" class="text-y-muted hover:text-y-text">{{ $t('shell.status') }}</router-link>
+            <router-link to="/sponsor" class="inline-flex items-center gap-1.5 text-y-muted hover:text-y-text">
+              <Heart :size="14" :stroke-width="1.75" aria-hidden="true" />{{ $t('sponsor.nav') }}
+            </router-link>
             <a :href="GITHUB_URL" target="_blank" rel="noopener" class="text-y-muted hover:text-y-text">{{ $t('shell.github') }}</a>
             <div class="ml-auto flex items-center gap-1 sm:hidden">
               <LanguageSwitcher />
@@ -76,7 +82,7 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { PanelLeft, ChevronDown, ChevronRight } from 'lucide-vue-next'
+import { PanelLeft, ChevronDown, ChevronRight, Heart } from 'lucide-vue-next'
 import Footer from '../components/Footer.vue'
 import YLogo from '../components/brand/YLogo.vue'
 import LanguageSwitcher from '../components/LanguageSwitcher.vue'

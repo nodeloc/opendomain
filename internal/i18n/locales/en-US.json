@@ -84,5 +84,15 @@
   "auth.email_verified": "Your email address has been verified.",
   "auth.already_verified": "Your email address is already verified.",
   "auth.resend_rate_limited": "Please wait before requesting another verification email.",
-  "auth.verification_sent": "We sent a new verification link to your email."
+  "auth.verification_sent": "We sent a new verification link to your email.",
+  "sponsor.not_found": "Sponsor not found",
+  "sponsor.name_invalid": "Name must be 1 to 100 characters",
+  "sponsor.url_invalid": "Enter a full http:// or https:// URL (up to 500 characters)",
+  "sponsor.description_too_long": "Description must be at most 300 characters",
+  "sponsor.tier_invalid": "Tier must be partner, sponsor or backer",
+  "sponsor.order_invalid": "Display order must be between -10000 and 10000",
+  "sponsor.usdt_invalid": "Enter a valid USDT (TRC20) address starting with T",
+  "sponsor.github_url_invalid": "Enter an https://github.com/... URL",
+  "sponsor.deleted": "Sponsor deleted",
+  "sponsor.settings_saved": "Sponsor settings saved"
 }

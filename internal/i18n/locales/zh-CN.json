@@ -84,5 +84,15 @@
   "auth.email_verified": "邮箱验证成功。",
   "auth.already_verified": "你的邮箱已经验证过了。",
   "auth.resend_rate_limited": "请稍后再重新发送验证邮件。",
-  "auth.verification_sent": "新的验证链接已发送到你的邮箱。"
+  "auth.verification_sent": "新的验证链接已发送到你的邮箱。",
+  "sponsor.not_found": "赞助商不存在",
+  "sponsor.name_invalid": "名称需为 1 到 100 个字符",
+  "sponsor.url_invalid": "请输入完整的 http:// 或 https:// 链接（最多 500 个字符）",
+  "sponsor.description_too_long": "简介最多 300 个字符",
+  "sponsor.tier_invalid": "等级必须为 partner、sponsor 或 backer",
+  "sponsor.order_invalid": "排序值需在 -10000 到 10000 之间",
+  "sponsor.usdt_invalid": "请输入以 T 开头的有效 USDT (TRC20) 地址",
+  "sponsor.github_url_invalid": "请输入 https://github.com/... 格式的链接",
+  "sponsor.deleted": "赞助商已删除",
+  "sponsor.settings_saved": "赞助设置已保存"
 }

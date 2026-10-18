@@ -26,6 +26,7 @@ const year = new Date().getFullYear()
 const links = computed(() => [
   { to: DOCS_PATH, label: t('shell.docs') },
   { to: '/status', label: t('shell.status') },
+  { to: '/sponsor', label: t('sponsor.nav') },
   { href: GITHUB_URL, label: t('shell.github') },
   { href: TELEGRAM_GROUP_URL, label: t('shell.telegram') },
   { to: '/acceptable-use', label: t('shell.acceptableUse') },
