@@ -17,7 +17,7 @@ export default {
       powerDetail: 'Start with a subdomain. Connect the host you love. Keep your energy for building.',
       powerCta: 'Power up your idea',
       powerCaption: 'From a spark to a place on the web',
-      powerCrystalAlt: 'A floating mint-green crystal cube with polished glass edges and a softly luminous core, representing the energy behind your next project.',
+      powerCrystalAlt: 'A floating mint-green crystal with pointed ends, translucent polygonal facets and a luminous core, representing the energy behind your next project.',
     },
   },
   'zh-CN': {
@@ -38,7 +38,7 @@ export default {
       powerDetail: '从一个子域名开始，连接你喜欢的主机。把更多精力，留给创造。',
       powerCta: '点亮你的灵感',
       powerCaption: '从一束灵感，到网络中的一席之地',
-      powerCrystalAlt: '一枚悬浮的薄荷绿水晶魔方，拥有厚实通透的玻璃边缘与柔和内光，象征下一个项目的创造动力。',
+      powerCrystalAlt: '一枚悬浮的薄荷绿多面水晶，拥有尖锐的两端、通透的多边形切面和流动内光，象征下一个项目的创造动力。',
     },
   },
 }
