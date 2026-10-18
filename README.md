@@ -1,95 +1,157 @@
-# OpenDomain
+<p align="center">
+  <a href="https://yunamo.com">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="web/public/brand/yunamo-logo.svg">
+      <img src="web/public/brand/yunamo-logo-on-light.svg" alt="Yunamo" height="56">
+    </picture>
+  </a>
+</p>
 
-开源的免费二级域名分发平台，集成 PowerDNS，支持多种 DNS 记录类型管理。
+<h1 align="center">Yunamo — your dynamo starts with a name</h1>
 
-## 功能
+<p align="center">
+  Free subdomains for developers, students and open-source communities.<br>
+  <a href="https://yunamo.com"><strong>yunamo.com</strong></a> ·
+  <a href="https://yunamo.com/pages/documentation">Docs</a> ·
+  <a href="https://yunamo.com/status">Status</a> ·
+  <a href="https://yunamo.com/sponsor">Sponsor</a> ·
+  <a href="README.zh-CN.md">简体中文</a>
+</p>
 
-- 域名注册与管理（实时可用性查询、自动续期）
-- DNS 记录管理（A、AAAA、CNAME、MX、TXT、NS、SRV、CAA）
-- 第三方登录（GitHub、Google、NodeLoc）
-- 优惠券系统（配额券、VIP 券、续期券）
-- 邀请机制与奖励
-- 公告系统
-- 域名健康扫描（DNS、HTTP、SSL、安全检测）
-- 自定义页面管理
-- 管理后台（用户、域名、订单、系统配置）
-- Telegram Bot 通知
-- FOSSBilling 集成（可选）
+---
 
-## 技术栈
+**Yunamo** (from *your dynamo*) runs a free, managed subdomain service. Claim a name, point it at any host or your own servers, and manage every DNS record yourself.
 
-- **后端**：Go + Gin + PostgreSQL + Redis
-- **前端**：Vue 3 + Vite
-- **DNS**：PowerDNS（MariaDB 后端）
-- **部署**：Docker Compose
+**Claim a name. Point it anywhere. Keep building.**
 
-## 部署
+## Why Yunamo?
 
-### 前置要求
+Getting a project online should not start with a bill.
 
-- Docker & Docker Compose
+- **Free subdomains** for side projects, portfolios, homelabs and open-source releases
+- **Full DNS control**: A, AAAA, CNAME, MX, TXT, NS, SRV, CAA and more
+- **DNSSEC** and **custom nameservers** when you need them
+- **Bring any host**: your VPS, your homelab, or any hosting provider
+- **Open source** and run in the open
 
-### 一键部署
+## 🌍 Available domains
+
+| Domain | Notes |
+| --- | --- |
+| **.nl8.eu** | Free |
+| **.loc.cc** | Popular |
+| **.rr.kg** | New |
+
+More suffixes are on the way. The live list is always at [yunamo.com](https://yunamo.com).
+
+## 🌐 DNS infrastructure
+
+Yunamo zones are served by authoritative PowerDNS name servers:
+
+- **ns1.nodelook.com**
+- **ns2.nodelook.com**
+
+Live uptime and incident history: [yunamo.com/status](https://yunamo.com/status)
+
+## ❤️ Sponsors
+
+Yunamo is free to use and is kept running by its sponsors and partners. Servers, bandwidth, DNS nodes and development time all cost something.
+
+If you'd like to help, see **[yunamo.com/sponsor](https://yunamo.com/sponsor)**. To discuss contributing servers, bandwidth or domains, write to [support@yunamo.com](mailto:support@yunamo.com).
+
+## 🚀 Get started
+
+1. Sign up at **[yunamo.com](https://yunamo.com)** and verify your email.
+2. Search for a name and claim it.
+3. Add DNS records that point to your host.
+
+- **Docs:** [yunamo.com/pages/documentation](https://yunamo.com/pages/documentation)
+- **Community:** [Telegram @yunamo_official](https://t.me/yunamo_official)
+- **Bugs and ideas:** [GitHub Issues](https://github.com/nodeloc/yunamo/issues)
+- **Support:** [support@yunamo.com](mailto:support@yunamo.com)
+
+## 🛡️ Acceptable use and abuse
+
+Phishing, malware, spam and other abuse are not allowed. See the [acceptable use policy](https://yunamo.com/acceptable-use).
+
+To report a domain, use [yunamo.com/report](https://yunamo.com/report) or email [support@yunamo.com](mailto:support@yunamo.com).
+
+---
+
+## 🧩 Features
+
+- Domain claiming with live availability checks and renewals
+- DNS record management (A, AAAA, CNAME, MX, TXT, NS, SRV, CAA), DNSSEC, custom nameservers
+- Sign in with email and password, GitHub, Google or NodeLoc
+- Email verification, password reset and abuse report emails
+- Coupons (quota, VIP, renewal), invitations and rewards
+- Announcements, custom pages, sponsors, and a public status page
+- Domain health scanning (DNS, HTTP, SSL and security checks)
+- Admin console for users, domains, orders, sponsors and settings
+- Telegram bot notifications, optional FOSSBilling integration
+
+## 🛠️ Tech stack
+
+- **Backend:** Go, Gin, PostgreSQL, Redis
+- **Frontend:** Vue 3, Vite, Tailwind CSS, DaisyUI
+- **DNS:** PowerDNS (MariaDB backend)
+- **Deployment:** Docker Compose
+
+## 📦 Self-hosting
+
+You need Docker and Docker Compose.
 
 ```bash
-git clone https://github.com/nodeloc/opendomain.git
-cd opendomain
+git clone https://github.com/nodeloc/yunamo.git
+cd yunamo
 
 cp .env.example .env
-# 编辑 .env，至少修改以下变量：
-# DB_PASSWORD、JWT_SECRET、POWERDNS_API_KEY
+# Change at least DB_PASSWORD, JWT_SECRET and POWERDNS_API_KEY.
+# Set MAIL_* to send verification and password reset emails.
 
 ./docker-deploy.sh
 ```
 
-如果需要同时启动内置 PowerDNS，使用 `powerdns` profile：
+To run the bundled PowerDNS as well, enable the `powerdns` profile:
 
 ```bash
-# 额外修改 .env 中的 PDNS_DB_PASSWORD、PDNS_ADMIN_SECRET
+# Also set PDNS_DB_PASSWORD and PDNS_ADMIN_SECRET in .env
 docker compose --profile powerdns up -d
 ```
 
-部署完成后访问：
+| Service | Address | Notes |
+| --- | --- | --- |
+| API backend | http://localhost:8000 | Always on |
+| PowerDNS Admin | http://localhost:9191 | `powerdns` profile |
+| PowerDNS API | http://localhost:8081 | `powerdns` profile |
 
-| 服务 | 地址 | 说明 |
-|------|------|------|
-| API 后端 | http://localhost:8000 | 默认启用 |
-| PowerDNS Admin | http://localhost:9191 | 需启用 powerdns profile |
-| PowerDNS API | http://localhost:8081 | 需启用 powerdns profile |
+`docker-compose.yml` runs these services:
 
-### 服务说明
+- `postgres`: application database
+- `redis`: cache and rate limits
+- `migrate`: applies database migrations on every start
+- `app`: the Yunamo backend, which also serves the frontend
+- `pdns-db`, `powerdns`, `pdns-admin`: PowerDNS with MariaDB and its web UI (`powerdns` profile)
 
-`docker-compose.yml` 包含以下服务：
-
-- `postgres` — OpenDomain 应用数据库
-- `redis` — 缓存
-- `migrate` — 自动执行数据库迁移
-- `app` — OpenDomain 后端应用
-- `pdns-db` — PowerDNS 专用 MariaDB（`powerdns` profile）
-- `powerdns` — 权威 DNS 服务器，暴露 53 端口（`powerdns` profile）
-- `pdns-admin` — PowerDNS Web 管理面板（`powerdns` profile）
-
-### 常用命令
+Common commands:
 
 ```bash
-# 查看日志
-docker compose logs -f
-
-# 查看应用日志
-docker compose logs -f app
-
-# 重启服务
-docker compose restart
-
-# 停止并删除容器
-docker compose down
+docker compose logs -f app   # follow the app logs
+docker compose restart       # restart all services
+docker compose down          # stop and remove containers
 ```
 
-### 注意事项
+Notes:
 
-- 53 端口在 Ubuntu 上可能被 `systemd-resolved` 占用，可在 `.env` 中设置 `DNS_PORT=5353` 改用其他端口
-- 首次访问 PowerDNS Admin（`:9191`）需注册管理员账号，API URL 填 `http://powerdns:8081`
+- On Ubuntu, port 53 may be taken by `systemd-resolved`. Set `DNS_PORT=5353` in `.env` to use another port.
+- The first time you open PowerDNS Admin (`:9191`), register an admin account and use `http://powerdns:8081` as the API URL.
 
-## 许可证
+## 🤝 Contributing
 
-[MIT](LICENSE)
+Issues and pull requests are welcome. Please open an issue first for larger changes.
+
+## License
+
+Released under the MIT License.
+
+<p align="center"><sub>Yunamo · your dynamo</sub></p>
