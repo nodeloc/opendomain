@@ -75,7 +75,7 @@ import { useI18n } from 'vue-i18n'
 import { Menu, X, Globe, User, ShieldCheck, LogOut } from 'lucide-vue-next'
 import { useAuthStore } from '../stores/auth'
 import { useSiteConfigStore } from '../stores/siteConfig'
-import { DOCS_PATH, GITHUB_URL, TELEGRAM_GROUP_URL } from '../config/links'
+import { DOCS_PATH, GITHUB_URL } from '../config/links'
 import YLogo from './brand/YLogo.vue'
 import LanguageSwitcher from './LanguageSwitcher.vue'
 import ThemeToggle from './ui/ThemeToggle.vue'
@@ -97,7 +97,6 @@ const links = computed(() => [
   { to: '/status', label: t('shell.status') },
   { to: '/announcements', label: t('nav.announcements') },
   { to: '/domain-health', label: t('nav.domainHealth') },
-  { href: TELEGRAM_GROUP_URL, label: t('shell.telegram') },
   { href: GITHUB_URL, label: t('shell.github') },
 ])
 

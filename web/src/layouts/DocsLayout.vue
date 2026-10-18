@@ -18,7 +18,6 @@
           <div class="mr-3 hidden items-center gap-[22px] text-sm font-medium lg:flex">
             <router-link to="/status" class="text-y-muted transition-colors hover:text-y-text">{{ $t('shell.status') }}</router-link>
             <a :href="GITHUB_URL" target="_blank" rel="noopener" class="text-y-muted transition-colors hover:text-y-text">{{ $t('shell.github') }}</a>
-            <a :href="TELEGRAM_GROUP_URL" target="_blank" rel="noopener" class="text-y-muted transition-colors hover:text-y-text">{{ $t('shell.telegram') }}</a>
           </div>
           <div class="hidden items-center gap-1 sm:flex">
             <LanguageSwitcher />
@@ -50,7 +49,6 @@
           <div class="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-y-line px-3 pt-4 text-sm">
             <router-link to="/status" class="text-y-muted hover:text-y-text">{{ $t('shell.status') }}</router-link>
             <a :href="GITHUB_URL" target="_blank" rel="noopener" class="text-y-muted hover:text-y-text">{{ $t('shell.github') }}</a>
-            <a :href="TELEGRAM_GROUP_URL" target="_blank" rel="noopener" class="text-y-muted hover:text-y-text">{{ $t('shell.telegram') }}</a>
             <div class="ml-auto flex items-center gap-1 sm:hidden">
               <LanguageSwitcher />
               <ThemeToggle />
@@ -88,7 +86,7 @@ import DocsSidebar from '../components/docs/DocsSidebar.vue'
 import { useAuthStore } from '../stores/auth'
 import { useSiteConfigStore } from '../stores/siteConfig'
 import { useDocsPages } from '../composables/useDocsPages'
-import { GITHUB_URL, TELEGRAM_GROUP_URL } from '../config/links'
+import { GITHUB_URL } from '../config/links'
 
 const route = useRoute()
 const authStore = useAuthStore()
