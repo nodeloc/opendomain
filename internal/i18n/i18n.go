@@ -1,12 +1,19 @@
 package i18n
 
 import (
+	"embed"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
 )
+
+// The Docker image ships only the binary, so the locale files are embedded
+// and used whenever they are not found on disk.
+//
+//go:embed locales/*.json
+var embeddedLocales embed.FS
 
 // Translator 翻译器接口
 type Translator struct {
@@ -43,8 +50,10 @@ func (t *Translator) LoadLocales(localesPath string) error {
 		filePath := filepath.Join(localesPath, fmt.Sprintf("%s.json", lang))
 		data, err := os.ReadFile(filePath)
 		if err != nil {
-			// 如果文件不存在，跳过
-			continue
+			data, err = embeddedLocales.ReadFile("locales/" + lang + ".json")
+			if err != nil {
+				continue
+			}
 		}
 
 		var translations map[string]string
