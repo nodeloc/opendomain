@@ -189,11 +189,14 @@
       </a>
     </section>
 
-    <!-- Works with -->
+    <!-- Live numbers and built-in capabilities -->
     <section class="border-b border-y-line">
-      <div class="host-strip y-container flex flex-wrap items-center justify-center gap-x-10 gap-y-3 py-7 text-[15px] font-medium text-y-faint">
-        <span class="y-label">{{ $t('home2.worksWith') }}</span>
-        <span>Vercel</span><span>Netlify</span><span>GitHub Pages</span><span>Cloudflare Pages</span><span>Render</span><span>{{ $t('home2.anyVps') }}</span>
+      <div class="y-container flex flex-wrap items-center justify-center gap-x-10 gap-y-3 py-7 text-[15px] font-medium text-y-faint">
+        <span class="y-label inline-flex items-center gap-2"><span class="y-dot-live" aria-hidden="true"></span>{{ $t('home2.stripLabel') }}</span>
+        <span v-for="item in powerStrip" :key="item.key">
+          <span v-if="item.value" class="font-mono text-y-text">{{ item.value }}</span>
+          {{ item.label }}
+        </span>
       </div>
     </section>
 
@@ -218,7 +221,7 @@
               <span class="ml-auto text-[10px] text-y-faint">{{ $t('home2.dnsExample') }}</span>
             </div>
             <div class="dns-records flex flex-col gap-2 overflow-x-auto whitespace-pre p-4">
-              <div><span class="text-y-mint-text">CNAME</span>  <span class="text-y-text">blog</span>  <span class="text-y-faint">→</span> <span class="text-y-muted">my-site.pages.dev</span></div>
+              <div><span class="text-y-mint-text">CNAME</span>  <span class="text-y-text">blog</span>  <span class="text-y-faint">→</span> <span class="text-y-muted">web.example.net</span></div>
               <div><span class="text-y-mint-text">A    </span>  <span class="text-y-text">@   </span>  <span class="text-y-faint">→</span> <span class="text-y-muted">203.0.113.10</span></div>
               <div><span class="text-y-mint-text">TXT  </span>  <span class="text-y-text">@   </span>  <span class="text-y-faint">→</span> <span class="text-y-muted">"verify=yunamo"</span></div>
               <div class="text-y-mint-text">✓ {{ $t('home2.propagated') }}</div>
@@ -350,7 +353,7 @@ import { useCurrency } from '../composables/useCurrency'
 import { GITHUB_URL, TELEGRAM_GROUP_URL, DOCS_PATH } from '../config/links'
 
 const router = useRouter()
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const authStore = useAuthStore()
 const siteConfigStore = useSiteConfigStore()
 const toast = useToast()
@@ -369,6 +372,25 @@ const searchResult = ref(null)
 const loading = ref(false)
 
 const isAuthenticated = computed(() => authStore.isAuthenticated)
+
+const publicStats = ref(null)
+const DNS_RECORD_TYPE_COUNT = 9
+
+const powerStrip = computed(() => {
+  const fmt = (n) => Number(n).toLocaleString(locale.value)
+  const items = []
+  if (publicStats.value) {
+    items.push({ key: 'names', value: fmt(publicStats.value.total_domains || 0), label: t('home2.statNames') })
+    items.push({ key: 'builders', value: fmt(publicStats.value.total_users || 0), label: t('home2.statBuilders') })
+  }
+  if (rootDomains.value.length) {
+    items.push({ key: 'suffixes', value: fmt(rootDomains.value.length), label: t('home2.statSuffixes') })
+  }
+  items.push({ key: 'records', value: fmt(DNS_RECORD_TYPE_COUNT), label: t('home2.statRecordTypes') })
+  items.push({ key: 'dnssec', value: '', label: 'DNSSEC' })
+  items.push({ key: 'ns', value: '', label: t('home2.stripCustomNs') })
+  return items
+})
 
 const rootLabel = computed(() => {
   const root = rootDomains.value.find((d) => d.id === selectedRootDomain.value) || rootDomains.value[0]
@@ -416,8 +438,17 @@ const exploreFeatures = () => {
 }
 
 onMounted(async () => {
-  await fetchRootDomains()
+  await Promise.all([fetchRootDomains(), fetchPublicStats()])
 })
+
+const fetchPublicStats = async () => {
+  try {
+    const response = await axios.get('/api/public/stats')
+    publicStats.value = response.data
+  } catch (error) {
+    publicStats.value = null
+  }
+}
 
 const fetchRootDomains = async () => {
   try {
@@ -609,8 +640,6 @@ const registerDomain = async () => {
 .scroll-track { display: inline-block; position: relative; width: 13px; height: 21px; border: 1px solid rgb(186 210 199 / .45); border-radius: 8px; }
 .scroll-track span { position: absolute; top: 4px; left: 5px; height: 4px; width: 1px; background: #3ee6b4; animation: scroll-hint 2.5s ease-in-out infinite; animation-play-state: paused; }
 .motion-running .scroll-track span { animation-play-state: running; }
-.host-strip > span:not(:first-child) { transition: color .2s; }
-.host-strip > span:not(:first-child):hover { color: rgb(var(--y-text)); }
 #home-features { scroll-margin-top: 80px; }
 [data-reveal] { transition: opacity .7s ease, transform .7s cubic-bezier(.16, 1, .3, 1), border-color .25s; transition-delay: var(--reveal-delay, 0ms); }
 .motion-observed.motion-enabled [data-reveal]:not(.is-revealed) { opacity: 0; transform: translateY(24px); }

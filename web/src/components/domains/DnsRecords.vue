@@ -333,8 +333,8 @@ const TTL_OPTIONS = [60, 300, 1800, 3600, 14400, 86400]
 const VALUE_PLACEHOLDERS = {
   A: '203.0.113.10',
   AAAA: '2001:db8::1',
-  CNAME: 'my-site.pages.dev',
-  ALIAS: 'my-app.vercel.app',
+  CNAME: 'web.example.net',
+  ALIAS: 'app.example.net',
   MX: 'mail.example.com',
   TXT: '"verify=abc123"',
   NS: 'ns1.example.com',

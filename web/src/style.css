@@ -294,9 +294,11 @@
     border-color: rgb(var(--y-line-strong));
     color: rgb(var(--y-text));
   }
+  /* DaisyUI inverts the text to the page colour on hover; keep it readable on the surface tint. */
   .btn-outline:hover {
     background-color: rgb(var(--y-surface-2));
-    border-color: rgb(var(--y-line-strong));
+    border-color: rgb(var(--y-mint) / 0.45);
+    color: rgb(var(--y-text));
   }
   .btn-secondary {
     border-color: rgb(var(--y-line-strong));
@@ -551,6 +553,7 @@
 }
 :lang(zh) :is(.y-headline, .y-title) {
   line-break: strict;
+  text-wrap: balance;
 }
 
 @media (prefers-reduced-motion: reduce) {
