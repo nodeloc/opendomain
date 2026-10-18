@@ -118,11 +118,23 @@
       </div>
 
       <div
-        v-if="!loading && pagination.total_pages > 1"
+        v-if="!loading && pagination.total > 0"
         class="flex flex-col items-center justify-between gap-3 border-t border-y-line px-5 py-3 sm:flex-row"
       >
-        <p class="font-mono text-xs text-y-faint">{{ $t('uiAdmin1.pageOf', { page: pagination.page, total: pagination.total_pages }) }}</p>
-        <div class="join">
+        <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <p class="font-mono text-xs text-y-faint">{{ $t('pagination.showing', pageRange) }}</p>
+          <label class="flex items-center gap-2 text-xs text-y-muted">
+            <span>{{ $t('pagination.perPage') }}</span>
+            <select
+              :value="pagination.page_size"
+              class="select select-bordered select-sm h-8 min-h-0 font-mono text-xs"
+              @change="changePageSize(Number($event.target.value))"
+            >
+              <option v-for="n in pageSizeOptions" :key="n" :value="n">{{ $t('pagination.perPageOption', { n }) }}</option>
+            </select>
+          </label>
+        </div>
+        <div v-if="pagination.total_pages > 1" class="join">
           <button
             type="button"
             class="join-item btn btn-ghost btn-sm btn-square"
@@ -249,7 +261,29 @@ const loading = ref(true)
 const searchQuery = ref('')
 const showUserModal = ref(false)
 const selectedUser = ref(null)
-const pagination = ref({ page: 1, page_size: 50, total: 0, total_pages: 0 })
+const pageSizeOptions = [20, 50, 100, 200]
+const pageSizeStorageKey = 'admin.rootDomainDomains.pageSize'
+const storedPageSize = Number(localStorage.getItem(pageSizeStorageKey))
+const pagination = ref({
+  page: 1,
+  page_size: pageSizeOptions.includes(storedPageSize) ? storedPageSize : 50,
+  total: 0,
+  total_pages: 0,
+})
+
+const pageRange = computed(() => {
+  const { page, page_size: size, total } = pagination.value
+  const from = total === 0 ? 0 : (page - 1) * size + 1
+  return { from, to: Math.min(page * size, total), total }
+})
+
+const changePageSize = (size) => {
+  if (!pageSizeOptions.includes(size) || size === pagination.value.page_size) return
+  localStorage.setItem(pageSizeStorageKey, String(size))
+  pagination.value.page_size = size
+  pagination.value.page = 1
+  fetchDomains()
+}
 
 let searchTimeout = null
 

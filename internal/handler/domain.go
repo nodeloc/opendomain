@@ -2280,7 +2280,7 @@ func (h *DomainHandler) ListDomainsByRootDomain(c *gin.Context) {
 	if p, err := strconv.Atoi(c.Query("page")); err == nil && p > 0 {
 		page = p
 	}
-	if ps, err := strconv.Atoi(c.Query("page_size")); err == nil && ps > 0 && ps <= 100 {
+	if ps, err := strconv.Atoi(c.Query("page_size")); err == nil && ps > 0 && ps <= 200 {
 		pageSize = ps
 	}
 
