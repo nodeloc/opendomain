@@ -2275,16 +2275,35 @@ func (h *DomainHandler) ListDomainsByRootDomain(c *gin.Context) {
 		return
 	}
 
-	query := h.db.Preload("User").Preload("RootDomain").
-		Where("root_domain_id = ?", rootDomainID)
+	page := 1
+	pageSize := 50
+	if p, err := strconv.Atoi(c.Query("page")); err == nil && p > 0 {
+		page = p
+	}
+	if ps, err := strconv.Atoi(c.Query("page_size")); err == nil && ps > 0 && ps <= 100 {
+		pageSize = ps
+	}
 
-	if search != "" {
-		query = query.Where("subdomain ILIKE ? OR full_domain ILIKE ?",
-			"%"+search+"%", "%"+search+"%")
+	filtered := func() *gorm.DB {
+		q := h.db.Model(&models.Domain{}).Where("root_domain_id = ?", rootDomain.ID)
+		if search != "" {
+			q = q.Where("subdomain ILIKE ? OR full_domain ILIKE ?",
+				"%"+search+"%", "%"+search+"%")
+		}
+		return q
+	}
+
+	var total int64
+	if err := filtered().Count(&total).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to count domains"})
+		return
 	}
 
 	var domains []models.Domain
-	if err := query.Order("created_at DESC").Find(&domains).Error; err != nil {
+	if err := filtered().Preload("User").Preload("RootDomain").
+		Order("created_at DESC").Order("id DESC").
+		Offset((page - 1) * pageSize).Limit(pageSize).
+		Find(&domains).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch domains"})
 		return
 	}
@@ -2294,9 +2313,16 @@ func (h *DomainHandler) ListDomainsByRootDomain(c *gin.Context) {
 		responses[i] = domain.ToResponse()
 	}
 
+	totalPages := int((total + int64(pageSize) - 1) / int64(pageSize))
 	c.JSON(http.StatusOK, gin.H{
 		"domains":     responses,
 		"root_domain": rootDomain,
+		"pagination": gin.H{
+			"page":        page,
+			"page_size":   pageSize,
+			"total":       total,
+			"total_pages": totalPages,
+		},
 	})
 }
 

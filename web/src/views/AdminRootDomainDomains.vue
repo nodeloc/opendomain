@@ -11,7 +11,7 @@
           <span v-else class="text-y-faint">…</span>
         </template>
         <template #actions>
-          <span class="y-chip font-mono">{{ $t('uiAdmin1.domainCount', { count: domains.length }) }}</span>
+          <span class="y-chip font-mono">{{ $t('uiAdmin1.domainCount', { count: pagination.total }) }}</span>
         </template>
       </PageHeader>
     </div>
@@ -116,10 +116,49 @@
           </tbody>
         </table>
       </div>
+
+      <div
+        v-if="!loading && pagination.total_pages > 1"
+        class="flex flex-col items-center justify-between gap-3 border-t border-y-line px-5 py-3 sm:flex-row"
+      >
+        <p class="font-mono text-xs text-y-faint">{{ $t('uiAdmin1.pageOf', { page: pagination.page, total: pagination.total_pages }) }}</p>
+        <div class="join">
+          <button
+            type="button"
+            class="join-item btn btn-ghost btn-sm btn-square"
+            :disabled="pagination.page === 1"
+            :aria-label="$t('common.previous')"
+            @click="goToPage(pagination.page - 1)"
+          >
+            <ChevronLeft :size="16" :stroke-width="1.5" />
+          </button>
+          <template v-for="(page, index) in visiblePages" :key="index">
+            <button
+              v-if="typeof page === 'number'"
+              type="button"
+              class="join-item btn btn-ghost btn-sm min-w-[2.125rem] px-2 font-mono font-medium"
+              :class="page === pagination.page ? 'bg-y-surface-2 text-y-mint-text' : 'text-y-muted'"
+              :aria-current="page === pagination.page ? 'page' : undefined"
+              @click="goToPage(page)"
+            >
+              {{ page }}
+            </button>
+            <span v-else class="join-item flex h-[2.125rem] items-center px-2 font-mono text-xs text-y-faint">…</span>
+          </template>
+          <button
+            type="button"
+            class="join-item btn btn-ghost btn-sm btn-square"
+            :disabled="pagination.page === pagination.total_pages"
+            :aria-label="$t('common.next')"
+            @click="goToPage(pagination.page + 1)"
+          >
+            <ChevronRight :size="16" :stroke-width="1.5" />
+          </button>
+        </div>
+      </div>
     </section>
 
-    <!-- User Detail Modal -->
-    <dialog :class="{ 'modal': true, 'modal-open': showUserModal }">
+    <!-- User Detail Modal -->    <dialog :class="{ 'modal': true, 'modal-open': showUserModal }">
       <div class="modal-box w-11/12 max-w-2xl">
         <h3 class="text-lg font-semibold text-y-text">{{ $t('admin.userInfo') }}</h3>
         <div v-if="selectedUser" class="mt-5 space-y-5">
@@ -188,12 +227,12 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import axios from '../utils/axios'
 import { useToast } from '../composables/useToast'
-import { ArrowLeft, Search, UserRound, Ban, CircleCheck, Trash2 } from 'lucide-vue-next'
+import { ArrowLeft, Search, UserRound, Ban, CircleCheck, Trash2, ChevronLeft, ChevronRight } from 'lucide-vue-next'
 import PageHeader from '../components/ui/PageHeader.vue'
 import StatusDot from '../components/ui/StatusDot.vue'
 import EmptyState from '../components/ui/EmptyState.vue'
@@ -210,6 +249,7 @@ const loading = ref(true)
 const searchQuery = ref('')
 const showUserModal = ref(false)
 const selectedUser = ref(null)
+const pagination = ref({ page: 1, page_size: 50, total: 0, total_pages: 0 })
 
 let searchTimeout = null
 
@@ -220,13 +260,16 @@ onMounted(async () => {
 const fetchDomains = async () => {
   loading.value = true
   try {
-    const params = {}
+    const params = { page: pagination.value.page, page_size: pagination.value.page_size }
     if (searchQuery.value) {
       params.search = searchQuery.value
     }
     const response = await axios.get(`/api/admin/root-domains/${rootDomainId}/domains`, { params })
     domains.value = response.data.domains || []
     rootDomain.value = response.data.root_domain
+    if (response.data.pagination) {
+      pagination.value = { ...pagination.value, ...response.data.pagination }
+    }
   } catch (error) {
     toast.error(error.response?.data?.error || t('admin.operationFailed'))
   } finally {
@@ -237,9 +280,26 @@ const fetchDomains = async () => {
 const debouncedSearch = () => {
   clearTimeout(searchTimeout)
   searchTimeout = setTimeout(() => {
+    pagination.value.page = 1
     fetchDomains()
   }, 300)
 }
+
+const goToPage = (page) => {
+  if (page >= 1 && page <= pagination.value.total_pages && page !== pagination.value.page) {
+    pagination.value.page = page
+    fetchDomains()
+  }
+}
+
+const visiblePages = computed(() => {
+  const current = pagination.value.page
+  const total = pagination.value.total_pages
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
+  if (current <= 4) return [1, 2, 3, 4, 5, '…', total]
+  if (current >= total - 3) return [1, '…', total - 4, total - 3, total - 2, total - 1, total]
+  return [1, '…', current - 1, current, current + 1, '…', total]
+})
 
 const updateDomainStatus = async (domain, status) => {
   const msg = status === 'suspended'

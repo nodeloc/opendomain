@@ -108,6 +108,18 @@ type DomainResponse struct {
 	User                  *UserResponse `json:"user,omitempty"`
 }
 
+var maxJSONTime = time.Date(9999, 12, 31, 23, 59, 59, 0, time.UTC)
+
+// clampJSONTime keeps a time within the range encoding/json can marshal; a
+// single out-of-range expiry would otherwise make the whole list response
+// fail to encode and arrive empty.
+func clampJSONTime(t time.Time) time.Time {
+	if t.After(maxJSONTime) {
+		return maxJSONTime
+	}
+	return t
+}
+
 // ToResponse 转换为响应格式
 func (d *Domain) ToResponse() *DomainResponse {
 	resp := &DomainResponse{
@@ -117,8 +129,8 @@ func (d *Domain) ToResponse() *DomainResponse {
 		Subdomain:             d.Subdomain,
 		FullDomain:            d.FullDomain,
 		Status:                d.Status,
-		RegisteredAt:          d.RegisteredAt,
-		ExpiresAt:             d.ExpiresAt,
+		RegisteredAt:          clampJSONTime(d.RegisteredAt),
+		ExpiresAt:             clampJSONTime(d.ExpiresAt),
 		AutoRenew:             d.AutoRenew,
 		Nameservers:           d.Nameservers,
 		UseDefaultNameservers: d.UseDefaultNameservers,
