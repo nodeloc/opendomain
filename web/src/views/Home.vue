@@ -324,17 +324,15 @@
       </div>
     </section>
 
-    <!-- CTA -->
-    <section class="y-container pb-24">
-      <div data-reveal class="cta-card y-card relative isolate overflow-hidden px-6 py-16 text-center sm:py-20" @pointermove="moveSpotlight">
-        <div class="y-glow pointer-events-none absolute -bottom-80 left-1/2 -z-10 h-[520px] w-[800px] -translate-x-1/2" aria-hidden="true"></div>
-        <h2 class="y-headline mx-auto max-w-[720px] text-[clamp(2rem,5vw,3.5rem)] [&:lang(zh)]:text-[clamp(1.75rem,4vw,2.75rem)]">{{ $t('home2.ctaTitle') }}</h2>
-        <div class="mt-6 flex flex-wrap items-center justify-center gap-3">
-          <a href="#home-sub" class="btn btn-primary px-6" @click.prevent="focusSearch">{{ $t('home2.ctaPrimary') }}</a>
-          <router-link :to="docsPath" class="btn btn-outline px-6">{{ $t('home2.ctaDocs') }}</router-link>
-        </div>
-      </div>
-    </section>
+    <!-- The power source replaces the closing CTA. -->
+    <HomePowerSource
+      :motion-enabled="motionEnabled"
+      :motion-paused="motionPaused"
+      :reduced-motion="reducedMotion"
+      :docs-path="docsPath"
+      @toggle-motion="toggleMotion"
+      @claim="focusSearch"
+    />
   </div>
 </template>
 
@@ -344,6 +342,7 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ChevronDown, ArrowRight, ArrowUpRight, ArrowDown, Info, Zap, ShieldCheck, Code2, Send, CircleAlert, Globe2, Pause, Play } from 'lucide-vue-next'
 import HomeOrbit from '../components/HomeOrbit.vue'
+import HomePowerSource from '../components/HomePowerSource.vue'
 import { useHomeMotion } from '../composables/useHomeMotion'
 import { useAuthStore } from '../stores/auth'
 import { useSiteConfigStore } from '../stores/siteConfig'
