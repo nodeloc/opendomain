@@ -1,38 +1,65 @@
 <template>
-  <div>
+  <div ref="homePage" class="home-page" :class="{ 'motion-enabled': motionEnabled, 'motion-running': motionActive }">
     <!-- Hero -->
-    <section data-theme="yunamo" class="relative isolate flex min-h-[720px] items-center overflow-hidden bg-y-bg text-y-text sm:min-h-[840px]">
+    <section ref="hero" data-theme="yunamo" class="home-hero relative isolate flex min-h-[720px] items-center overflow-hidden bg-y-bg text-y-text sm:min-h-[840px]">
       <img
         src="/brand/planet-horizon-2880x1800.jpg"
         alt=""
         aria-hidden="true"
-        class="pointer-events-none absolute inset-0 h-full w-full object-cover object-[50%_80%]"
+        class="hero-planet pointer-events-none absolute inset-0 h-full w-full object-cover object-[50%_80%]"
+        fetchpriority="high"
       />
       <div
         aria-hidden="true"
         class="pointer-events-none absolute inset-0"
         style="background: linear-gradient(90deg, rgb(10 11 13 / 0.35) 0%, rgb(10 11 13 / 0) 50%, rgb(10 11 13 / 0.2) 100%);"
       ></div>
+      <HomeOrbit :active="motionActive" />
+
+      <button
+        type="button"
+        class="motion-toggle"
+        :aria-pressed="motionPaused"
+        :disabled="reducedMotion"
+        @click="toggleMotion"
+      >
+        <Pause v-if="!motionPaused && !reducedMotion" :size="12" aria-hidden="true" />
+        <Play v-else :size="12" aria-hidden="true" />
+        {{ $t(reducedMotion ? 'home2.reducedMotion' : motionPaused ? 'home2.resumeMotion' : 'home2.pauseMotion') }}
+      </button>
 
       <div class="y-container relative flex flex-wrap items-center gap-x-16 gap-y-12 py-20 sm:py-24">
-        <div class="flex min-w-0 flex-1 flex-col gap-6" style="flex-basis: 420px;">
-          <p class="y-eyebrow" style="text-shadow: 0 1px 12px rgb(0 0 0 / 0.5);">{{ $t('home2.brandEyebrow') }}</p>
-          <h1 class="y-headline -mt-2 text-[clamp(2.5rem,4.6vw,4rem)] [&:lang(zh)]:text-[clamp(2.25rem,4.6vw,3.75rem)]" style="text-shadow: 0 2px 30px rgb(0 0 0 / 0.35);">
+        <div class="hero-copy flex min-w-0 flex-1 flex-col gap-6" style="flex-basis: 420px;">
+          <p class="hero-enter y-eyebrow flex items-center gap-2.5" style="--enter-delay: 0ms; text-shadow: 0 1px 12px rgb(0 0 0 / 0.5);"><span class="brand-signal" aria-hidden="true"></span>{{ $t('home2.brandEyebrow') }}</p>
+          <h1 class="hero-enter y-headline -mt-2 text-[clamp(2.5rem,4.6vw,4rem)] [&:lang(zh)]:text-[clamp(2.25rem,4.6vw,3.75rem)]" style="--enter-delay: 100ms; text-shadow: 0 2px 30px rgb(0 0 0 / 0.35);">
             {{ $t('home2.titleLead') }}<br />
             {{ $t('home2.titleMid') }}<em>{{ $t('home2.titleAccent') }}</em>
           </h1>
-          <p class="max-w-[500px] text-lead text-y-text/85">
+          <p class="hero-enter max-w-[500px] text-lead text-y-text/85" style="--enter-delay: 200ms;">
             {{ $t('home2.lead', { example: `yourname.${rootLabel}` }) }}
           </p>
         </div>
 
         <!-- Availability form -->
-        <div class="flex min-w-0 flex-1 flex-col gap-4" style="flex-basis: 420px; max-width: 560px;">
+        <div class="hero-enter search-panel flex min-w-0 flex-1 flex-col gap-4" style="--enter-delay: 300ms; flex-basis: 420px; max-width: 560px;">
+          <div class="domain-preview">
+            <p class="preview-eyebrow">{{ $t('home2.previewLabel') }}</p>
+            <button type="button" class="preview-domain" :aria-label="$t('home2.useExample', { name: `${exampleName}.${rootLabel}` })" @click="useExample(exampleName)">
+              <Globe2 :size="19" :stroke-width="1.5" class="shrink-0 text-y-mint" aria-hidden="true" />
+              <span class="preview-address">
+                <Transition name="domain-swap" mode="out-in">
+                  <span :key="exampleName" class="preview-name">{{ exampleName }}</span>
+                </Transition><span class="text-y-muted">.{{ rootLabel }}</span>
+              </span>
+              <ArrowUpRight :size="17" class="ml-auto shrink-0 text-y-muted" aria-hidden="true" />
+            </button>
+            <p class="preview-hint">{{ $t('home2.previewHint') }}</p>
+          </div>
           <form class="flex flex-col gap-3.5" @submit.prevent="searchDomain">
             <label for="home-sub" class="font-mono text-[12px] font-semibold uppercase leading-4 tracking-[0.1em] text-y-muted">
               {{ $t('home2.checkLabel') }}
             </label>
-            <div class="flex items-stretch overflow-hidden rounded-md border border-y-line-strong bg-y-bg/80 backdrop-blur transition-colors focus-within:border-y-mint">
+            <div class="domain-input flex items-stretch overflow-hidden rounded-md border border-y-line-strong bg-y-bg/80 backdrop-blur transition-colors focus-within:border-y-mint">
               <input
                 id="home-sub"
                 v-model="searchQuery"
@@ -56,11 +83,15 @@
                 <ChevronDown :size="16" :stroke-width="1.5" class="pointer-events-none absolute right-3 text-y-faint" />
               </span>
             </div>
-            <button type="submit" class="y-btn-ink-block gap-2.5 font-mono uppercase tracking-[0.12em]" :disabled="loading || !rootDomains.length">
+            <button type="submit" class="search-submit y-btn-ink-block gap-2.5 font-mono uppercase tracking-[0.12em]" :disabled="loading || !rootDomains.length">
               <span v-if="loading" class="loading loading-spinner loading-sm"></span>
               {{ loading ? $t('home2.checking') : $t('home2.checkButton') }}
               <ArrowRight v-if="!loading" :size="16" :stroke-width="2" aria-hidden="true" />
             </button>
+            <div class="example-chips">
+              <span>{{ $t('home2.tryLabel') }}</span>
+              <button v-for="name in exampleNames" :key="name" type="button" :aria-label="$t('home2.useExample', { name })" @click="useExample(name)">{{ name }}<ArrowUpRight :size="11" aria-hidden="true" /></button>
+            </div>
 
             <transition name="result">
               <div v-if="searchResult" class="flex flex-col gap-3">
@@ -139,6 +170,12 @@
         </div>
       </div>
 
+      <a href="#home-features" class="explore-link" @click.prevent="exploreFeatures">
+        <span class="scroll-track" aria-hidden="true"><span></span></span>
+        {{ $t('home2.explore') }}
+        <ArrowDown :size="13" aria-hidden="true" />
+      </a>
+
       <a
         :href="telegramUrl"
         target="_blank"
@@ -154,21 +191,21 @@
 
     <!-- Works with -->
     <section class="border-b border-y-line">
-      <div class="y-container flex flex-wrap items-center justify-center gap-x-10 gap-y-3 py-7 text-[15px] font-medium text-y-faint">
+      <div class="host-strip y-container flex flex-wrap items-center justify-center gap-x-10 gap-y-3 py-7 text-[15px] font-medium text-y-faint">
         <span class="y-label">{{ $t('home2.worksWith') }}</span>
         <span>Vercel</span><span>Netlify</span><span>GitHub Pages</span><span>Cloudflare Pages</span><span>Render</span><span>{{ $t('home2.anyVps') }}</span>
       </div>
     </section>
 
     <!-- Bento features -->
-    <section class="y-container flex flex-col gap-12 py-24 sm:py-28">
-      <div class="flex max-w-[640px] flex-col gap-3">
+    <section id="home-features" class="y-container flex flex-col gap-12 py-24 sm:py-28">
+      <div data-reveal class="flex max-w-[640px] flex-col gap-3">
         <p class="y-eyebrow">{{ $t('home2.featuresEyebrow') }}</p>
         <h2 class="y-title">{{ $t('home2.featuresTitle') }}</h2>
       </div>
       <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <!-- Full DNS control (wide) -->
-        <article class="y-card flex flex-wrap items-center gap-8 overflow-hidden p-8 sm:col-span-2 lg:col-span-2">
+        <article data-reveal class="feature-card dns-card y-card flex flex-wrap items-center gap-8 overflow-hidden p-8 sm:col-span-2 lg:col-span-2" @pointermove="moveSpotlight">
           <div class="flex min-w-0 flex-col gap-3" style="flex: 1 1 240px;">
             <h3 class="text-h3">{{ $t('home2.fDnsTitle') }}</h3>
             <p class="text-y-muted">{{ $t('home2.fDnsDesc') }}</p>
@@ -178,8 +215,9 @@
               <span class="h-2.5 w-2.5 rounded-full bg-y-line-strong"></span>
               <span class="h-2.5 w-2.5 rounded-full bg-y-line-strong"></span>
               <span class="h-2.5 w-2.5 rounded-full bg-y-line-strong"></span>
+              <span class="ml-auto text-[10px] text-y-faint">{{ $t('home2.dnsExample') }}</span>
             </div>
-            <div class="flex flex-col gap-2 overflow-x-auto whitespace-pre p-4">
+            <div class="dns-records flex flex-col gap-2 overflow-x-auto whitespace-pre p-4">
               <div><span class="text-y-mint-text">CNAME</span>  <span class="text-y-text">blog</span>  <span class="text-y-faint">→</span> <span class="text-y-muted">my-site.pages.dev</span></div>
               <div><span class="text-y-mint-text">A    </span>  <span class="text-y-text">@   </span>  <span class="text-y-faint">→</span> <span class="text-y-muted">203.0.113.10</span></div>
               <div><span class="text-y-mint-text">TXT  </span>  <span class="text-y-text">@   </span>  <span class="text-y-faint">→</span> <span class="text-y-muted">"verify=yunamo"</span></div>
@@ -188,25 +226,25 @@
           </div>
         </article>
 
-        <article class="y-card flex flex-col gap-3 p-8">
+        <article data-reveal class="feature-card y-card flex flex-col gap-3 p-8" style="--reveal-delay: 70ms;" @pointermove="moveSpotlight">
           <div class="text-[56px] font-extrabold leading-none tracking-[-0.05em] text-y-mint-text">$0</div>
           <h3 class="text-xl font-semibold tracking-[-0.01em] text-y-text">{{ $t('home2.fFreeTitle') }}</h3>
           <p class="text-y-muted">{{ $t('home2.fFreeDesc') }}</p>
         </article>
 
-        <article class="y-card flex flex-col gap-3 p-8">
+        <article data-reveal class="feature-card y-card flex flex-col gap-3 p-8" @pointermove="moveSpotlight">
           <Zap :size="28" :stroke-width="1.5" class="text-y-mint-text" aria-hidden="true" />
           <h3 class="mt-2 text-xl font-semibold tracking-[-0.01em] text-y-text">{{ $t('home2.fLiveTitle') }}</h3>
           <p class="text-y-muted">{{ $t('home2.fLiveDesc') }}</p>
         </article>
 
-        <article class="y-card flex flex-col gap-3 p-8">
+        <article data-reveal class="feature-card y-card flex flex-col gap-3 p-8" style="--reveal-delay: 70ms;" @pointermove="moveSpotlight">
           <ShieldCheck :size="28" :stroke-width="1.5" class="text-y-mint-text" aria-hidden="true" />
           <h3 class="mt-2 text-xl font-semibold tracking-[-0.01em] text-y-text">{{ $t('home2.fTrustTitle') }}</h3>
           <p class="text-y-muted">{{ $t('home2.fTrustDesc') }}</p>
         </article>
 
-        <article class="y-card is-hoverable flex flex-col gap-3 p-8">
+        <article data-reveal class="feature-card y-card is-hoverable flex flex-col gap-3 p-8" style="--reveal-delay: 140ms;" @pointermove="moveSpotlight">
           <Code2 :size="28" :stroke-width="1.5" class="text-y-mint-text" aria-hidden="true" />
           <h3 class="mt-2 text-xl font-semibold tracking-[-0.01em] text-y-text">{{ $t('home2.fOpenTitle') }}</h3>
           <p class="text-y-muted">{{ $t('home2.fOpenDesc') }}</p>
@@ -220,11 +258,11 @@
     <!-- How it works -->
     <section class="y-band">
       <div class="y-band-inner flex flex-col gap-12">
-        <div class="flex max-w-[640px] flex-col gap-3">
+        <div data-reveal class="flex max-w-[640px] flex-col gap-3">
           <p class="y-eyebrow">{{ $t('home2.howEyebrow') }}</p>
           <h2 class="y-title">{{ $t('home2.howTitle') }}</h2>
         </div>
-        <ol class="m-0 grid list-none gap-x-6 gap-y-10 p-0 sm:grid-cols-3">
+        <ol data-reveal class="launch-steps m-0 grid list-none gap-x-6 gap-y-10 p-0 sm:grid-cols-3">
           <li class="flex flex-col gap-2 border-t border-y-mint pt-6">
             <span class="font-mono text-[13px] text-y-mint-text">01</span>
             <h3 class="m-0 text-xl font-semibold leading-7 text-y-text">{{ $t('home2.step1Title') }}</h3>
@@ -247,11 +285,11 @@
     <!-- FAQ -->
     <section class="y-band">
       <div class="y-band-inner flex flex-wrap gap-x-16 gap-y-10">
-        <div class="flex min-w-0 flex-col gap-3" style="flex: 1 1 240px;">
+        <div data-reveal class="flex min-w-0 flex-col gap-3" style="flex: 1 1 240px;">
           <p class="y-eyebrow">{{ $t('home2.faqEyebrow') }}</p>
           <h2 class="y-title">{{ $t('home2.faqTitle') }}</h2>
         </div>
-        <div class="y-faq min-w-0 flex flex-col border-t border-y-line" style="flex: 2 1 480px;">
+        <div data-reveal class="y-faq min-w-0 flex flex-col border-t border-y-line" style="flex: 2 1 480px; --reveal-delay: 100ms;">
           <details>
             <summary>{{ $t('home2.faqFreeQ') }} <span class="y-faq-plus" aria-hidden="true">+</span></summary>
             <p class="m-0 mt-3 text-y-muted">{{ $t('home2.faqFreeA') }}</p>
@@ -285,7 +323,7 @@
 
     <!-- CTA -->
     <section class="y-container pb-24">
-      <div class="y-card relative isolate overflow-hidden px-6 py-16 text-center sm:py-20">
+      <div data-reveal class="cta-card y-card relative isolate overflow-hidden px-6 py-16 text-center sm:py-20" @pointermove="moveSpotlight">
         <div class="y-glow pointer-events-none absolute -bottom-80 left-1/2 -z-10 h-[520px] w-[800px] -translate-x-1/2" aria-hidden="true"></div>
         <h2 class="y-headline mx-auto max-w-[720px] text-[clamp(2rem,5vw,3.5rem)] [&:lang(zh)]:text-[clamp(1.75rem,4vw,2.75rem)]">{{ $t('home2.ctaTitle') }}</h2>
         <div class="mt-6 flex flex-wrap items-center justify-center gap-3">
@@ -301,7 +339,9 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ChevronDown, ArrowRight, ArrowUpRight, Info, Zap, ShieldCheck, Code2, Send, CircleAlert } from 'lucide-vue-next'
+import { ChevronDown, ArrowRight, ArrowUpRight, ArrowDown, Info, Zap, ShieldCheck, Code2, Send, CircleAlert, Globe2, Pause, Play } from 'lucide-vue-next'
+import HomeOrbit from '../components/HomeOrbit.vue'
+import { useHomeMotion } from '../composables/useHomeMotion'
 import { useAuthStore } from '../stores/auth'
 import { useSiteConfigStore } from '../stores/siteConfig'
 import axios from '../utils/axios'
@@ -315,6 +355,8 @@ const authStore = useAuthStore()
 const siteConfigStore = useSiteConfigStore()
 const toast = useToast()
 const { currencySymbol } = useCurrency()
+const { homePage, hero, motionPaused, reducedMotion, motionEnabled, motionActive,
+  exampleNames, exampleName, toggleMotion, moveSpotlight } = useHomeMotion()
 
 const githubUrl = GITHUB_URL
 const telegramUrl = TELEGRAM_GROUP_URL
@@ -361,6 +403,16 @@ const onQueryInput = () => {
 
 const focusSearch = () => {
   document.getElementById('home-sub')?.focus()
+}
+
+const useExample = (name) => {
+  searchQuery.value = name
+  searchResult.value = null
+  focusSearch()
+}
+
+const exploreFeatures = () => {
+  document.getElementById('home-features')?.scrollIntoView({ behavior: motionEnabled.value ? 'smooth' : 'instant' })
 }
 
 onMounted(async () => {
@@ -496,6 +548,116 @@ const registerDomain = async () => {
 </script>
 
 <style scoped>
+.home-hero { --hero-edge: 24px; }
+.hero-planet {
+  transform: scale(1.035);
+  animation: planet-drift 36s ease-in-out infinite alternate;
+  animation-play-state: paused;
+}
+.motion-running .hero-planet { animation-play-state: running; }
+.motion-toggle {
+  position: absolute;
+  z-index: 2;
+  top: var(--hero-edge);
+  right: var(--hero-edge);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 44px;
+  padding: 0 13px;
+  border: 1px solid rgb(255 255 255 / .14);
+  border-radius: 999px;
+  background: rgb(10 11 13 / .5);
+  color: #c2cdc9;
+  font-family: 'Geist Mono', monospace;
+  font-size: 10px;
+  transition: color .2s, border-color .2s, background .2s;
+}
+.motion-toggle:hover:not(:disabled) { color: #ededed; border-color: rgb(62 230 180 / .5); background: rgb(10 11 13 / .8); }
+.motion-toggle:disabled { cursor: default; }
+.brand-signal { width: 6px; height: 6px; flex-shrink: 0; border-radius: 50%; background: #3ee6b4; box-shadow: 0 0 14px rgb(62 230 180 / .45); }
+.motion-enabled .hero-enter { animation: hero-arrive .85s cubic-bezier(.16, 1, .3, 1) both; animation-delay: var(--enter-delay, 0ms); }
+.search-panel {
+  border: 1px solid rgb(255 255 255 / .14);
+  border-radius: 18px;
+  padding: 26px;
+  background: linear-gradient(135deg, rgb(17 25 24 / .86), rgb(10 11 13 / .74));
+  box-shadow: 0 16px 80px rgb(0 0 0 / .22), inset 0 1px 0 rgb(255 255 255 / .04);
+  backdrop-filter: blur(16px);
+}
+.domain-preview { border-bottom: 1px solid rgb(255 255 255 / .1); padding-bottom: 19px; margin-bottom: 3px; }
+.preview-eyebrow { font-size: 12px; color: #b1bdb8; margin-bottom: 15px; }
+.preview-domain { display: flex; align-items: center; gap: 11px; width: 100%; min-height: 44px; text-align: left; }
+.preview-address { min-width: 0; display: flex; align-items: baseline; overflow: hidden; font-family: 'Geist Mono', monospace; font-size: clamp(14px, 1.45vw, 20px); white-space: nowrap; letter-spacing: -.045em; }
+.preview-name { display: inline-block; color: #ededed; }
+.preview-domain > svg:last-child { transition: transform .2s, color .2s; }
+.preview-domain:hover > svg:last-child { transform: translate(2px, -2px); color: #3ee6b4; }
+.preview-hint { padding-left: 30px; color: #8a9e95; font-family: 'Geist Mono', monospace; font-size: 10px; margin-top: 5px; }
+.domain-input { transition: border-color .2s, box-shadow .2s; }
+.domain-input:focus-within { box-shadow: 0 0 0 3px rgb(62 230 180 / .1); }
+.search-submit { position: relative; overflow: hidden; transition: background .2s, box-shadow .2s; }
+.search-submit::after { content: ''; position: absolute; inset: 0; background: linear-gradient(110deg, transparent 25%, rgb(62 230 180 / .22) 50%, transparent 75%); transform: translateX(-110%); }
+.search-submit:hover:not(:disabled)::after { transform: translateX(110%); transition: transform .7s ease; }
+.search-submit svg { transition: transform .2s; }
+.search-submit:hover:not(:disabled) svg { transform: translateX(3px); }
+.example-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; color: #9aa8a2; font-size: 11px; }
+.example-chips button { display: inline-flex; align-items: center; gap: 4px; min-height: 32px; padding: 3px 7px; border: 1px solid transparent; border-radius: 5px; font-family: 'Geist Mono', monospace; color: #b7c7bf; transition: border-color .2s, background .2s, color .2s; }
+.example-chips button:hover { color: #3ee6b4; border-color: rgb(62 230 180 / .2); background: rgb(62 230 180 / .06); }
+.explore-link { position: absolute; bottom: 25px; left: max(24px, calc((100% - 1160px) / 2 + 24px)); display: flex; align-items: center; gap: 10px; min-height: 44px; font-family: 'Geist Mono', monospace; font-size: 10px; color: #b2c0ba; transition: color .2s; }
+.explore-link:hover { color: #3ee6b4; }
+.scroll-track { display: inline-block; position: relative; width: 13px; height: 21px; border: 1px solid rgb(186 210 199 / .45); border-radius: 8px; }
+.scroll-track span { position: absolute; top: 4px; left: 5px; height: 4px; width: 1px; background: #3ee6b4; animation: scroll-hint 2.5s ease-in-out infinite; animation-play-state: paused; }
+.motion-running .scroll-track span { animation-play-state: running; }
+.host-strip > span:not(:first-child) { transition: color .2s; }
+.host-strip > span:not(:first-child):hover { color: rgb(var(--y-text)); }
+#home-features { scroll-margin-top: 80px; }
+[data-reveal] { transition: opacity .7s ease, transform .7s cubic-bezier(.16, 1, .3, 1), border-color .25s; transition-delay: var(--reveal-delay, 0ms); }
+.motion-observed.motion-enabled [data-reveal]:not(.is-revealed) { opacity: 0; transform: translateY(24px); }
+.feature-card { position: relative; }
+@media (hover: hover) and (pointer: fine) {
+  .feature-card:hover, .cta-card:hover { border-color: rgb(var(--y-mint) / .35); background-image: radial-gradient(380px circle at var(--spot-x, 50%) var(--spot-y, 50%), rgb(var(--y-mint) / .065), transparent 75%); }
+  .motion-enabled .feature-card.is-revealed:hover { transform: translateY(-5px); transition-delay: 0ms; }
+}
+.motion-enabled .dns-card.is-revealed .dns-records > div { animation: record-arrive .6s ease both; }
+.motion-enabled .dns-card.is-revealed .dns-records > div:nth-child(2) { animation-delay: .2s; }
+.motion-enabled .dns-card.is-revealed .dns-records > div:nth-child(3) { animation-delay: .4s; }
+.motion-enabled .dns-card.is-revealed .dns-records > div:nth-child(4) { animation-delay: .7s; }
+.launch-steps > li { position: relative; }
+.launch-steps > li::before { content: ''; position: absolute; top: -1px; left: 0; width: 100%; height: 1px; background: linear-gradient(90deg, rgb(var(--y-mint)), rgb(var(--y-mint) / .15)); transform-origin: left; }
+.motion-enabled .launch-steps.is-revealed > li::before { animation: connect-step .8s ease both; }
+.motion-enabled .launch-steps.is-revealed > li:nth-child(2)::before { animation-delay: .3s; }
+.motion-enabled .launch-steps.is-revealed > li:nth-child(3)::before { animation-delay: .6s; }
+.motion-enabled .y-faq details[open] > p { animation: record-arrive .25s ease; }
+.domain-swap-enter-active, .domain-swap-leave-active { transition: opacity .25s ease, transform .25s ease; }
+.domain-swap-enter-from { opacity: 0; transform: translateY(9px); }
+.domain-swap-leave-to { opacity: 0; transform: translateY(-9px); }
+@keyframes hero-arrive { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes planet-drift { from { transform: scale(1.035) translateY(3px); } to { transform: scale(1.06) translateY(-7px); } }
+@keyframes scroll-hint { 0%, 100% { transform: translateY(0); opacity: .35; } 50% { transform: translateY(6px); opacity: 1; } }
+@keyframes record-arrive { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes connect-step { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@media (max-width: 639px) {
+  .home-hero { min-height: 900px; align-items: flex-start; }
+  .home-hero > .y-container { padding-top: 96px; padding-bottom: 130px; row-gap: 32px; }
+  .home-hero .hero-copy { gap: 20px; }
+  .home-hero h1 { font-size: clamp(2.5rem, 9vw, 3.5rem); }
+  .search-panel { padding: 20px; border-radius: 14px; }
+  .preview-address { font-size: clamp(12px, 3.7vw, 18px); }
+  .example-chips { gap: 0 2px; }
+  .example-chips button { font-size: 10px; padding: 3px 5px; }
+  .explore-link { bottom: 73px; left: 24px; }
+  .home-hero > a:last-child { bottom: 22px; right: 20px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-page *, .home-page *::before, .home-page *::after { animation: none !important; transition: none !important; }
+  [data-reveal] { opacity: 1 !important; transform: none !important; }
+}
+.home-page:not(.motion-enabled) *,
+.home-page:not(.motion-enabled) *::before,
+.home-page:not(.motion-enabled) *::after { animation-play-state: paused !important; }
+.home-page:not(.motion-enabled) .domain-swap-enter-active,
+.home-page:not(.motion-enabled) .domain-swap-leave-active { transition: none; }
 .result-enter-active {
   transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
