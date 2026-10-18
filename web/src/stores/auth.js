@@ -17,7 +17,11 @@ export const useAuthStore = defineStore('auth', {
     async register(userData) {
       try {
         const response = await axios.post('/api/auth/register', userData)
-        return { success: true, message: response.data.message }
+        return {
+          success: true,
+          message: response.data.message,
+          emailVerificationSent: response.data.email_verification_sent === true,
+        }
       } catch (error) {
         return {
           success: false,

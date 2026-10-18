@@ -251,16 +251,19 @@ func (h *DomainHandler) RegisterDomain(c *gin.Context) {
 		return
 	}
 
-	var req models.DomainRegisterRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
 	// 获取用户信息
 	var user models.User
 	if err := h.db.First(&user, userID).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+	if !requireVerifiedEmail(c, &user) {
+		return
+	}
+
+	var req models.DomainRegisterRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 

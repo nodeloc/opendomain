@@ -89,6 +89,22 @@
     </header>
 
     <main class="flex-1">
+      <div v-if="showVerifyBanner" class="mx-auto w-full max-w-[1280px] px-5 pt-5 sm:px-6">
+        <div class="y-warn-soft flex flex-col gap-2 rounded-md border px-4 py-2.5 text-sm sm:flex-row sm:items-center sm:gap-3" role="status">
+          <div class="flex min-w-0 flex-1 items-start gap-3">
+            <MailWarning :size="18" :stroke-width="1.5" class="mt-0.5 shrink-0 text-y-warn" aria-hidden="true" />
+            <i18n-t v-if="user.email" keypath="authEmail.banner.text" tag="p" scope="global" class="min-w-0 flex-1 leading-[22px] text-y-text">
+              <template #email><span class="break-words font-medium">{{ user.email }}</span></template>
+            </i18n-t>
+            <p v-else class="min-w-0 flex-1 leading-[22px] text-y-text">{{ $t('authEmail.banner.textNoEmail') }}</p>
+          </div>
+          <button type="button" class="btn btn-outline btn-sm ml-[30px] shrink-0 self-start sm:ml-0 sm:self-auto" :disabled="resendDisabled" @click="resend">
+            <span v-if="resending" class="loading loading-spinner loading-xs"></span>
+            <span v-else-if="secondsLeft > 0" class="tabular-nums">{{ $t('authEmail.banner.resendIn', { s: secondsLeft }) }}</span>
+            <span v-else>{{ $t('authEmail.banner.resend') }}</span>
+          </button>
+        </div>
+      </div>
       <slot />
     </main>
   </div>
@@ -98,10 +114,11 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { Menu, X, User, ShieldCheck, LogOut, ArrowUpRight } from 'lucide-vue-next'
+import { Menu, X, User, ShieldCheck, LogOut, ArrowUpRight, MailWarning } from 'lucide-vue-next'
 import { useAuthStore } from '../stores/auth'
 import { useSiteConfigStore } from '../stores/siteConfig'
 import { DOCS_PATH } from '../config/links'
+import { useResendVerification } from '../composables/useResendVerification'
 import YLogo from '../components/brand/YLogo.vue'
 import LanguageSwitcher from '../components/LanguageSwitcher.vue'
 import ThemeToggle from '../components/ui/ThemeToggle.vue'
@@ -116,6 +133,8 @@ const siteConfigStore = useSiteConfigStore()
 const mobileOpen = ref(false)
 const user = computed(() => authStore.user)
 const siteName = computed(() => siteConfigStore.siteName || 'Yunamo')
+const showVerifyBanner = computed(() => authStore.isAuthenticated && user.value?.email_verified === false)
+const { resend, sending: resending, secondsLeft, disabled: resendDisabled } = useResendVerification()
 
 const primary = computed(() => [
   { to: '/domains', label: t('nav.domains'), match: ['/domains'] },

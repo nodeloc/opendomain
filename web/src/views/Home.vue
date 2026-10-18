@@ -571,6 +571,8 @@ const registerDomain = async () => {
         requiredLevel: errorData.required_level,
         yourLevel: errorData.your_level || authStore.user?.user_level || 'normal',
       }
+    } else if (errorData?.code === 'email_not_verified') {
+      toast.error(t('authEmail.claim.notVerified'), 6000)
     } else {
       toast.error(errorData?.error || 'Registration failed')
     }

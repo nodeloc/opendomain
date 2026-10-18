@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-redis/redis/v8"
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
@@ -15,16 +16,19 @@ import (
 	"opendomain/internal/config"
 	"opendomain/internal/middleware"
 	"opendomain/internal/models"
+	"opendomain/internal/services"
 	"opendomain/pkg/timeutil"
 )
 
 type UserHandler struct {
-	db  *gorm.DB
-	cfg *config.Config
+	db     *gorm.DB
+	rdb    *redis.Client
+	cfg    *config.Config
+	mailer *services.Mailer
 }
 
-func NewUserHandler(db *gorm.DB, cfg *config.Config) *UserHandler {
-	return &UserHandler{db: db, cfg: cfg}
+func NewUserHandler(db *gorm.DB, rdb *redis.Client, cfg *config.Config, mailer *services.Mailer) *UserHandler {
+	return &UserHandler{db: db, rdb: rdb, cfg: cfg, mailer: mailer}
 }
 
 // Register 用户注册
@@ -72,13 +76,14 @@ func (h *UserHandler) Register(c *gin.Context) {
 	// 创建用户 (从 settings 读取默认配额)
 	defaultQuota := GetQuotaForLevel(h.db, "normal")
 	user := &models.User{
-		Username:     req.Username,
-		Email:        req.Email,
-		PasswordHash: string(hashedPassword),
-		InviteCode:   inviteCode,
-		UserLevel:    "normal",
-		DomainQuota:  defaultQuota,
-		Status:       "active",
+		Username:      req.Username,
+		Email:         req.Email,
+		EmailVerified: false,
+		PasswordHash:  string(hashedPassword),
+		InviteCode:    inviteCode,
+		UserLevel:     "normal",
+		DomainQuota:   defaultQuota,
+		Status:        "active",
 	}
 
 	// 开始事务处理邀请码和奖励
@@ -141,9 +146,12 @@ func (h *UserHandler) Register(c *gin.Context) {
 
 	tx.Commit()
 
+	verificationSent := h.sendVerificationEmail(user, middleware.GetLocale(c)) == nil
+
 	c.JSON(http.StatusOK, gin.H{
-		"message": middleware.T(c, "success.user_created"),
-		"user":    user.ToResponse(),
+		"message":                 middleware.T(c, "success.user_created"),
+		"user":                    user.ToResponse(),
+		"email_verification_sent": verificationSent,
 	})
 }
 

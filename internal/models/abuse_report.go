@@ -31,6 +31,7 @@ type AbuseReport struct {
 	Status        string     `gorm:"size:20;not null;default:open" json:"status"`
 	AdminNote     string     `gorm:"type:text;not null;default:''" json:"admin_note"`
 	DomainID      *uint      `gorm:"index" json:"domain_id"`
+	Locale        string     `gorm:"size:10;not null;default:''" json:"-"`
 	ResolvedAt    *time.Time `json:"resolved_at"`
 	CreatedAt     time.Time  `json:"created_at"`
 	UpdatedAt     time.Time  `json:"updated_at"`

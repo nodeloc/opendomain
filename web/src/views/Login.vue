@@ -32,7 +32,7 @@
         <label class="flex flex-col gap-1.5">
           <span class="flex items-center justify-between">
             <span class="text-[13px] text-y-muted">{{ $t('login.password') }}</span>
-            <a href="#" class="text-xs text-y-faint hover:text-y-text">{{ $t('login.forgotPassword') }}</a>
+            <router-link to="/forgot-password" class="text-xs text-y-faint hover:text-y-text">{{ $t('login.forgotPassword') }}</router-link>
           </span>
           <input
             v-model="form.password"

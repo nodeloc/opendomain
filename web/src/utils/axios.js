@@ -1,4 +1,5 @@
 import axios from 'axios'
+import i18n from '../locales'
 
 const instance = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '',
@@ -12,6 +13,8 @@ instance.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
+    // The backend picks API messages and email language from this header.
+    config.headers['Accept-Language'] = i18n.global.locale.value
     return config
   },
   (error) => {

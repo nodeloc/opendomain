@@ -74,5 +74,15 @@
   "abuse.note_too_long": "管理员备注最多 5000 个字符",
   "abuse.update_failed": "更新举报失败",
   "abuse.delete_failed": "删除举报失败",
-  "abuse.deleted": "举报已删除"
+  "abuse.deleted": "举报已删除",
+  "validation.password_too_long": "密码不能超过 72 个字节",
+  "error.email_not_verified": "领取域名前请先验证你的邮箱地址。",
+  "auth.reset_link_sent": "如果该邮箱对应的账户存在，我们已发送重置密码链接。",
+  "auth.forgot_password_rate_limited": "重置密码请求过于频繁，请稍后再试。",
+  "auth.invalid_token": "该链接无效或已过期，请重新获取。",
+  "auth.password_reset_success": "密码已重置，现在可以登录了。",
+  "auth.email_verified": "邮箱验证成功。",
+  "auth.already_verified": "你的邮箱已经验证过了。",
+  "auth.resend_rate_limited": "请稍后再重新发送验证邮件。",
+  "auth.verification_sent": "新的验证链接已发送到你的邮箱。"
 }

@@ -133,23 +133,26 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 		return
 	}
 
+	// 获取用户信息
+	var user models.User
+	if err := h.db.First(&user, userID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+	if !requireVerifiedEmail(c, &user) {
+		return
+	}
+
 	var req models.OrderCreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	// 获取根域名
+	// 获取根域名并检查等级要求
 	var rootDomain models.RootDomain
 	if err := h.db.First(&rootDomain, req.RootDomainID).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Root domain not found"})
-		return
-	}
-
-	// 获取用户信息并检查等级要求
-	var user models.User
-	if err := h.db.First(&user, userID).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}
 	if userLevelOrder(user.UserLevel) < userLevelOrder(rootDomain.MinUserLevel) {

@@ -11,6 +11,7 @@ import (
 	"opendomain/internal/config"
 	"opendomain/internal/handler"
 	"opendomain/internal/middleware"
+	"opendomain/internal/services"
 )
 
 // Setup 设置路由
@@ -44,7 +45,8 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 	api := r.Group("/api")
 	{
 		// 初始化处理器
-		userHandler := handler.NewUserHandler(db, cfg)
+		mailer := services.NewMailer(services.NewSMTPMailer(cfg))
+		userHandler := handler.NewUserHandler(db, rdb, cfg, mailer)
 		domainHandler := handler.NewDomainHandler(db, cfg)
 		dnsHandler := handler.NewDNSHandler(db, cfg)
 		couponHandler := handler.NewCouponHandler(db, cfg)
@@ -58,7 +60,7 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 		fossBillingSyncHandler := handler.NewFOSSBillingSyncHandler(db, cfg)
 		cyberPanelHandler := handler.NewCyberPanelHandler(db, cfg)
 		domainHandler.SetCyberPanelHandler(cyberPanelHandler)
-		abuseReportHandler := handler.NewAbuseReportHandler(db, rdb, cfg)
+		abuseReportHandler := handler.NewAbuseReportHandler(db, rdb, cfg, mailer)
 		statusHandler := handler.NewStatusHandler(db, rdb, cfg)
 
 		// 公开路由
@@ -100,6 +102,9 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 		{
 			auth.POST("/register", userHandler.Register)
 			auth.POST("/login", userHandler.Login)
+			auth.POST("/forgot-password", userHandler.ForgotPassword)
+			auth.POST("/reset-password", userHandler.ResetPassword)
+			auth.POST("/verify-email", userHandler.VerifyEmail)
 
 			// OAuth 路由
 			oauthHandler := handler.NewOAuthHandler(db, cfg)
@@ -121,6 +126,7 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 				user.GET("/profile", userHandler.GetProfile)
 				user.PUT("/profile", userHandler.UpdateProfile)
 				user.PUT("/change-password", userHandler.ChangePassword)
+				user.POST("/resend-verification", userHandler.ResendVerification)
 				// FOSSBilling 同步
 				user.POST("/sync-from-fossbilling", fossBillingSyncHandler.SyncFromFOSSBilling)
 				user.GET("/sync-status", fossBillingSyncHandler.GetSyncStatus)

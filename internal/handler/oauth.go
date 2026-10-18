@@ -287,16 +287,17 @@ func (h *OAuthHandler) findOrCreateOAuthUser(provider, oauthID, email, username,
 
 	now := timeutil.Now()
 	newUser := &models.User{
-		Username:    finalUsername,
-		Email:       email,
-		Provider:    provider,
-		OAuthID:     &oauthID,
-		UserLevel:   userLevel,
-		DomainQuota: quota,
-		Status:      "active",
-		InviteCode:  inviteCode,
-		LastLoginAt: &now,
-		LastLoginIP: &clientIP,
+		Username:      finalUsername,
+		Email:         email,
+		EmailVerified: true,
+		Provider:      provider,
+		OAuthID:       &oauthID,
+		UserLevel:     userLevel,
+		DomainQuota:   quota,
+		Status:        "active",
+		InviteCode:    inviteCode,
+		LastLoginAt:   &now,
+		LastLoginIP:   &clientIP,
 	}
 	if avatar != "" {
 		newUser.Avatar = &avatar

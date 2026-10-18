@@ -109,9 +109,11 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { CircleX, CircleCheck, TriangleAlert } from 'lucide-vue-next'
 import { useAuthStore } from '../stores/auth'
 import { useSiteConfigStore } from '../stores/siteConfig'
+import { useToast } from '../composables/useToast'
 import AuthCard from '../components/ui/AuthCard.vue'
 import OAuthButtons from '../components/ui/OAuthButtons.vue'
 import AuthLegal from '../components/auth/AuthLegal.vue'
@@ -119,6 +121,8 @@ import YLoader from '../components/brand/YLoader.vue'
 
 const router = useRouter()
 const route = useRoute()
+const { t } = useI18n()
+const toast = useToast()
 const authStore = useAuthStore()
 const siteConfigStore = useSiteConfigStore()
 const apiBase = import.meta.env.VITE_API_BASE_URL || ''
@@ -167,6 +171,9 @@ const handleRegister = async () => {
 
   if (result.success) {
     success.value = result.message
+    if (result.emailVerificationSent) {
+      toast.success(t('authEmail.register.sent', { email: payload.email }), 6000)
+    }
     setTimeout(() => {
       router.push('/login')
     }, 2000)

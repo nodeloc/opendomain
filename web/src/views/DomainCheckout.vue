@@ -149,6 +149,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import axios from '../utils/axios'
 import { useToast } from '../composables/useToast'
 import { useCurrency } from '../composables/useCurrency'
@@ -159,6 +160,7 @@ import YLoader from '../components/brand/YLoader.vue'
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()
+const { t } = useI18n()
 const { formatPrice } = useCurrency()
 
 const loading = ref(true)
@@ -314,7 +316,9 @@ const createOrderAndPay = async () => {
   } catch (error) {
     console.error('Failed to create order:', error)
     const errorData = error.response?.data
-    if (error.response?.status === 403 && errorData?.required_level) {
+    if (errorData?.code === 'email_not_verified') {
+      toast.error(t('authEmail.claim.notVerified'), 6000)
+    } else if (error.response?.status === 403 && errorData?.required_level) {
       toast.error(`${errorData.error} (required: ${errorData.required_level}, yours: ${errorData.your_level})`)
     } else {
       toast.error(errorData?.error || 'Failed to create order')

@@ -20,6 +20,7 @@ import (
 	"opendomain/internal/config"
 	"opendomain/internal/middleware"
 	"opendomain/internal/models"
+	"opendomain/internal/services"
 	"opendomain/pkg/logger"
 	"opendomain/pkg/timeutil"
 )
@@ -37,13 +38,14 @@ const (
 )
 
 type AbuseReportHandler struct {
-	db  *gorm.DB
-	rdb *redis.Client
-	cfg *config.Config
+	db     *gorm.DB
+	rdb    *redis.Client
+	cfg    *config.Config
+	mailer *services.Mailer
 }
 
-func NewAbuseReportHandler(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *AbuseReportHandler {
-	return &AbuseReportHandler{db: db, rdb: rdb, cfg: cfg}
+func NewAbuseReportHandler(db *gorm.DB, rdb *redis.Client, cfg *config.Config, mailer *services.Mailer) *AbuseReportHandler {
+	return &AbuseReportHandler{db: db, rdb: rdb, cfg: cfg, mailer: mailer}
 }
 
 // tr translates key and falls back to the given English text when the
@@ -171,16 +173,7 @@ func (h *AbuseReportHandler) allowReport(ctx context.Context, ip string) bool {
 }
 
 func (h *AbuseReportHandler) incrWindow(ctx context.Context, key string) (int64, error) {
-	n, err := h.rdb.Incr(ctx, key).Result()
-	if err != nil {
-		return 0, err
-	}
-	if n == 1 {
-		h.rdb.Expire(ctx, key, abuseReportRateWindow)
-	} else if ttl, terr := h.rdb.TTL(ctx, key).Result(); terr == nil && ttl < 0 {
-		h.rdb.Expire(ctx, key, abuseReportRateWindow)
-	}
-	return n, nil
+	return incrRateWindow(ctx, h.rdb, key, abuseReportRateWindow)
 }
 
 // reporterIP prefers the address Cloudflare saw, since production traffic
@@ -256,10 +249,13 @@ func (h *AbuseReportHandler) CreateAbuseReport(c *gin.Context) {
 		ReporterIP:    ip,
 		UserAgent:     stripNUL(strings.ToValidUTF8(userAgent, "")),
 		Status:        models.AbuseReportStatusOpen,
+		Locale:        services.NormalizeLocale(middleware.GetLocale(c)),
 	}
+	domainStatus := ""
 	if domain := h.matchDomain(hostname); domain != nil {
 		id := domain.ID
 		report.DomainID = &id
+		domainStatus = domain.Status
 	}
 
 	if err := h.db.Create(report).Error; err != nil {
@@ -267,6 +263,8 @@ func (h *AbuseReportHandler) CreateAbuseReport(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": tr(c, "error.internal_server", "Internal server error")})
 		return
 	}
+
+	h.notifyAdmins(*report, domainStatus)
 
 	c.JSON(http.StatusCreated, gin.H{
 		"id":      report.ID,
@@ -423,6 +421,7 @@ func (h *AbuseReportHandler) UpdateAbuseReport(c *gin.Context) {
 	if !ok {
 		return
 	}
+	prevStatus := report.Status
 
 	var req models.AbuseReportUpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -462,7 +461,54 @@ func (h *AbuseReportHandler) UpdateAbuseReport(c *gin.Context) {
 		return
 	}
 
+	if !isClosedAbuseStatus(prevStatus) && isClosedAbuseStatus(report.Status) && report.ReporterEmail != "" {
+		h.notifyReporter(*report)
+	}
+
 	c.JSON(http.StatusOK, gin.H{"report": h.toResponses([]models.AbuseReport{*report})[0]})
+}
+
+// notifyAdmins emails every active admin about a new report. The admin
+// lookup runs in the background with the sending.
+func (h *AbuseReportHandler) notifyAdmins(report models.AbuseReport, domainStatus string) {
+	h.mailer.Go("abuse-report-alert", func() {
+		var emails []string
+		if err := h.db.Model(&models.User{}).
+			Where("is_admin = ? AND status = ? AND email <> ?", true, "active", "").
+			Pluck("email", &emails).Error; err != nil {
+			logger.Errorf("abuse report %d: failed to load admin emails: %v", report.ID, err)
+			return
+		}
+		alert := services.AbuseAlert{
+			ID:            report.ID,
+			Category:      report.Category,
+			Subdomain:     report.Subdomain,
+			URL:           report.URL,
+			DomainStatus:  domainStatus,
+			Details:       report.Details,
+			ReporterEmail: report.ReporterEmail,
+			CreatedAt:     report.CreatedAt,
+			AdminURL:      strings.TrimRight(h.cfg.FrontendURL, "/") + "/admin/abuse-reports",
+		}
+		for _, to := range emails {
+			m, err := services.AbuseAlertMail(h.cfg.SiteName, to, alert)
+			if err != nil {
+				logger.Errorf("abuse report %d: failed to build admin alert: %v", report.ID, err)
+				continue
+			}
+			h.mailer.SendAsync(m)
+		}
+	})
+}
+
+func (h *AbuseReportHandler) notifyReporter(report models.AbuseReport) {
+	resolved := report.Status == models.AbuseReportStatusResolved
+	m, err := services.AbuseOutcomeMail(report.Locale, h.cfg.SiteName, report.ReporterEmail, report.ID, report.Subdomain, resolved)
+	if err != nil {
+		logger.Errorf("abuse report %d: failed to build reporter email: %v", report.ID, err)
+		return
+	}
+	h.mailer.SendAsync(m)
 }
 
 // DeleteAbuseReport 管理员：删除举报
