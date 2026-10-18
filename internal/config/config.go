@@ -20,6 +20,8 @@ type Config struct {
 	FrontendURL     string
 	SiteName        string
 	SiteDescription string
+	// SupportEmail receives partner applications.
+	SupportEmail string
 
 	Database    DatabaseConfig
 	Redis       RedisConfig
@@ -140,6 +142,7 @@ func Load() (*Config, error) {
 		FrontendURL:     viper.GetString("FRONTEND_URL"),
 		SiteName:        viper.GetString("SITE_NAME"),
 		SiteDescription: viper.GetString("SITE_DESCRIPTION"),
+		SupportEmail:    viper.GetString("SUPPORT_EMAIL"),
 
 		Database: DatabaseConfig{
 			Host:     viper.GetString("DB_HOST"),
@@ -243,6 +246,7 @@ func setDefaults() {
 	viper.SetDefault("SITE_NAME", "Yunamo")
 	viper.SetDefault("SITE_DESCRIPTION", "Your dynamo starts with a name")
 	viper.SetDefault("FRONTEND_URL", "http://localhost:3001")
+	viper.SetDefault("SUPPORT_EMAIL", "support@yunamo.com")
 	viper.SetDefault("PAYMENT_CALLBACK_URL", fmt.Sprintf("http://localhost:%s/api/payments/callback", viper.GetString("PORT")))
 	viper.SetDefault("PAYMENT_TEST_MODE", false)
 

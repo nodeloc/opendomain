@@ -350,3 +350,77 @@ func AbuseOutcomeMail(locale, siteName, to string, reportID uint, subdomain stri
 	}
 	return renderMail(to, subject, l)
 }
+
+// PartnerApplicationAlert carries the fields of a new partnership application.
+type PartnerApplicationAlert struct {
+	ID              uint
+	Name            string
+	Email           string
+	Organization    string
+	Website         string
+	PartnershipType string
+	Contact         string
+	Message         string
+	Locale          string
+	CreatedAt       time.Time
+	AdminURL        string
+}
+
+var partnershipTypeLabels = map[string]string{
+	"sponsorship": "资金赞助 Sponsorship",
+	"resources":   "资源支持 Resources",
+	"business":    "商务合作 Business",
+	"community":   "社区与媒体 Community & media",
+	"other":       "其他 Other",
+}
+
+// PartnerApplicationMail builds the notification sent to the support inbox
+// for a new partnership application. Reply-To is the applicant, so replying
+// from the inbox answers them directly.
+func PartnerApplicationMail(siteName, to string, a PartnerApplicationAlert) (*Mail, error) {
+	siteName = siteNameOrDefault(siteName)
+	who := singleLine(a.Name)
+	if org := singleLine(a.Organization); org != "" {
+		who += " · " + org
+	}
+	typeLabel := partnershipTypeLabels[a.PartnershipType]
+	if typeLabel == "" {
+		typeLabel = a.PartnershipType
+	}
+	subject := fmt.Sprintf("[%s] New partner application #%d: %s", siteName, a.ID, truncateRunes(who, 80))
+	or := func(v string) string {
+		if strings.TrimSpace(v) == "" {
+			return "-"
+		}
+		return v
+	}
+	l := &emailLayout{
+		Lang:       LocaleZhCN,
+		SiteName:   siteName,
+		Preheader:  fmt.Sprintf("#%d %s · %s", a.ID, who, typeLabel),
+		Heading:    fmt.Sprintf("收到新的合作申请 #%d", a.ID),
+		Subheading: fmt.Sprintf("New partner application #%d", a.ID),
+		Paragraphs: []string{"有人通过赞助页面提交了合作申请。直接回复本邮件即可联系对方。 / Someone applied to partner with us from the sponsor page. Reply to this email to answer them directly."},
+		Rows: []emailRow{
+			{Label: "合作类型 Type", Value: typeLabel},
+			{Label: "联系人 Name", Value: a.Name},
+			{Label: "邮箱 Email", Value: a.Email},
+			{Label: "组织 Organization", Value: or(a.Organization)},
+			{Label: "网站 Website", Value: or(a.Website)},
+			{Label: "其他联系方式 Contact", Value: or(a.Contact)},
+			{Label: "语言 Locale", Value: or(a.Locale)},
+			{Label: "提交时间 Submitted", Value: a.CreatedAt.UTC().Format("2006-01-02 15:04:05 UTC")},
+		},
+		QuoteLabel: "合作说明 Message",
+		Quote:      a.Message,
+		ButtonText: "查看合作申请 View applications",
+		ButtonURL:  a.AdminURL,
+		Footer:     siteName + " · 你的动力源 / Your dynamo",
+	}
+	m, err := renderMail(to, subject, l)
+	if err != nil {
+		return nil, err
+	}
+	m.ReplyTo = a.Email
+	return m, nil
+}

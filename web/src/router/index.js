@@ -235,6 +235,12 @@ const routes = [
     meta: { requiresAuth: true, requiresAdmin: true, layout: 'console' },
   },
   {
+    path: '/admin/partner-applications',
+    name: 'AdminPartnerApplications',
+    component: () => import('../views/AdminPartnerApplications.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true, layout: 'console' },
+  },
+  {
     path: '/pages/:slug',
     name: 'PageView',
     component: () => import('../views/PageView.vue'),

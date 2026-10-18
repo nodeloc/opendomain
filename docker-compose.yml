@@ -194,6 +194,7 @@ services:
       MAIL_USER: ${MAIL_USER:-}
       MAIL_PASSWORD: ${MAIL_PASSWORD:-}
       MAIL_FROM: ${MAIL_FROM:-noreply@yunamo.com}
+      SUPPORT_EMAIL: ${SUPPORT_EMAIL:-support@yunamo.com}
 
       # OAuth 配置
       GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}

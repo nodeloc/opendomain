@@ -91,6 +91,8 @@ func TestBuildMessageRejectsHeaderInjection(t *testing.T) {
 		{To: "user@example.com\r\nBcc: victim@example.com", Subject: "hi"},
 		{To: "user@example.com, victim@example.com", Subject: "hi"},
 		{To: "Name <user@example.com>", Subject: "hi"},
+		{To: "user@example.com", ReplyTo: "a@b.co\r\nBcc: victim@example.com", Subject: "hi"},
+		{To: "user@example.com", ReplyTo: "a@b.co, victim@example.com", Subject: "hi"},
 	}
 	for _, m := range cases {
 		m := m
@@ -100,6 +102,24 @@ func TestBuildMessageRejectsHeaderInjection(t *testing.T) {
 	}
 	if _, err := BuildMessage("Yunamo\r\nX: y", "noreply@yunamo.com", &Mail{To: "a@b.co", Subject: "hi"}, time.Now()); err == nil {
 		t.Error("expected error for CR/LF in sender name")
+	}
+}
+
+func TestBuildMessageReplyTo(t *testing.T) {
+	raw, err := BuildMessage("Yunamo", "noreply@yunamo.com", &Mail{To: "support@yunamo.com", ReplyTo: "ada@example.com", Subject: "hi"}, time.Now())
+	if err != nil {
+		t.Fatalf("BuildMessage: %v", err)
+	}
+	msg, err := mail.ReadMessage(bytes.NewReader(raw))
+	if err != nil {
+		t.Fatalf("ReadMessage: %v", err)
+	}
+	if got := msg.Header.Get("Reply-To"); got != "<ada@example.com>" {
+		t.Fatalf("Reply-To = %q", got)
+	}
+	raw, _ = BuildMessage("Yunamo", "noreply@yunamo.com", &Mail{To: "a@b.co", Subject: "hi"}, time.Now())
+	if strings.Contains(string(raw), "Reply-To:") {
+		t.Fatal("Reply-To header written without a reply address")
 	}
 }
 

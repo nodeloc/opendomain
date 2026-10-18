@@ -18,7 +18,7 @@
             {{ $t('sponsor.ctaSupport') }}
             <ArrowDown :size="16" :stroke-width="2" aria-hidden="true" />
           </a>
-          <a :href="partnerMailto" class="btn btn-outline min-h-[48px] rounded-full px-6">
+          <a href="#become-partner" class="btn btn-outline min-h-[48px] rounded-full px-6" @click.prevent="scrollToPartner()">
             <Handshake :size="16" :stroke-width="1.5" aria-hidden="true" />
             {{ $t('sponsor.becomePartner') }}
           </a>
@@ -37,7 +37,7 @@
           </i18n-t>
           <p class="m-0 text-y-muted">{{ $t('sponsor.partnersLead') }}</p>
         </div>
-        <a :href="partnerMailto" class="btn btn-outline btn-sm gap-1.5">
+        <a href="#become-partner" class="btn btn-outline btn-sm gap-1.5" @click.prevent="scrollToPartner()">
           <Plus :size="14" :stroke-width="1.75" aria-hidden="true" />
           {{ $t('sponsor.becomePartner') }}
         </a>
@@ -73,7 +73,7 @@
           <h3 class="m-0 text-xl font-bold text-y-text">{{ $t('sponsor.emptyTitle') }}</h3>
           <p class="m-0 mt-1.5 max-w-[560px] text-sm leading-6 text-y-muted">{{ $t('sponsor.emptyDesc') }}</p>
         </div>
-        <a :href="partnerMailto" class="y-btn-ink shrink-0">{{ $t('sponsor.becomePartner') }}</a>
+        <a href="#become-partner" class="y-btn-ink shrink-0" @click.prevent="scrollToPartner()">{{ $t('sponsor.becomePartner') }}</a>
       </div>
 
       <!-- Tier groups -->
@@ -196,11 +196,13 @@
               </li>
             </ul>
             <div class="mt-auto pt-2">
-              <a :href="resourcesMailto" class="btn btn-outline btn-sm h-auto min-h-[2.125rem] max-w-full gap-1.5 py-1.5">
-                <Mail :size="14" :stroke-width="1.5" class="shrink-0" aria-hidden="true" />
-                <i18n-t keypath="sponsor.businessContact" tag="span" class="break-all text-left font-medium">
-                  <template #email><span class="font-mono">{{ supportEmail }}</span></template>
-                </i18n-t>
+              <a
+                href="#become-partner"
+                class="btn btn-outline btn-sm h-auto min-h-[2.125rem] max-w-full gap-1.5 py-1.5"
+                @click.prevent="scrollToPartner('resources')"
+              >
+                <ArrowDown :size="14" :stroke-width="1.75" class="shrink-0" aria-hidden="true" />
+                <span class="text-left font-medium">{{ $t('partner.resourcesCta') }}</span>
               </a>
             </div>
           </article>
@@ -210,6 +212,58 @@
           <Sparkles :size="16" :stroke-width="1.5" class="mt-0.5 shrink-0 text-y-mint-text" aria-hidden="true" />
           <span>{{ $t('sponsor.moreComing') }}</span>
         </p>
+      </div>
+    </section>
+
+    <!-- Become a partner -->
+    <section id="become-partner" class="y-band scroll-mt-20" aria-labelledby="partner-title">
+      <!-- On small screens the form follows the intro directly; the details move below it. -->
+      <div class="y-container grid gap-10 py-16 sm:py-20 lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)] lg:grid-rows-[auto_1fr] lg:gap-x-12 lg:gap-y-8">
+        <div class="flex min-w-0 flex-col gap-3 lg:col-start-1 lg:row-start-1">
+          <p class="y-eyebrow m-0 flex items-center gap-2">
+            <Handshake :size="14" :stroke-width="2" aria-hidden="true" />
+            {{ $t('partner.eyebrow') }}
+          </p>
+          <i18n-t id="partner-title" keypath="partner.title" tag="h2" class="y-title m-0 outline-none" tabindex="-1">
+            <template #accent><em>{{ $t('partner.titleAccent') }}</em></template>
+          </i18n-t>
+          <p class="m-0 text-y-muted">{{ $t('partner.lead') }}</p>
+        </div>
+
+        <div class="min-w-0 lg:col-start-2 lg:row-span-2 lg:row-start-1">
+          <PartnerApplicationForm ref="partnerFormRef" />
+        </div>
+
+        <div class="flex min-w-0 flex-col gap-8 lg:col-start-1 lg:row-start-2">
+          <div class="flex flex-col gap-3.5">
+            <span class="y-label">{{ $t('partner.perksTitle') }}</span>
+            <ul class="m-0 flex list-none flex-col gap-3 p-0">
+              <li v-for="key in ['logo', 'reach', 'team']" :key="key" class="flex items-start gap-3 text-sm leading-6 text-y-text">
+                <Check :size="16" :stroke-width="2" class="mt-1 shrink-0 text-y-mint-text" aria-hidden="true" />
+                <span>{{ $t(`partner.perks.${key}`) }}</span>
+              </li>
+            </ul>
+          </div>
+
+          <div class="flex flex-col gap-3.5">
+            <span class="y-label">{{ $t('partner.nextTitle') }}</span>
+            <ol class="m-0 flex list-none flex-col gap-4 p-0">
+              <li v-for="(key, i) in ['read', 'reply', 'plan']" :key="key" class="flex gap-3.5">
+                <span :class="i === 0 ? 'y-step-num' : 'y-step-num-muted'" aria-hidden="true">{{ i + 1 }}</span>
+                <div>
+                  <div class="font-semibold text-y-text">{{ $t(`partner.next.${key}Title`) }}</div>
+                  <div class="mt-0.5 text-sm leading-[22px] text-y-muted">{{ $t(`partner.next.${key}Desc`) }}</div>
+                </div>
+              </li>
+            </ol>
+          </div>
+
+          <i18n-t keypath="partner.fallback" tag="p" class="m-0 text-sm leading-6 text-y-muted">
+            <template #email>
+              <a :href="partnerMailto" class="break-all font-medium text-y-mint-text hover:text-y-mint-hover">{{ supportEmail }}</a>
+            </template>
+          </i18n-t>
+        </div>
       </div>
     </section>
 
@@ -283,18 +337,19 @@
             </template>
           </i18n-t>
         </div>
-        <a :href="partnerMailto" class="y-btn-ink relative shrink-0">{{ $t('sponsor.becomePartner') }}</a>
+        <a href="#become-partner" class="y-btn-ink relative shrink-0" @click.prevent="scrollToPartner()">{{ $t('sponsor.becomePartner') }}</a>
       </div>
     </section>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
+import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
   Heart, HeartHandshake, Handshake, ArrowDown, ArrowUpRight, Plus, TriangleAlert, RefreshCw,
-  Coins, Copy, Check, Github, Mail, Sparkles, Server, Network, CodeXml, Star, Share2, Bug, GitPullRequest,
+  Coins, Copy, Check, Github, Sparkles, Server, Network, CodeXml, Star, Share2, Bug, GitPullRequest,
 } from 'lucide-vue-next'
 import axios from '../utils/axios'
 import { copyText } from '../utils/clipboard'
@@ -303,7 +358,9 @@ import { useTheme } from '../composables/useTheme'
 import { useSiteConfigStore } from '../stores/siteConfig'
 import { GITHUB_URL, SUPPORT_EMAIL } from '../config/links'
 import SponsorLogo from '../components/sponsor/SponsorLogo.vue'
+import PartnerApplicationForm from '../components/sponsor/PartnerApplicationForm.vue'
 
+const route = useRoute()
 const { t, locale } = useI18n()
 const toast = useToast()
 const { isDark } = useTheme()
@@ -323,7 +380,7 @@ const githubSponsorsUrl = computed(() => (payment.value.github_sponsors_url || '
 
 const mailto = (subject) => `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(subject)}`
 const partnerMailto = computed(() => mailto(t('sponsor.mailSubjectPartner')))
-const resourcesMailto = computed(() => mailto(t('sponsor.mailSubjectResources')))
+const partnerFormRef = ref(null)
 
 const groups = computed(() => {
   const byTier = { partner: [], sponsor: [], backer: [] }
@@ -394,6 +451,13 @@ const scrollToSupport = () => {
   document.getElementById('support')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
+const scrollToPartner = (type) => {
+  if (type) partnerFormRef.value?.setType(type)
+  document.getElementById('become-partner')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  // Move focus for keyboard and screen reader users without fighting the smooth scroll or opening a mobile keyboard.
+  document.getElementById('partner-title')?.focus({ preventScroll: true })
+}
+
 const load = async () => {
   loading.value = true
   loadError.value = false
@@ -412,5 +476,12 @@ const load = async () => {
   }
 }
 
-onMounted(load)
+onMounted(async () => {
+  await load()
+  // The router resets scroll to the top, so honour a #become-partner deep link once the content above has its final height.
+  if (route.hash === '#become-partner') {
+    await nextTick()
+    document.getElementById('become-partner')?.scrollIntoView({ block: 'start' })
+  }
+})
 </script>

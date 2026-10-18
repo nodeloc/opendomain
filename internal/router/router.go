@@ -63,6 +63,7 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 		abuseReportHandler := handler.NewAbuseReportHandler(db, rdb, cfg, mailer)
 		statusHandler := handler.NewStatusHandler(db, rdb, cfg)
 		sponsorHandler := handler.NewSponsorHandler(db, cfg)
+		partnerApplicationHandler := handler.NewPartnerApplicationHandler(db, rdb, cfg, mailer)
 
 		// 公开路由
 		public := api.Group("/public")
@@ -94,6 +95,7 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 			public.POST("/abuse-reports", abuseReportHandler.CreateAbuseReport)
 			// 赞助商
 			public.GET("/sponsors", sponsorHandler.ListPublicSponsors)
+			public.POST("/partner-applications", partnerApplicationHandler.CreatePartnerApplication)
 		}
 
 		// 支付回调路由（公开，通过签名验证）
@@ -287,6 +289,10 @@ func Setup(db *gorm.DB, rdb *redis.Client, cfg *config.Config) *gin.Engine {
 			admin.DELETE("/sponsors/:id", sponsorHandler.AdminDeleteSponsor)
 			admin.GET("/sponsor-settings", sponsorHandler.AdminGetSponsorSettings)
 			admin.PUT("/sponsor-settings", sponsorHandler.AdminUpdateSponsorSettings)
+
+			admin.GET("/partner-applications", partnerApplicationHandler.ListPartnerApplications)
+			admin.PUT("/partner-applications/:id", partnerApplicationHandler.UpdatePartnerApplication)
+			admin.DELETE("/partner-applications/:id", partnerApplicationHandler.DeletePartnerApplication)
 
 			// CyberPanel 服务器管理
 			cpAdmin := admin.Group("/cyberpanel")

@@ -10,7 +10,6 @@ export default {
       ctaSupport: 'Ways to support',
       becomePartner: 'Become a partner',
       mailSubjectPartner: 'Yunamo partnership',
-      mailSubjectResources: 'Yunamo resource sponsorship',
 
       partnersEyebrow: 'Partners and sponsors',
       partnersTitle: 'Powered by people who {accent}',
@@ -56,7 +55,6 @@ export default {
         domains: 'Domains',
         longTerm: 'Long-term partnership',
       },
-      businessContact: 'Write to {email}',
       moreComing: 'More ways to give are on the way. Until then, email us and we will sort it out.',
 
       sustainsEyebrow: 'Where it goes',
@@ -179,7 +177,6 @@ export default {
       ctaSupport: '支持方式',
       becomePartner: '成为合作伙伴',
       mailSubjectPartner: 'Yunamo 合作洽谈',
-      mailSubjectResources: 'Yunamo 资源赞助',
 
       partnersEyebrow: '合作伙伴与赞助者',
       partnersTitle: '感谢{accent}的你们',
@@ -225,7 +222,6 @@ export default {
         domains: '域名',
         longTerm: '长期合作',
       },
-      businessContact: '发送邮件至 {email}',
       moreComing: '更多赞助方式即将上线。在此之前，欢迎发邮件联系我们。',
 
       sustainsEyebrow: '资金用途',

@@ -28,6 +28,7 @@ const smtpTimeout = 20 * time.Second
 // Mail is a single outgoing message with a plain-text and an HTML body.
 type Mail struct {
 	To      string
+	ReplyTo string
 	Subject string
 	Text    string
 	HTML    string
@@ -121,6 +122,12 @@ func BuildMessage(fromName, fromAddr string, m *Mail, now time.Time) ([]byte, er
 	if err != nil {
 		return nil, err
 	}
+	replyTo := ""
+	if m.ReplyTo != "" {
+		if replyTo, err = parseBareAddress(m.ReplyTo); err != nil {
+			return nil, err
+		}
+	}
 	msgID, err := randomHex(16)
 	if err != nil {
 		return nil, err
@@ -147,6 +154,9 @@ func BuildMessage(fromName, fromAddr string, m *Mail, now time.Time) ([]byte, er
 	}
 	header("From", (&mail.Address{Name: fromName, Address: from}).String())
 	header("To", (&mail.Address{Address: to}).String())
+	if replyTo != "" {
+		header("Reply-To", (&mail.Address{Address: replyTo}).String())
+	}
 	header("Subject", encodeSubject(m.Subject))
 	header("Date", now.Format(time.RFC1123Z))
 	header("Message-ID", "<"+msgID+"@"+addressDomain(from)+">")
